@@ -178,11 +178,11 @@ async function handleRecoverPin(req, env) {
   try { body = JSON.parse(raw); } catch (_) { return json({ error: "Invalid JSON" }, 400); }
 
   const email = String(body.email || "").slice(0, 240).trim();
-  const pin   = String(body.pin   || "").slice(0, 3).trim();
+  const pin   = String(body.pin   || "").slice(0, 4).trim();
   const instanceId = String(body.instanceId || "").slice(0, 120).trim();
 
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "Email inválido" }, 400);
-  if (!/^\d{1,3}$/.test(pin)) return json({ error: "PIN inválido" }, 400);
+  if (!/^\d{3,4}$/.test(pin)) return json({ error: "PIN inválido" }, 400);
 
   // Anti-abuso (JFC 2026-07-22). Dos blindajes, ambos fail-open para NUNCA
   // romper una recuperación legítima si el KV tiene un hipo:
@@ -214,7 +214,7 @@ async function handleRecoverPin(req, env) {
     // Fallback: onboarding@resend.dev works on all Resend accounts without domain
   // verification. noreply@Consultorio 123.com would fail — that domain is not verified.
   const fromEmail = (env.FROM_EMAIL || "onboarding@resend.dev").trim();
-  const pinDisplay = pin.padStart(3, "0"); // siempre 3 dígitos con ceros
+  const pinDisplay = pin; // consultorio-123 usa PIN de 3 o 4 digitos, no reformatear (JFC 2026-08-10)
 
   let resendResp;
   try {
