@@ -47,3 +47,5 @@ Ver [PRIVACY.md](./PRIVACY.md). Los datos del consultorio no salen del dispositi
 ## Licencia
 
 Ver `LICENSE`.
+
+**Licencia comercial de uso:** 5 años desde la activación, con soporte y actualizaciones incluidos durante todo ese período. Sin suscripción.
