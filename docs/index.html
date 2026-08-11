@@ -2121,13 +2121,14 @@ function badgeComportamiento(ev) {
   if (t === 0 && cv === 0) return "";
   const svgStar = `<svg width="14" height="14" viewBox="0 0 14 14" fill="#E8A020" style="vertical-align:middle;"><polygon points="7,1 8.8,5.3 13.4,5.7 10.1,8.6 11.1,13.1 7,10.6 2.9,13.1 3.9,8.6 0.6,5.7 5.2,5.3"/></svg>`;
   const svgFlag = `<svg width="13" height="14" viewBox="0 0 13 14" fill="#C0392B" style="vertical-align:middle;"><rect x="1" y="0" width="1.5" height="14"/><polygon points="2.5,0 12,3 2.5,7"/></svg>`;
-  const svgEye = `<svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="#E86040" stroke-width="1.4" style="vertical-align:middle;"><ellipse cx="8" cy="5.5" rx="7" ry="4.5"/><circle cx="8" cy="5.5" r="2" fill="#E86040" stroke="none"/></svg>`;
   const svgCase = `<svg width="14" height="13" viewBox="0 0 14 13" fill="none" stroke="#2E6278" stroke-width="1.4" style="vertical-align:middle;"><rect x="1" y="4" width="12" height="8" rx="2"/><path d="M5 4V2.5A1.5 1.5 0 0 1 9 2.5V4"/></svg>`;
   const chip = (icon, txt, bg, color) =>
     `<span title="${txt}" style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:2px 7px;border-radius:20px;font-size:12px;font-weight:700;background:${bg};color:${color} !important;-webkit-text-fill-color:${color} !important;">${icon}${txt}</span>`;
   if (t === 1 && cv === 1)   return chip(svgStar,  "VIP",      "#FEF6E0", "#8A5A00");
   if (t === -1 && cv === -1) return chip(svgFlag,  "Alert",   "#FDECEA", "#C0392B");
-  if (t === 1 && cv === -1)  return chip(svgEye,   "Watch",   "#FFF3EE", "#E86040");
+  // Cuadrante "Watch" (agradable pero poco confiable) eliminado aqui (JFC
+  // 2026-08-10): tiene sentido para un cliente de retail, no para calificar
+  // un paciente. Ese caso cae ahora al badge de un solo eje mas abajo.
   if (t === -1 && cv === 1)  return chip(svgCase,  "Difficult",  "#EBF4F9", "#2E6278");
   if (t === 1)   return chip(svgHeartR(true, 14),  _tEv("eval.agradable"),  "#EDFAF4", "#006B3C");
   if (t === -1)  return chip(svgHeartR(false, 14), _tEv("eval.dificil"),"#FDECEA","#C0392B");

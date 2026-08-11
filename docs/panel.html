@@ -21,15 +21,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="dark">
-<title>Panel · f123</title>
+<title>Panel · consultorio-123</title>
 <style>
   :root{
     --bg:#0f1117;
     --surface:#1a1e2a;
     --surface2:#222736;
     --border:#2e3448;
-    --gold:#c9953a;
-    --gold-dim:#b8862f;
+    /* Identidad propia de consultorio-123 (JFC 2026-08-10): este panel es
+       clon de docs/panel.html de AMIGABLE y usaba el mismo dorado que
+       amigable-123/friendly-123 — imposible distinguir a simple vista qué
+       panel esta abierto con 3 pestañas al mismo tiempo. --gold aqui es en
+       realidad el brass/teal de consultorio-123 (var(--brass) en su
+       index.html: #5294AC), no oro — el nombre de variable se deja igual
+       para no tocar cada referencia, pero el valor es unico de esta app. */
+    --gold:#5294AC;
+    --gold-dim:#3f7488;
     --green:#28c98a;
     --green-dim:#1a7a52;
     --amber:#d4832a;
@@ -345,7 +352,7 @@
     <div class="tabla-wrap">
       <div id="lic-empty" style="padding:34px 20px;text-align:center;color:var(--ink-soft);font-size:14px;display:none;">Aún no hay instancias. Cuando tengas el Worker configurado, aparecerán aquí.</div>
       <table class="versiones" id="lic-tabla" style="display:none;">
-        <thead><tr><th>Estado</th><th>Código f123</th><th>Nombre</th><th>Email</th><th>WhatsApp</th><th>Cédula</th><th>Activado</th><th>Última vez</th><th>Acción</th></tr></thead>
+        <thead><tr><th>Demo / Licencia</th><th>Nombre</th><th>Email</th><th>WhatsApp</th><th>Cédula</th><th>Activado</th><th>Última vez</th><th>Acción</th></tr></thead>
         <tbody id="lic-tbody"></tbody>
       </table>
     </div>
@@ -776,8 +783,12 @@ function licRenderTabla(data) {
     const n = g.filas.length;
     const tr = document.createElement("tr");
     tr.innerHTML =
-      `<td><span class="lic-badge ${licEsc(licNormEstado(est))}">${licEsc(licNormEstado(est))}</span></td>` +
-      `<td class="mono" style="color:var(--gold);">${licEsc(r.licenseCode || "—")}` +
+      `<td>` +
+      (licNormEstado(est) === "bloqueada"
+        ? `<span class="lic-badge bloqueada">Bloqueada</span>`
+        : (r.licenseCode
+            ? `<span class="mono" style="color:var(--gold);font-weight:700;">${licEsc(r.licenseCode)}</span>`
+            : `<span class="lic-badge minima">Demo</span>`)) +
       (n > 1 ? `<br><button onclick="licToggleDisp('${id}')" style="margin-top:4px;background:none;border:1px solid var(--gold);color:var(--gold);border-radius:4px;padding:3px 8px;font-size:13px;cursor:pointer;">${n} devices</button>` : "") + `</td>` +
       `<td>${licEsc(((r.nombre || "") + " " + (r.apellido || "")).trim() || "—")}</td>` +
       `<td style="font-size:13px;">${licEsc(r.email || "—")}</td>` +
@@ -804,7 +815,7 @@ function licRenderTabla(data) {
       trh.style.background = "rgba(255,255,255,.03)";
       trh.innerHTML =
         `<td></td><td class="mono" style="font-size:13px;color:#CCCCCC;">same business, another device</td>` +
-        `<td colspan="4" style="font-size:13px;color:#CCCCCC;">${licEsc(h.instanceId)}</td>` +
+        `<td colspan="3" style="font-size:13px;color:#CCCCCC;">${licEsc(h.instanceId)}</td>` +
         `<td class="date">${licFmtDate(h.activatedAt)}</td><td class="date">${licFmtDate(h.lastSeen)}</td>` +
         `<td><button class="btn-ok" onclick="licBorrar('${hid}')" style="background:transparent;border:1px solid var(--red,#E8365D);color:var(--red,#E8365D);">Delete</button></td>`;
       tb.appendChild(trh);
