@@ -29,6 +29,13 @@
   .agenda-fila .quien{font-weight:800;color:#1A1A1A !important;-webkit-text-fill-color:#1A1A1A !important;}
   .agenda-fila .cuando{font-size:14px;color:#7A3C00 !important;-webkit-text-fill-color:#7A3C00 !important;font-weight:700;}
   .agenda-fila .motivo{font-size:14px;color:#1A1A1A !important;-webkit-text-fill-color:#1A1A1A !important;}
+  /* Cita en curso (JFC 2026-08-11): la pregunta que el consultorio se hace todo
+     el dia es quien esta adentro y quien sigue. Se marca con tinta y peso, sin
+     gastar un color del semaforo Simon. */
+  .agenda-fila.en-curso{border-left:6px solid #0F1923;background:#EFF1F3;}
+  .agenda-chip-ahora{display:inline-block;font-family:var(--font-mono,monospace);font-size:14px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.04em;color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;
+    background:#0F1923;border-radius:20px;padding:3px 11px;margin-left:9px;vertical-align:middle;}
   .agenda-acciones{display:flex;gap:8px;flex-wrap:wrap;}
   .agenda-mini{min-height:36px;padding:6px 12px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}
   .agenda-mini.google{background:#0057B8;color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;}
@@ -109,9 +116,17 @@
     window.AMG.Agenda.listar().then(function (citas) {
       var el = document.getElementById("agenda-lista");
       if (!citas.length) { el.innerHTML = '<div class="agenda-vacio">Todavía no hay citas agendadas.</div>'; return; }
+      var ahora = new Date();
       el.innerHTML = citas.map(function (c) {
-        return '<div class="agenda-fila">' +
-          '<div><div class="quien">' + esc(c.paciente) + '</div>' +
+        // ¿esta cita esta ocurriendo ahora mismo? (entre su hora de inicio y su fin)
+        var enCurso = false;
+        try {
+          var ini = fechaHoraLocal(c.fecha, c.hora);
+          var fin = new Date(ini.getTime() + (c.duracionMin || 30) * 60000);
+          enCurso = ahora >= ini && ahora < fin;
+        } catch (_) { enCurso = false; }
+        return '<div class="agenda-fila' + (enCurso ? " en-curso" : "") + '">' +
+          '<div><div class="quien">' + esc(c.paciente) + (enCurso ? '<span class="agenda-chip-ahora">Ahora</span>' : "") + '</div>' +
           '<div class="cuando">' + esc(c.fecha) + " · " + esc(c.hora) + " (" + c.duracionMin + " min)</div>" +
           (c.motivo ? '<div class="motivo">' + esc(c.motivo) + "</div>" : "") + "</div>" +
           '<div class="agenda-acciones">' +
