@@ -572,7 +572,7 @@
             d.id = "oc-estado-corrupto-aviso";
             d.setAttribute("role", "alert");
             d.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:10003;background:#B0183E;padding:12px 16px;text-align:center;cursor:pointer;";
-            d.innerHTML = '<span style="color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:15px;font-weight:700;">⚠️ El inventario guardado no pudo cargarse (datos de ejemplo activos). Ve a AVANZADO para recuperar o importar tu respaldo.</span>';
+            d.innerHTML = '<span style="color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:15px;font-weight:700;">El inventario guardado no pudo cargarse (datos de ejemplo activos). Ve a AVANZADO para recuperar o importar tu respaldo.</span>';
             d.addEventListener("click", () => d.remove());
             (document.body || document.documentElement).appendChild(d);
           } catch (_) {}
@@ -596,7 +596,7 @@
             d.id = "oc-estado-corrupto-aviso";
             d.setAttribute("role", "alert");
             d.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:10003;background:#B0183E;padding:12px 16px;text-align:center;cursor:pointer;";
-            d.innerHTML = '<span style="color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:15px;font-weight:700;">⚠️ El inventario guardado no pudo cargarse (datos de ejemplo activos). Ve a AVANZADO para recuperar o importar tu respaldo.</span>';
+            d.innerHTML = '<span style="color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:15px;font-weight:700;">El inventario guardado no pudo cargarse (datos de ejemplo activos). Ve a AVANZADO para recuperar o importar tu respaldo.</span>';
             d.addEventListener("click", () => d.remove());
             (document.body || document.documentElement).appendChild(d);
           } catch (_) {}
@@ -1213,7 +1213,16 @@
         const hace7dias = new Date(hoyISO()).getTime() - 6 * 86400000; // Fix-8: ZONA-aware boundary, not UTC epoch
         const vSemana = ventas.filter((v) => new Date(v.fecha).getTime() >= hace7dias && (!uid || uid === "todas" || v.ubicacionId === uid));
         const entraSemana = vSemana.reduce((a, v) => a + v.precioUnit * v.cantidad, 0);
-        return J({ semaforoGeneral: sem, resumenDia: { entra: +entra.toFixed(2), sale: +sale.toFixed(2), gananciaHoy: +(entra - sale).toFixed(2), inventarioValorizado: +inv.toFixed(2), ventasCount: vh.length }, resumenSemana: { entra: +entraSemana.toFixed(2), ventasCount: vSemana.length }, alertas });
+        const saleSemana = vSemana.reduce((a, v) => a + (v.costoUnit || 0) * v.cantidad, 0);
+        /* MES EN CURSO (JFC 2026-08-13): del dia 1 del mes actual a hoy, no
+           "ultimos 30 dias". El medico cierra por mes calendario, que es lo que
+           mira su contador. Misma ubicacion filtrada que el resto del resumen. */
+        const hoyD = new Date(hoyISO());
+        const iniMes = new Date(hoyD.getFullYear(), hoyD.getMonth(), 1).getTime();
+        const vMes = ventas.filter((v) => new Date(v.fecha).getTime() >= iniMes && (!uid || uid === "todas" || v.ubicacionId === uid));
+        const entraMes = vMes.reduce((a, v) => a + v.precioUnit * v.cantidad, 0);
+        const saleMes = vMes.reduce((a, v) => a + (v.costoUnit || 0) * v.cantidad, 0);
+        return J({ semaforoGeneral: sem, resumenDia: { entra: +entra.toFixed(2), sale: +sale.toFixed(2), gananciaHoy: +(entra - sale).toFixed(2), inventarioValorizado: +inv.toFixed(2), ventasCount: vh.length }, resumenSemana: { entra: +entraSemana.toFixed(2), sale: +saleSemana.toFixed(2), ganancia: +(entraSemana - saleSemana).toFixed(2), ventasCount: vSemana.length }, resumenMes: { entra: +entraMes.toFixed(2), sale: +saleMes.toFixed(2), ganancia: +(entraMes - saleMes).toFixed(2), ventasCount: vMes.length }, alertas });
       }
 
       if (path === "/api/productos" && (!opts || opts.method !== "POST")) {

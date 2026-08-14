@@ -629,6 +629,9 @@
     border-top:3px solid var(--plata-canto);
   }
   .grid-resumen .tarjeta::before{ content:none; }
+  /* Renglon chico bajo la cifra: cuantas atenciones hay detras del numero.
+     13px es el piso de legibilidad de JFC, no bajarlo. */
+  .sub-kpi{font-size:13px;font-weight:700;margin-top:4px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;}
   .tarjeta .etiqueta{
     font-family:var(--font-mono);
     font-size:15px;
@@ -1304,9 +1307,18 @@
         <div class="etiqueta" data-i18n="hoy.profit">Profit today</div>
         <div class="valor" id="resGanancia">$0.00</div>
       </div>
+      <!-- SEMANA Y MES (JFC 2026-08-13). Reemplazan a "Tu inventario vale":
+           un consultorio no vive de cuanto valen sus insumos en percha, vive de
+           cuanto atendio. Los insumos siguen existiendo, en Contabilidad. -->
       <div class="tarjeta tag-card fin-dueno">
-        <div class="etiqueta" data-i18n="hoy.inventoryValue">Your inventory is worth</div>
-        <div class="valor" id="resInventario">$0.00</div>
+        <div class="etiqueta" data-i18n="hoy.weekHow">Cómo va tu semana</div>
+        <div class="valor" id="resSemana">$0.00</div>
+        <div class="sub-kpi" id="resSemanaSub"></div>
+      </div>
+      <div class="tarjeta tag-card fin-dueno">
+        <div class="etiqueta" data-i18n="hoy.monthHow">Cómo va tu mes</div>
+        <div class="valor" id="resMes">$0.00</div>
+        <div class="sub-kpi" id="resMesSub"></div>
       </div>
       <div class="tarjeta tag-card">
         <div class="etiqueta" data-i18n="hoy.salesToday">Sales today</div>
@@ -1567,7 +1579,7 @@
       <summary style="cursor:pointer;font-size:13px;font-family:var(--font-mono);color:var(--azul-medio,#2c4a68);font-weight:700;list-style:none;" data-i18n="how.toggle">How does it work? &#9656;</summary>
       <div style="margin-top:8px;padding:10px 14px;background:var(--blanco-calido,#fbf5e8);border-radius:8px;border:1px solid var(--azul-suave,#dde5ec);">
         <p style="margin:0 0 6px;font-size:14px;color:var(--ink);" data-i18n="how.cust.1">1. Add a customer once — they get a unique code and are placed in a “season” automatically based on how they buy.</p>
-        <p style="margin:0 0 6px;font-size:14px;color:var(--ink);" data-i18n="how.cust.2">2. 🌱 spring = new/growing, ☀️ summer = your best customers, 🍂 fall = cooling off (win them back), ❄️ winter = inactive.</p>
+        <p style="margin:0 0 6px;font-size:14px;color:var(--ink);" data-i18n="how.cust.2">2. Owner only: further down, the behavior matrix shows who you can count on and who is worth watching.</p>
         <p style="margin:0 0 6px;font-size:14px;color:var(--ink);" data-i18n="how.cust.3">3. Rate each customer's behavior — it builds a history only staff can see.</p>
         <p style="margin:0 0 6px;font-size:14px;color:var(--ink);" data-i18n="how.cust.4">4. Already have a customer list? Import it all at once from a CSV further down.</p>
       </div>
@@ -2110,10 +2122,10 @@ if (elBtnCierre) elBtnCierre.addEventListener("click", async () => {
 // - Matriz de estaciones (clientes) y matriz BCG (inventario): SOLO dueno.
 // ============================================================================
 const ESTACIONES = {
-  verano:    { icono: "☀️", titulo: "Verano — en control",    bg: "var(--sim-amarillo)", borde: "var(--sim-amarillo-dk)", tinta: "#1A1A1A", frase: "Vienen seguido y cumplen sus citas." },
-  primavera: { icono: "🌱", titulo: "Primavera — empezando",  bg: "var(--sim-verde)",    borde: "var(--sim-verde-dk)",    tinta: "#FFFFFF", frase: "Recién llegan. Un recordatorio a tiempo y siguen el tratamiento." },
-  otono:     { icono: "🍂", titulo: "Otoño — se están alejando", bg: "var(--sim-naranja)", borde: "var(--sim-naranja-dk)",  tinta: "#FFFFFF", frase: "Venían seguido y hace rato no aparecen. Vale la pena llamarles hoy." },
-  invierno:  { icono: "❄️", titulo: "Invierno — sin seguimiento", bg: "var(--sim-azul)",   borde: "var(--sim-azul-dk)",     tinta: "#FFFFFF", frase: "Sin señales hace mucho. Un mensaje puede retomar su control." },
+  verano:    { icono: "", titulo: "Verano — en control",    bg: "var(--sim-amarillo)", borde: "var(--sim-amarillo-dk)", tinta: "#1A1A1A", frase: "Vienen seguido y cumplen sus citas." },
+  primavera: { icono: "", titulo: "Primavera — empezando",  bg: "var(--sim-verde)",    borde: "var(--sim-verde-dk)",    tinta: "#FFFFFF", frase: "Recién llegan. Un recordatorio a tiempo y siguen el tratamiento." },
+  otono:     { icono: "", titulo: "Otoño — se están alejando", bg: "var(--sim-naranja)", borde: "var(--sim-naranja-dk)",  tinta: "#FFFFFF", frase: "Venían seguido y hace rato no aparecen. Vale la pena llamarles hoy." },
+  invierno:  { icono: "", titulo: "Invierno — sin seguimiento", bg: "var(--sim-azul)",   borde: "var(--sim-azul-dk)",     tinta: "#FFFFFF", frase: "Sin señales hace mucho. Un mensaje puede retomar su control." },
 };
 // Etiqueta de comportamiento según trato × confiabilidad.
 // Badges de comportamiento como chips HTML — sin emojis, legibles y serios.
@@ -2266,7 +2278,7 @@ async function pintarSaldoCartera(clienteId) {
     // si el cliente debe Y el dueño no la apagó para este caso puntual.
     const alertaOn = window.AMG && window.AMG.Cartera ? window.AMG.Cartera.alertaActiva(clienteId) : true;
     const badge = (debe && alertaOn)
-      ? `<span style="margin-left:6px;font-size:13px;font-weight:700;background:#C0392B;color:#fff !important;-webkit-text-fill-color:#fff !important;padding:2px 8px;border-radius:20px;">⚠ pending</span>`
+      ? `<span style="margin-left:6px;font-size:13px;font-weight:700;background:#C0392B;color:#fff !important;-webkit-text-fill-color:#fff !important;padding:2px 8px;border-radius:20px;">pending</span>`
       : "";
     el.innerHTML = `<span style="font-size:14px;font-weight:700;color:${color} !important;-webkit-text-fill-color:${color} !important;">${texto}</span>${badge}`;
   } catch (_) { el.innerHTML = ""; }
@@ -2344,8 +2356,9 @@ async function cargarClientes(){
     const celda = (k) => { const e = ESTACIONES[k], l = grupos[k] || []; return `<div style="background:${e.bg};border:2px solid ${e.borde};border-radius:10px;padding:12px;min-height:90px;">
       <div style="font-weight:700;font-size:15px;color:${e.tinta};">${e.icono} ${e.titulo.split(" — ")[0]}</div>
       <div style="font-size:14px;color:#0F1923;margin-top:6px;">${l.length ? l.map((c) => escHtml(c.nombre.split(" ")[0])).join(", ") : "—"}</div></div>`; };
-    mc.innerHTML = `<h3 class="seccion">Seasonal matrix</h3>
-      <p style="font-size:15px;color:var(--ink-soft);margin-top:0;">Right: bought recently. Top: higher value. The 🍂 corner is where lost revenue is recovered.</p>
+    /* Se arma pero NO se escribe todavia: va DEBAJO de comportamiento. */
+    var htmlEstaciones = `<h3 class="seccion">Estaciones</h3>
+      <p style="font-size:15px;color:var(--ink-soft);margin-top:0;">Right: bought recently. Top: higher value. The autumn corner is where lost revenue is recovered.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         ${celda("otono")}${celda("verano")}
         ${celda("invierno")}${celda("primavera")}
@@ -2377,7 +2390,7 @@ async function cargarClientes(){
       };
       const neutros = comp.neutro || [];
       const despedidos = comp.despedidos || [];
-      mc.innerHTML += `
+      var htmlComportamiento = `
         <h3 class="seccion" style="margin-top:24px;">Seguimiento de pacientes</h3>
         <p style="font-size:15px;color:var(--ink-soft);margin-top:0;">Marca en cada ficha si el paciente cumple sus citas y sus pagos. Sirve para saber a quién recordarle, no para calificar a nadie.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -2397,7 +2410,11 @@ async function cargarClientes(){
             </div>`).join("")}
           </div>
         </details>` : ""}`;
-    }
+      }
+      /* EL ORDEN IMPORTA (JFC, 2026-08-13): comportamiento primero, estaciones
+         despues. Con quien puedo contar pesa mas que en que epoca compra, y las
+         estaciones son una lectura secundaria que no debe abrir la seccion. */
+      mc.innerHTML = (typeof htmlComportamiento === "string" ? htmlComportamiento : "") + htmlEstaciones;
   }
   poblarSelectClientes(grupos);
   // Importar CSV: solo el dueno lo ve (regla JFC). El empleado se queda con el
@@ -2507,7 +2524,7 @@ async function cargarBCG(){
   catch (_) { cont.innerHTML = '<p style="font-size:14px;color:var(--ink-soft);">Could not load BCG analysis. Reload the view.</p>'; return; }
   const CUAD = {
     estrellas:    { icono: "⭐", titulo: "Estrellas",      sub: "Sell a lot and trending up. Protect their stock.",         bg: "var(--sim-verde)",    borde: "var(--sim-verde-dk)",    tinta: "#FFFFFF" },
-    vacas:        { icono: "🐄", titulo: "Cash cows", sub: "Sell a lot, stable. They fund everything else.",       bg: "var(--sim-amarillo)", borde: "var(--sim-amarillo-dk)", tinta: "#1A1A1A" },
+    vacas:        { icono: "", titulo: "Cash cows", sub: "Sell a lot, stable. They fund everything else.",       bg: "var(--sim-amarillo)", borde: "var(--sim-amarillo-dk)", tinta: "#1A1A1A" },
     promesas:     { icono: "❓", titulo: "Rising stars",       sub: "Sell little but trending up. Give them shelf space.",          bg: "var(--sim-cyan)",     borde: "var(--sim-cyan-dk)",     tinta: "#FFFFFF" },
     pesosMuertos: { icono: "💤", titulo: "Dead weight",  sub: "No movement in 60 days. Free up that capital.",         bg: "var(--sim-plata-bg)",    borde: "var(--sim-plata-dk)", tinta: "#1A1A1A" },
   };
@@ -2730,7 +2747,17 @@ async function cargarHoy(){
   document.getElementById("resEntra").textContent = fmtMoney(data.resumenDia.entra);
   document.getElementById("resSale").textContent = fmtMoney(data.resumenDia.sale);
   document.getElementById("resGanancia").textContent = fmtMoney(data.resumenDia.gananciaHoy);
-  document.getElementById("resInventario").textContent = fmtMoney(data.resumenDia.inventarioValorizado);
+  /* Semana = ultimos 7 dias. Mes = del 1 del mes calendario a hoy, que es como
+     cierra un consultorio. Las dos cifras grandes son la GANANCIA, no el
+     ingreso bruto: es la pregunta que el medico se hace de verdad. El detalle
+     de cuantas atenciones va abajo, chico pero legible. */
+  var rs = data.resumenSemana || {}, rm = data.resumenMes || {};
+  document.getElementById("resSemana").textContent = fmtMoney(rs.ganancia != null ? rs.ganancia : 0);
+  document.getElementById("resMes").textContent = fmtMoney(rm.ganancia != null ? rm.ganancia : 0);
+  var subSem = document.getElementById("resSemanaSub");
+  var subMes = document.getElementById("resMesSub");
+  if (subSem) subSem.textContent = (rs.ventasCount || 0) + " " + ((rs.ventasCount === 1) ? t("hoy.visitOne") : t("hoy.visitMany"));
+  if (subMes) subMes.textContent = (rm.ventasCount || 0) + " " + ((rm.ventasCount === 1) ? t("hoy.visitOne") : t("hoy.visitMany"));
   document.getElementById("resVentasCount").textContent = data.resumenDia.ventasCount;
   const ticketProm = data.resumenDia.ventasCount > 0 ? data.resumenDia.entra / data.resumenDia.ventasCount : 0;
   document.getElementById("resTicketProm").textContent = fmtMoney(ticketProm);
@@ -4473,7 +4500,7 @@ async function marcarComisionPagada(ubicacionId, promotorNombre, monto){
       `• ${d.cantidad}× ${d.producto} — ${fmtMoney(d.comisionSocio)}`
     );
     const recibo = [
-      `✅ *Commission payment confirmed*`,
+      `*Commission payment confirmed*`,
       `Promotor/a: ${promotorNombre}`,
       `Monto: ${fmtMoney(monto)}`,
       `Mes: ${mes}`,
