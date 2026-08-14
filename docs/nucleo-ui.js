@@ -58,10 +58,10 @@
 
   mount.innerHTML =
     '<div class="nucleo-tabs">' +
-    '<button class="nucleo-tab activo" data-tab="ingresos">💵 Ingresos</button>' +
-    '<button class="nucleo-tab" data-tab="inventario">📦 Inventario</button>' +
-    '<button class="nucleo-tab" data-tab="cxc">👥 Cuentas por Cobrar</button>' +
-    '<button class="nucleo-tab" data-tab="resultados">📈 Estado de Resultados</button>' +
+    '<button class="nucleo-tab activo" data-tab="ingresos"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;vertical-align:-3px;margin-right:7px;"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.6"></circle><path d="M6 12h.01M18 12h.01"></path></svg>Ingresos</button>' +
+    '<button class="nucleo-tab" data-tab="inventario"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;vertical-align:-3px;margin-right:7px;"><rect x="3" y="10" width="8" height="8"></rect><rect x="13" y="10" width="8" height="8"></rect><rect x="8" y="3" width="8" height="6"></rect></svg>Insumos</button>' +
+    '<button class="nucleo-tab" data-tab="cxc"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;vertical-align:-3px;margin-right:7px;"><circle cx="9" cy="8" r="3.2"></circle><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><path d="M17 8.5a3 3 0 0 1 0 5.4"></path><path d="M19 20c0-2.2-1-3.9-2.6-4.8"></path></svg>Cuentas por Cobrar</button>' +
+    '<button class="nucleo-tab" data-tab="resultados"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;vertical-align:-3px;margin-right:7px;"><path d="M3 20h18"></path><path d="M6 20V11"></path><path d="M11 20V5"></path><path d="M16 20v-6"></path></svg>Estado de Resultados</button>' +
     "</div>" +
     '<div class="nucleo-panel activo" id="nucleo-panel-ingresos"></div>' +
     '<div class="nucleo-panel" id="nucleo-panel-inventario"></div>' +
