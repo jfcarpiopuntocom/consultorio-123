@@ -197,7 +197,9 @@
   function generarCodigoSync() {
     var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     var seg = function () { return Array.from({ length: 4 }, function () { return chars[Math.floor(Math.random() * chars.length)]; }).join(""); };
-    return "F123-" + seg() + "-" + seg();
+    /* C123, no F123: F123 es friendly-123, otro producto. Ver el comentario
+       de _ocMascaraCodigo() sobre por que se siguen ACEPTANDO los F123 viejos. */
+    return "C123-" + seg() + "-" + seg();
   }
   let demoSesion = false;
   let listo = window.OCSecure.migrarSiHaceFalta(); // promesa: migra oc_auth viejo (si existe) sin perder lo que el propietario ya configuró
@@ -389,6 +391,14 @@
       </div>
       <button type="button" id="oc-unirse-equipo" style="background:none;border:none;color:var(--azul-medio,#2c4a68) !important;-webkit-text-fill-color:var(--azul-medio,#2c4a68) !important;font-size:13px;text-decoration:underline;cursor:pointer;margin-top:10px;padding:6px;display:block;width:100%;text-align:center;">${window.t("auth.gate.joinTeam")}</button>
       <div class="oc-msg" id="oc-msg"></div>
+      <!-- CODIGOS DEMO (2026-08-14). Sin esto el visitante ve un teclado y no
+           sabe que teclear. Los mismos codigos que anuncia checklist.html: si
+           se cambian aqui, cambiarlos alli tambien. -->
+      <div id="oc-gate-demo-pins" style="margin:14px 0 0;padding:12px;border:1px dashed var(--azul-medio,#2c4a68);border-radius:6px;text-align:center;">
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--azul-medio,#2c4a68) !important;-webkit-text-fill-color:var(--azul-medio,#2c4a68) !important;">Primera vez? Prueba con estos codigos</p>
+        <p style="margin:0;font-size:13px;line-height:1.6;color:var(--ink-soft,#5d5340) !important;-webkit-text-fill-color:var(--ink-soft,#5d5340) !important;"><strong style="color:var(--ink,#211c14) !important;-webkit-text-fill-color:var(--ink,#211c14) !important;">8888</strong> m&eacute;dico/a &mdash; o <strong style="color:var(--ink,#211c14) !important;-webkit-text-fill-color:var(--ink,#211c14) !important;">7895</strong> para activar tu propio consultorio, gratis.</p>
+        <p style="margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--ink-soft,#5d5340) !important;-webkit-text-fill-color:var(--ink-soft,#5d5340) !important;">El c&oacute;digo de este consultorio es de cuatro d&iacute;gitos, no de tres.</p>
+      </div>
       <!-- MARCA AL PIE (JFC 2026-08-05). Antes aqui vivia un parrafo largo en
            ingles que empujaba la pantalla fuera del viewport en PC. Ahora es
            solo la marca: tipografia gruesa, ancha y moderna, con el relieve
@@ -906,7 +916,12 @@
   }
 
   /* Mascara del codigo de sala. DIFERENCIA CON AMIGABLE: aqui el formato es
-     F123-XXXX-XXXX (2 grupos de 4 = 8 significativos), no AMG-XXXX-XXXX-XXXX.
+     C123-XXXX-XXXX (2 grupos de 4 = 8 significativos), no AMG-XXXX-XXXX-XXXX.
+     TOLERANCIA (2026-08-13): hasta hoy este repo emitia F123-, que es el prefijo
+     de friendly-123. Se corrigio a C123-, pero el campo SIGUE ACEPTANDO un F123
+     pegado y lo normaliza, para no romperle la licencia a ninguna instancia que
+     ya se haya activado con el prefijo viejo. Quitar la tolerancia solo cuando
+     se confirme que no queda ninguna.
      Ver generarCodigoSync(). Importa porque este codigo ES la sala de sync y
      activar() solo exige una longitud minima: un codigo mal tecleado NO da
      error, mete al equipo en una sala vacia y la desincronizacion es silenciosa.
@@ -917,12 +932,13 @@
     inp.setAttribute("autocapitalize", "characters");
     inp.setAttribute("autocorrect", "off");
     inp.setAttribute("spellcheck", "false");
-    inp.setAttribute("maxlength", "14");        // F123- + 4 + 1 + 4 = 14
+    inp.setAttribute("maxlength", "14");        // C123- + 4 + 1 + 4 = 14
     function formatear(raw) {
       var v = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-      if (v.indexOf("F123") === 0) v = v.slice(4);
+      /* Acepta los dos prefijos y devuelve siempre el nuevo. */
+      if (v.indexOf("C123") === 0 || v.indexOf("F123") === 0) v = v.slice(4);
       v = v.slice(0, 8);                        // 2 grupos de 4
-      var out = "F123";
+      var out = "C123";
       for (var i = 0; i < v.length; i += 4) out += "-" + v.slice(i, i + 4);
       return out;
     }
@@ -937,10 +953,11 @@
     inp.addEventListener("input", alEscribir);
     inp.addEventListener("paste", function () { setTimeout(alEscribir, 0); });
     inp.addEventListener("focus", function () {
-      if (!inp.value) { inp.value = "F123-"; try { inp.setSelectionRange(5, 5); } catch (_) {} }
+      if (!inp.value) { inp.value = "C123-"; try { inp.setSelectionRange(5, 5); } catch (_) {} }
     });
     inp.addEventListener("blur", function () {
-      if (inp.value === "F123-" || inp.value === "F123") inp.value = "";
+      if (inp.value === "C123-" || inp.value === "C123" ||
+          inp.value === "F123-" || inp.value === "F123") inp.value = "";
     });
   }
 
