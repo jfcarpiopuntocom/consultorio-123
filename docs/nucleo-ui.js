@@ -244,6 +244,17 @@
       var concepto = f.get("concepto") + " (" + f.get("numeroCuotas") + " cuotas de " + fmt(form.valorCuota.value) + ")";
       var paciente = f.get("paciente").trim();
       var nCuotas = Number(f.get("numeroCuotas")) || 1;
+      /* HUECO LUIS (2026-08-13): si la fecha esta vacia, el tratamiento entraba
+         igual, el plan fallaba en silencio y el formulario se limpiaba. El
+         medico quedaba creyendo que acordo cuotas que no existian. Se valida
+         ANTES de tocar el dinero: aca no se registra nada a medias. */
+      if (nCuotas > 1) {
+        var fp = new Date((f.get("primeraCuota") || "") + "T00:00:00");
+        if (isNaN(fp.getTime())) {
+          window.alert("Elige la fecha de la primera cuota. No se registro nada todavia.");
+          return;
+        }
+      }
       window.AMG.CxC.registrarTratamiento(paciente, concepto, f.get("valorTotal"), f.get("pagoInicial"))
         .then(function () {
           /* El tratamiento se registra PRIMERO y el plan despues, a proposito:
@@ -263,7 +274,14 @@
           }
         })
         .then(function () { e.target.reset(); form.valorCuota.value = ""; renderCxc(); })
-        .catch(function (err) { try { console.error("cuotas:", err); } catch (_) {} renderCxc(); });
+        .catch(function (err) {
+          /* Si el tratamiento YA entro y fallo el plan, no se puede callar: el
+             medico tiene que saber exactamente que quedo y que no. */
+          try { console.error("cuotas:", err); } catch (_) {}
+          renderCxc();
+          window.alert("El tratamiento quedo registrado, pero no se pudo guardar el plan de cuotas. " +
+            "Puedes acordarlo despues. (" + ((err && err.message) || "error") + ")");
+        });
     });
 
     document.getElementById("nucleo-form-abono").addEventListener("submit", function (e) {

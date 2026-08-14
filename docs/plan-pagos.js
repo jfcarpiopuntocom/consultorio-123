@@ -274,11 +274,41 @@
     return null; // todas vencidas
   }
 
+  /* HUECO PACO (2026-08-13): un plan es una expectativa SOBRE UNA DEUDA. Si la
+     deuda ya se salso, la expectativa se cumplio y no quedan cuotas que
+     anunciar. Sin esto, alguien que pago todo seguia viendo "Proxima cuota".
+     La consulta al saldo es blanda a proposito: si el modulo de saldos no esta
+     cargado, el motor sigue funcionando como antes. */
+  function saldoActual(duenoId) {
+    try {
+      /* SOLO CxC. Este repo tambien carga cartera.js (clientes de comercio),
+         y preguntarle por un PACIENTE devolvia saldo 0, o sea "no debe nada",
+         y todos los planes salian "cumplido" desde el minuto cero. Cada app
+         consulta su propio modulo de saldo, nunca el primero que exista.
+         Encontrado en la pasada Paco del 2026-08-13. */
+      if (global.AMG && global.AMG.CxC && global.AMG.CxC.saldoDePaciente) {
+        return global.AMG.CxC.saldoDePaciente(duenoId).then(function (s) { return s.saldo; });
+      }
+    } catch (_) {}
+    return Promise.resolve(null);
+  }
+
   function estadoDelPlan(pacienteId, ahora) {
     var hoy = aDia(ahora || Date.now());
     return planActivo(pacienteId).then(function (plan) {
       if (!plan) return { hayPlan: false, estado: "sin_plan" };
-      return hechosDe(pacienteId).then(function (hs) {
+      return saldoActual(pacienteId).then(function (saldo) {
+        /* saldo >= 0 significa que no debe nada: el plan esta cumplido.
+           null = no se pudo consultar, y entonces se sigue de largo. */
+        if (saldo !== null && saldo >= 0) {
+          return { hayPlan: true, estado: "cumplido", montoCuota: plan.montoCuota,
+                   numCuotas: plan.numCuotas, montoTotal: plan.montoTotal,
+                   frecuencia: plan.frecuencia, cuotasVencidas: plan.numCuotas,
+                   esperadoAHoy: plan.montoTotal, abonadoDesdeElPlan: plan.montoTotal,
+                   diferencia: 0, proximoVencimiento: null,
+                   avisarDesdeDias: plan.avisarDesdeDias };
+        }
+        return hechosDe(pacienteId).then(function (hs) {
         var abonado = hs.filter(function (h) {
           return h.tipo === "cxc_abono" && fechaDe(h) >= plan.creadoEn;
         }).reduce(function (a, h) { return a + (Number(_d(h).monto) || 0); }, 0);
@@ -314,6 +344,7 @@
           proximoVencimiento: proximoVencimiento(plan, hoy),
           avisarDesdeDias: plan.avisarDesdeDias
         };
+        });
       });
     }).catch(function (e) {
       try { console.error("plan-pagos: no se pudo derivar el estado", e); } catch (_) {}

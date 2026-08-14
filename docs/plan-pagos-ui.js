@@ -56,7 +56,8 @@
     });
   }
 
-  var TXT = { al_dia: "al día", adelantado: "adelantado", atrasado: "atrasado" };
+  /* cumplido: ya no debe nada, no se anuncian mas cuotas. */
+  var TXT = { al_dia: "al día", adelantado: "adelantado", atrasado: "atrasado", cumplido: "plan cumplido" };
 
   /* Celda de estado para la tabla de Cuentas por Cobrar. Devuelve HTML listo,
      o cadena vacia si el paciente no tiene plan, que es el caso normal: la
