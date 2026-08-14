@@ -68,6 +68,25 @@
     '<div class="nucleo-panel" id="nucleo-panel-cxc"></div>' +
     '<div class="nucleo-panel" id="nucleo-panel-resultados"></div>';
 
+
+  /* Abre una pestana concreta de Contabilidad desde fuera del modulo.
+     La usan los botones del nav que llevan data-nucleo-tab (ver index.html).
+     Si la pestana no existe, no hace nada: nunca deja la vista en blanco. */
+  window.NucleoUI = window.NucleoUI || {};
+  window.NucleoUI.abrirTab = function (nombre) {
+    /* Delega en el click real de la pestana en vez de duplicar el cambio de
+       clases: asi corre tambien renderTab(), que es quien pinta el panel.
+       Duplicar el swap de clases dejaba el panel activo pero VACIO. */
+    var tab = document.querySelector('.nucleo-tab[data-tab="' + nombre + '"]');
+    if (tab) tab.click();
+  };
+  document.addEventListener("click", function (ev) {
+    var b = ev.target.closest('nav button[data-nucleo-tab]');
+    if (!b) return;
+    /* El cambio de vista lo hace el handler del nav; esto corre despues. */
+    setTimeout(function () { window.NucleoUI.abrirTab(b.dataset.nucleoTab); }, 0);
+  });
+
   mount.querySelectorAll(".nucleo-tab").forEach(function (tab) {
     tab.addEventListener("click", function () {
       mount.querySelectorAll(".nucleo-tab").forEach(function (t) { t.classList.remove("activo"); });
