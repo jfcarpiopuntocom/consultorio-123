@@ -15,6 +15,31 @@
 (function (global) {
   "use strict";
 
+  /* ---------------------------------------------------------------------------
+     Normalizacion y dedupe. Mismo fix que cartera.js y caja-chica.js
+     (2026-08-13). NO simplificar a h.datos: hay hechos reales guardados con las
+     dos formas y ninguna se puede dejar de leer.
+     --------------------------------------------------------------------------- */
+  function _d(h) { return (h && h.datos && h.datos.payload) ? h.datos.payload : ((h && h.datos) || {}); }
+  function _anidado(h) { return !!(h && h.datos && h.datos.payload); }
+  function _sinDuplicados(hs) {
+    var grupos = {};
+    hs.forEach(function (h) {
+      var d = _d(h);
+      var k = [h.tipo, d.pacienteId, d.monto, d.concepto || "", Math.floor((Number(h.ts) || 0) / 2000)].join("|");
+      (grupos[k] = grupos[k] || []).push(h);
+    });
+    var out = [];
+    Object.keys(grupos).forEach(function (k) {
+      var g = grupos[k];
+      var an = g.filter(_anidado);
+      var pl = g.filter(function (h) { return !_anidado(h); });
+      if (an.length && pl.length) out = out.concat(an.length >= pl.length ? an : pl);
+      else out = out.concat(g);
+    });
+    return out;
+  }
+
   var TIPOS = { cargo: "cxc_cargo", abono: "cxc_abono" };
 
   function bus() {
@@ -37,11 +62,16 @@
       concepto: String(concepto || "").slice(0, 300)
     };
 
-    var eventBus = bus();
-    if (eventBus) eventBus.emit("cxc_" + tipo + ":completado", { payload: payload });
-
+    /* UN SOLO CAMINO DE ESCRITURA (fix 2026-08-13). Antes emitia ":completado"
+       ANTES de registrar y hechos.js lo persistia por su cuenta: dos hechos por
+       un solo movimiento. Ahora se registra, se espera a que quede en disco, y
+       recien entonces se avisa con ":registrado", que hechos.js no persiste. */
     if (global.AMG && global.AMG.Hechos && global.AMG.Hechos.registrar) {
-      return global.AMG.Hechos.registrar(TIPOS[tipo], payload);
+      return global.AMG.Hechos.registrar(TIPOS[tipo], payload).then(function (res) {
+        var eb = bus();
+        if (eb) eb.emit("cxc_" + tipo + ":registrado", { payload: payload });
+        return res;
+      });
     }
     return Promise.reject(new Error("cxc: AMG.Hechos no disponible"));
   }
@@ -66,19 +96,19 @@
       return Promise.resolve({ saldo: 0, movimientos: [] });
     }
     return global.AMG.Hechos.todos().then(function (todos) {
-      var mios = todos.filter(function (h) {
+      var mios = _sinDuplicados(todos.filter(function (h) {
         return (h.tipo === TIPOS.cargo || h.tipo === TIPOS.abono) &&
-          h.datos && h.datos.payload && String(h.datos.payload.pacienteId) === String(pacienteId);
-      });
+          String(_d(h).pacienteId || "") === String(pacienteId);
+      }));
       var saldo = 0;
       var movimientos = mios.map(function (h) {
         var signo = h.tipo === TIPOS.cargo ? -1 : 1;
-        var monto = Number(h.datos.payload.monto) || 0;
+        var monto = Number(_d(h).monto) || 0;
         saldo += signo * monto;
         return {
           tipo: h.tipo === TIPOS.cargo ? "cargo" : "abono",
           monto: monto,
-          concepto: h.datos.payload.concepto || "",
+          concepto: _d(h).concepto || "",
           fecha: h.ts
         };
       });
@@ -95,15 +125,14 @@
       return Promise.resolve([]);
     }
     return global.AMG.Hechos.todos().then(function (todos) {
-      var mios = todos.filter(function (h) {
-        return (h.tipo === TIPOS.cargo || h.tipo === TIPOS.abono) &&
-          h.datos && h.datos.payload && h.datos.payload.pacienteId;
-      });
+      var mios = _sinDuplicados(todos.filter(function (h) {
+        return (h.tipo === TIPOS.cargo || h.tipo === TIPOS.abono) && _d(h).pacienteId;
+      }));
       var porPaciente = {};
       mios.forEach(function (h) {
-        var id = String(h.datos.payload.pacienteId);
+        var id = String(_d(h).pacienteId);
         var signo = h.tipo === TIPOS.cargo ? -1 : 1;
-        var monto = Number(h.datos.payload.monto) || 0;
+        var monto = Number(_d(h).monto) || 0;
         porPaciente[id] = (porPaciente[id] || 0) + signo * monto;
       });
       return Object.keys(porPaciente).map(function (id) {

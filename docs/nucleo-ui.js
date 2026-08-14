@@ -202,6 +202,10 @@
       '<div class="nucleo-fg"><label>Pago inicial (opcional)</label><input name="pagoInicial" type="number" step="0.01" min="0" value="0"></div>' +
       '<div class="nucleo-fg"><label>Número de cuotas</label><input name="numeroCuotas" type="number" step="1" min="1" value="1"></div>' +
       '<div class="nucleo-fg"><label>Valor de cada cuota (calculado)</label><input name="valorCuota" readonly></div>' +
+      /* Sin fecha no hay calendario, y sin calendario "numero de cuotas" es
+         decoracion: no se puede saber quien esta atrasado. Solo aparece cuando
+         de verdad hay mas de una cuota. */
+      '<div class="nucleo-fg" id="nucleo-fg-desde" style="display:none;"><label>Primera cuota el</label><input name="primeraCuota" type="date"></div>' +
       '<button type="submit" class="nucleo-btn">Registrar tratamiento</button>' +
       "</form></div>" +
       '<div class="nucleo-card"><h3>Registrar pago de cuota</h3><form id="nucleo-form-abono">' +
@@ -219,6 +223,12 @@
       var n = Number(form.numeroCuotas.value) || 1;
       var restante = Math.max(0, total - inicial);
       form.valorCuota.value = n > 0 ? (restante / n).toFixed(2) : "0.00";
+      var fg = document.getElementById("nucleo-fg-desde");
+      if (fg) fg.style.display = n > 1 ? "" : "none";
+      if (n > 1 && !form.primeraCuota.value) {
+        var hoy = new Date();
+        form.primeraCuota.value = new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+      }
     }
     ["valorTotal", "pagoInicial", "numeroCuotas"].forEach(function (campo) {
       form[campo].addEventListener("input", recalcularCuota);
@@ -228,8 +238,28 @@
       e.preventDefault();
       var f = new FormData(e.target);
       var concepto = f.get("concepto") + " (" + f.get("numeroCuotas") + " cuotas de " + fmt(form.valorCuota.value) + ")";
-      window.AMG.CxC.registrarTratamiento(f.get("paciente").trim(), concepto, f.get("valorTotal"), f.get("pagoInicial"))
-        .then(function () { e.target.reset(); form.valorCuota.value = ""; renderCxc(); });
+      var paciente = f.get("paciente").trim();
+      var nCuotas = Number(f.get("numeroCuotas")) || 1;
+      window.AMG.CxC.registrarTratamiento(paciente, concepto, f.get("valorTotal"), f.get("pagoInicial"))
+        .then(function () {
+          /* El tratamiento se registra PRIMERO y el plan despues, a proposito:
+             si el plan falla, la deuda igual quedo registrada. Al reves se
+             perderia el dinero. */
+          if (nCuotas > 1 && window.AMG.PlanPagos) {
+            var restante = Math.max(0, (Number(f.get("valorTotal")) || 0) - (Number(f.get("pagoInicial")) || 0));
+            if (restante > 0) {
+              return window.AMG.PlanPagos.crearPlan(paciente, {
+                montoTotal: restante,
+                numCuotas: nCuotas,
+                frecuencia: "mensual",
+                primerVencimiento: new Date((f.get("primeraCuota") || "") + "T00:00:00"),
+                motivo: concepto
+              });
+            }
+          }
+        })
+        .then(function () { e.target.reset(); form.valorCuota.value = ""; renderCxc(); })
+        .catch(function (err) { try { console.error("cuotas:", err); } catch (_) {} renderCxc(); });
     });
 
     document.getElementById("nucleo-form-abono").addEventListener("submit", function (e) {
@@ -245,14 +275,24 @@
     window.AMG.CxC.saldosTotales().then(function (saldos) {
       var pendientes = saldos.filter(function (s) { return s.saldo < 0; });
       var totalPendiente = pendientes.reduce(function (a, s) { return a + Math.abs(s.saldo); }, 0);
-      var filas = saldos.sort(function (a, b) { return a.saldo - b.saldo; }).map(function (s) {
-        var debe = s.saldo < 0;
-        return "<tr><td>" + esc(s.pacienteId) + '</td><td><span class="nucleo-badge ' + (debe ? "rojo" : "verde") + '">' +
-          (debe ? "Debe " + fmt(Math.abs(s.saldo)) : "Al día") + "</span></td></tr>";
-      }).join("");
-      document.getElementById("nucleo-tabla-cxc").innerHTML =
-        '<div class="nucleo-total rojo"><span>TOTAL PENDIENTE DE COBRO</span><span>' + fmt(totalPendiente) + "</span></div>" +
-        (saldos.length ? '<div class="nucleo-tabla-wrap" style="margin-top:12px"><table><thead><tr><th>Paciente</th><th>Saldo</th></tr></thead><tbody>' + filas + "</tbody></table></div>" : "");
+      var ordenados = saldos.sort(function (a, b) { return a.saldo - b.saldo; });
+      /* El estado de las cuotas se pide al motor, que lo DERIVA de los hechos.
+         Nunca se guarda ni se calcula aca. */
+      var estados = window.AMG.PlanPagos
+        ? Promise.all(ordenados.map(function (s) { return window.AMG.PlanPagos.estadoDelPlan(s.pacienteId); }))
+        : Promise.resolve(ordenados.map(function () { return { hayPlan: false }; }));
+      return estados.then(function (es) {
+        var filas = ordenados.map(function (s, i) {
+          var debe = s.saldo < 0;
+          var celda = window.AMG.PlanPagosUI ? window.AMG.PlanPagosUI.celdaEstado(es[i]) : "";
+          return "<tr><td>" + esc(s.pacienteId) + '</td><td><span class="nucleo-badge ' + (debe ? "rojo" : "verde") + '">' +
+            (debe ? "Debe " + fmt(Math.abs(s.saldo)) : "Al día") + "</span></td><td>" + celda + "</td></tr>";
+        }).join("");
+        document.getElementById("nucleo-tabla-cxc").innerHTML =
+          '<div class="nucleo-total rojo"><span>TOTAL PENDIENTE DE COBRO</span><span>' + fmt(totalPendiente) + "</span></div>" +
+          (saldos.length ? '<div class="nucleo-tabla-wrap" style="margin-top:12px"><table><thead><tr><th>Paciente</th><th>Saldo</th><th>Cuotas</th></tr></thead><tbody>' + filas + "</tbody></table></div>" : "");
+        if (window.AMG.PlanPagosUI) window.AMG.PlanPagosUI.refrescarHoy();
+      });
     });
   }
 
