@@ -38,7 +38,10 @@
       "color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-weight:800;font-size:15px;cursor:pointer;}" +
     ".pp-estado{display:inline-block;font-size:14px;font-weight:700;padding:4px 10px;border-radius:8px;" +
       "color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;}" +
-    ".pp-prox{display:block;font-size:14px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;margin-top:4px;}";
+    ".pp-prox{display:block;font-size:14px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;margin-top:4px;}" +
+    ".pp-anular{display:inline-block;margin-top:6px;min-height:44px;padding:8px 14px;border:2px solid #E2E8ED;" +
+      "border-radius:10px;background:#FFFFFF;font-size:14px;font-weight:700;" +
+      "color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;cursor:pointer;}";
   document.head.appendChild(css);
 
   /* MISMO formato que nucleo-ui.js, a proposito. Con toFixed(2) la tabla
@@ -58,7 +61,7 @@
   /* Celda de estado para la tabla de Cuentas por Cobrar. Devuelve HTML listo,
      o cadena vacia si el paciente no tiene plan, que es el caso normal: la
      mayoria de los tratamientos se pagan de una y no llevan calendario. */
-  function celdaEstado(e) {
+  function celdaEstado(e, pacienteId) {
     if (!e || !e.hayPlan) return "";
     var color = e.estado === "atrasado" ? "#E86040" : "#00C87A";
     var extra = e.diferencia < 0 ? " " + fmt(-e.diferencia) : (e.diferencia > 0 ? " " + fmt(e.diferencia) : "");
@@ -67,8 +70,28 @@
       html += '<span class="pp-prox">Próxima: ' + fmt(e.montoCuota) + " el " +
         esc(global.AMG.PlanPagos.fechaEnPalabras(e.proximoVencimiento)) + "</span>";
     }
+    /* Cambiar el acuerdo. El motor NO borra el plan viejo: emite
+       plan_pago_anulado, asi que el historial muestra que hubo una
+       renegociacion. Y el saldo no se toca: anular un acuerdo no perdona una
+       deuda. El id del paciente va en el atributo porque esta tabla se pinta
+       con innerHTML de una sola vez. */
+    html += '<button type="button" class="pp-anular" data-pp-anular="' + esc(pacienteId || "") + '">Cambiar acuerdo</button>';
     return html;
   }
+
+  /* Un solo listener delegado para toda la tabla, en vez de uno por fila: la
+     tabla se repinta entera cada vez y los listeners por fila se perderian. */
+  document.addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-pp-anular]");
+    if (!b) return;
+    var id = b.getAttribute("data-pp-anular");
+    if (!id || !global.AMG || !global.AMG.PlanPagos) return;
+    if (!global.confirm("Se anula el calendario de cuotas de " + id + ". La deuda NO se perdona: el saldo queda igual.")) return;
+    b.disabled = true;
+    global.AMG.PlanPagos.anularPlan(id, "Renegociado desde Cuentas por Cobrar")
+      .then(function () { if (global.NucleoUI && global.NucleoUI.repintarCxc) global.NucleoUI.repintarCxc(); })
+      .catch(function (e) { b.disabled = false; try { console.error("anular:", e); } catch (_) {} });
+  });
 
   // ---------------------------------------------------------------------------
   // La alerta en Hoy

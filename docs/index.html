@@ -1666,7 +1666,7 @@
 
 <footer>
   <em data-i18n="footer.tagline">consultorio-123: shelf, customer, and commission control</em>
-  <br>Made in Cuenca :apps y herramientas: &mdash; powered by <a href="https://jfcarpio.com" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">jfcarpio.com</a> y <a href="https://avatiun.com" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">avatiun.com</a> &mdash; 2026
+  <br>Made in Cuenca, powered by <a href="https://jfcarpio.com" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">jfcarpio.com</a> y <a href="https://avatiun.com" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">avatiun.com</a>, 2026
 </footer>
 
 <!-- MODAL ETIQUETA -->
@@ -2146,7 +2146,7 @@ function badgeComportamiento(ev) {
   const svgFlag = `<svg width="13" height="14" viewBox="0 0 13 14" fill="#C0392B" style="vertical-align:middle;"><rect x="1" y="0" width="1.5" height="14"/><polygon points="2.5,0 12,3 2.5,7"/></svg>`;
   const svgCase = `<svg width="14" height="13" viewBox="0 0 14 13" fill="none" stroke="#2E6278" stroke-width="1.4" style="vertical-align:middle;"><rect x="1" y="4" width="12" height="8" rx="2"/><path d="M5 4V2.5A1.5 1.5 0 0 1 9 2.5V4"/></svg>`;
   const chip = (icon, txt, bg, color) =>
-    `<span title="${txt}" style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:2px 7px;border-radius:20px;font-size:12px;font-weight:700;background:${bg};color:${color} !important;-webkit-text-fill-color:${color} !important;">${icon}${txt}</span>`;
+    `<span title="${txt}" style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:2px 7px;border-radius:20px;font-size:13px;font-weight:700;background:${bg};color:${color} !important;-webkit-text-fill-color:${color} !important;">${icon}${txt}</span>`;
   if (t === 1 && cv === 1)   return chip(svgStar,  "VIP",      "#FEF6E0", "#8A5A00");
   if (t === -1 && cv === -1) return chip(svgFlag,  "Alert",   "#FDECEA", "#C0392B");
   // Cuadrante "Watch" (agradable pero poco confiable) eliminado aqui (JFC
@@ -2205,7 +2205,7 @@ function tarjetaCliente(c, esDueno){
       <label style="font-size:13px;font-weight:700;color:#C0392B !important;-webkit-text-fill-color:#C0392B !important;">Incident time:</label>
       <input type="time" id="oc-inc-${c.id}" value="${ahoraHora}"
         style="padding:3px 8px;border:1.5px solid #E0B0AD;border-radius:5px;font-size:13px;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;background:#fff;">
-      <span style="font-size:12px;color:#999999 !important;-webkit-text-fill-color:#999999 !important;">(for cross-reference with cameras / audio)</span>
+      <span style="font-size:13px;color:#999999 !important;-webkit-text-fill-color:#999999 !important;">(for cross-reference with cameras / audio)</span>
     </div>` : "";
   const controles = puedeEvaluar ? `
     <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;align-items:center;">
@@ -2266,7 +2266,7 @@ async function pintarSaldoCartera(clienteId) {
     // si el cliente debe Y el dueño no la apagó para este caso puntual.
     const alertaOn = window.AMG && window.AMG.Cartera ? window.AMG.Cartera.alertaActiva(clienteId) : true;
     const badge = (debe && alertaOn)
-      ? `<span style="margin-left:6px;font-size:12px;font-weight:700;background:#C0392B;color:#fff !important;-webkit-text-fill-color:#fff !important;padding:2px 8px;border-radius:20px;">⚠ pending</span>`
+      ? `<span style="margin-left:6px;font-size:13px;font-weight:700;background:#C0392B;color:#fff !important;-webkit-text-fill-color:#fff !important;padding:2px 8px;border-radius:20px;">⚠ pending</span>`
       : "";
     el.innerHTML = `<span style="font-size:14px;font-weight:700;color:${color} !important;-webkit-text-fill-color:${color} !important;">${texto}</span>${badge}`;
   } catch (_) { el.innerHTML = ""; }
@@ -2766,7 +2766,7 @@ async function cargarHoy(){
     const ahora = new Date();
     const dia = Math.floor((ahora - new Date(ahora.getFullYear(), 0, 0)) / 86400000);
     mood.innerHTML = `<div class="tag-card" style="margin-top:16px;padding:16px;border-left:5px solid var(--sim-azul);">
-      <div style="font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">${t("hoy.moodLabel")}</div>
+      <div style="font-family:var(--font-mono);font-size:13px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">${t("hoy.moodLabel")}</div>
       <div style="font-family:var(--font-display);font-size:17px;color:var(--ink);line-height:1.35;">${MOODS[dia % MOODS.length]}</div>
     </div>`;
   }
@@ -3125,7 +3125,7 @@ async function cargarLogAjustes(){
     // El dato ya viajaba en cada movimiento (mov() lo guarda); antes no se pintaba.
     // "Sistema" (dueño por PIN clásico, sin empleado nombrado) no se muestra.
     const quien = (m.usuarioNombre && m.usuarioNombre !== 'Sistema')
-      ? ` <span style="font-size:12px;font-weight:700;color:var(--azul-medio,#2c4a68);">· ${escHtml(m.usuarioNombre)}</span>` : '';
+      ? ` <span style="font-size:13px;font-weight:700;color:var(--azul-medio,#2c4a68);">· ${escHtml(m.usuarioNombre)}</span>` : '';
     return `<div style="padding:6px 0;border-bottom:1px solid var(--linea,#e0d6c0);font-size:13px;color:var(--ink);"><span>${icono}</span> <strong>${detalle}</strong>${extra}${quien} <span style="color:var(--ink-soft);margin-left:8px;">${fecha}</span></div>`;
   }).join('');
 }
@@ -3148,12 +3148,12 @@ function renderPerchaCard(u, sucursalesDisp, promotorasDisp) {
       <button data-percha-renombrar="${u.id}" style="font-size:13px;padding:6px 10px;border:2px solid var(--azul-medio);border-radius:5px;background:transparent;color:var(--azul-medio);cursor:pointer;">Rename</button>
       <button data-percha-toggle="${u.id}" data-activa="${u.activa !== false}" data-feria="${u.esFeria ? '1' : ''}" style="font-size:13px;padding:6px 10px;border:2px solid var(--rust);border-radius:5px;background:transparent;color:var(--rust);cursor:pointer;">${inactiva ? 'Reactivate' : (u.esFeria ? 'Close and settle' : 'Deactivate')}</button>
       <button data-percha-borrar="${u.id}" data-nombre="${escHtml(u.nombre)}" style="font-size:13px;padding:6px 10px;border:2px solid var(--rojo,#E8365D);border-radius:5px;background:transparent;color:var(--rojo,#E8365D);cursor:pointer;">Delete</button>
-      <label style="font-size:12px;color:var(--ink-soft);">Move to:
-        <select data-percha-mover="${u.id}" style="font-size:12px;padding:4px 6px;border:1px solid var(--azul-medio);border-radius:4px;margin-left:4px;">
+      <label style="font-size:13px;color:var(--ink-soft);">Move to:
+        <select data-percha-mover="${u.id}" style="font-size:13px;padding:4px 6px;border:1px solid var(--azul-medio);border-radius:4px;margin-left:4px;">
           <option value="">— Sin sucursal —</option>${optsS}
         </select></label>
-      <label style="font-size:12px;color:var(--ink-soft);">Promoter:
-        <select data-percha-promotor="${u.id}" style="font-size:12px;padding:4px 6px;border:1px solid var(--azul-medio);border-radius:4px;margin-left:4px;">
+      <label style="font-size:13px;color:var(--ink-soft);">Promoter:
+        <select data-percha-promotor="${u.id}" style="font-size:13px;padding:4px 6px;border:1px solid var(--azul-medio);border-radius:4px;margin-left:4px;">
           <option value="">— Ninguno —</option>${(promotorasDisp||[]).map(pr => `<option value="${pr.id}"${u.promotoraId === pr.id ? ' selected' : ''}>${escHtml(pr.nombre)}</option>`).join('')}
         </select></label>
     </div>
@@ -3200,12 +3200,12 @@ async function cargarPerchas(){
   sucursalesDisp.forEach(s => {
     const ps = porSucursal[s.id] || [];
     const btnBorrarSuc = ps.length === 0
-      ? `<button data-suc-borrar="${s.id}" data-nombre="${escHtml(s.nombre)}" style="font-size:12px;padding:3px 8px;border:1px solid var(--rojo,#E8365D);border-radius:4px;background:transparent;color:var(--rojo,#E8365D);cursor:pointer;">Delete</button>`
+      ? `<button data-suc-borrar="${s.id}" data-nombre="${escHtml(s.nombre)}" style="font-size:13px;padding:3px 8px;border:1px solid var(--rojo,#E8365D);border-radius:4px;background:transparent;color:var(--rojo,#E8365D);cursor:pointer;">Delete</button>`
       : '';
     html += `<div style="margin-bottom:20px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;border-bottom:1px solid var(--azul-medio,#4a7fa5);padding-bottom:4px;">
         <span style="font-size:13px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">Sucursal: ${escHtml(s.nombre)}</span>
-        <button data-suc-renombrar="${s.id}" style="font-size:12px;padding:3px 8px;border:1px solid var(--azul-medio);border-radius:4px;background:transparent;color:var(--azul-medio);cursor:pointer;">Rename</button>
+        <button data-suc-renombrar="${s.id}" style="font-size:13px;padding:3px 8px;border:1px solid var(--azul-medio);border-radius:4px;background:transparent;color:var(--azul-medio);cursor:pointer;">Rename</button>
         ${btnBorrarSuc}
       </div>
       ${ps.length ? ps.map(u => renderPerchaCard(u, sucursalesDisp, promotorasDisp)).join('') : '<p style="font-size:13px;color:var(--ink-soft);margin:0 0 8px;">Ninguna percha asignada.</p>'}
@@ -4007,13 +4007,13 @@ function imprimirEtiquetaCompleta(){
     .label{ width:300px; margin:0 auto; text-align:center; padding:16px 14px; border:1.5px solid #0F1923; border-radius:12px; }
     .name{ font-weight:700; font-size:18px; line-height:1.2; margin:0 0 2px; }
     .price{ font-weight:800; font-size:32px; color:#E86040; margin:6px 0; }
-    .exp{ font-size:12px; font-weight:700; color:#C05000; margin:0 0 6px; }
+    .exp{ font-size:13px; font-weight:700; color:#C05000; margin:0 0 6px; }
     .barcode{ display:flex; justify-content:center; margin:10px 0 2px; }
     .barcode svg{ max-width:100%; height:auto; }
     .code{ font-family:"Courier New",monospace; font-size:14px; letter-spacing:3px; margin-top:2px; }
     .qr{ margin-top:10px; }
     .qr img{ width:120px; height:120px; }
-    .qr-cap{ font-size:11px; color:#2E6278; margin-top:2px; }
+    .qr-cap{ font-size:13px; color:#2E6278; margin-top:2px; }
   </style></head><body>
     <div class="label">
       <div class="name">${nombre}</div>
@@ -4139,7 +4139,7 @@ async function cargarActividad(){
   };
   cont.innerHTML = items.map(it => {
     const quien = (it.usuarioNombre && it.usuarioNombre !== 'Sistema')
-      ? `<div style="font-size:12px;font-weight:700;color:var(--azul-medio,#2c4a68);">${escHtml(it.usuarioNombre)}</div>` : '';
+      ? `<div style="font-size:13px;font-weight:700;color:var(--azul-medio,#2c4a68);">${escHtml(it.usuarioNombre)}</div>` : '';
     return `
     <div class="actividad-item">
       <div class="tipo">${escHtml(it.tipo)}</div>
@@ -4178,7 +4178,7 @@ async function cargarComisiones(){
     <div style="margin-bottom:20px;">${ranking.map((r, i) => {
       const med = ["🥇","🥈","🥉"][i] || `${i + 1}.`;
       const dormido = (r.diasSinVenta != null && r.diasSinVenta >= 7)
-        ? `<span class="badge-estado rojo" style="margin-left:8px;font-size:11px;">dormido ${r.diasSinVenta}d</span>` : "";
+        ? `<span class="badge-estado rojo" style="margin-left:8px;font-size:13px;">dormido ${r.diasSinVenta}d</span>` : "";
       const top = r.topSku ? ` · mejor SKU: ${escHtml(r.topSku.sku)} (${r.topSku.unidades}u)` : "";
       return `<div class="tag-card" style="display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:8px;">
         <span style="font-size:20px;line-height:1;">${med}</span>
@@ -4251,7 +4251,7 @@ async function cargarComisiones(){
 
   const cardsHtml = filas.map(f => {
     const dormida = (f.diasSinVenta != null && f.diasSinVenta >= 7)
-      ? `<span class="badge-estado rojo" style="font-size:11px;">dormant ${f.diasSinVenta}d</span>` : "";
+      ? `<span class="badge-estado rojo" style="font-size:13px;">dormant ${f.diasSinVenta}d</span>` : "";
     return `
     <div class="tag-card" style="text-align:left;margin-bottom:12px;padding:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -4990,7 +4990,7 @@ function ocPrompt(mensaje, valorInicial) {
 
   <!-- Botón volver + countdown -->
   <button id="occo-volver" onclick="cerrarVistaCliente()" style="background:rgba(255,255,255,0.12);color:#fff;border:2px solid rgba(255,255,255,0.35);border-radius:8px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer;min-width:200px;min-height:48px;"></button>
-  <div id="occo-countdown" style="margin-top:12px;font-size:13px;color:rgba(255,255,255,0.55);min-height:18px;"></div>
+  <div id="occo-countdown" style="margin-top:12px;font-size:13px;color:#CCCCCC;min-height:18px;"></div>
 
 </div>
 

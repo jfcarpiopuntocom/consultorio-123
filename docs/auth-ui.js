@@ -1045,14 +1045,14 @@
       const rc = document.createElement("span");
       rc.id = "oc-rol-chip";
       rc.textContent = "Demo";
-      rc.style.cssText = "font-size:12px;font-weight:700;color:#14181C !important;-webkit-text-fill-color:#14181C !important;"
+      rc.style.cssText = "font-size:13px;font-weight:700;color:#14181C !important;-webkit-text-fill-color:#14181C !important;"
         + "margin-right:6px;padding:4px 10px;background-image:linear-gradient(180deg,#F5C518 0%,#E0AF00 100%);border:1px solid #9E7C00;border-radius:20px;";
       header.appendChild(rc);
     } else if (_rolChipKey) {
       const rc = document.createElement("span");
       rc.id = "oc-rol-chip";
       rc.textContent = window.t(_rolChipKey);
-      rc.style.cssText = "font-size:12px;font-weight:700;color:#fff !important;-webkit-text-fill-color:#fff !important;"
+      rc.style.cssText = "font-size:13px;font-weight:700;color:#fff !important;-webkit-text-fill-color:#fff !important;"
         + "margin-right:6px;padding:4px 10px;background:var(--rust,#E86040);border-radius:20px;";
       header.appendChild(rc);
     }

@@ -73,6 +73,10 @@
      La usan los botones del nav que llevan data-nucleo-tab (ver index.html).
      Si la pestana no existe, no hace nada: nunca deja la vista en blanco. */
   window.NucleoUI = window.NucleoUI || {};
+  /* Repintado explicito de la tabla de Cuentas por Cobrar. abrirTab() NO sirve
+     para esto: solo pinta la primera vez (guard pintado[tab]), asi que tras
+     anular un plan la fila seguia mostrando el acuerdo viejo. */
+  window.NucleoUI.repintarCxc = function () { try { renderCxc(); } catch (_) {} };
   window.NucleoUI.abrirTab = function (nombre) {
     /* Delega en el click real de la pestana en vez de duplicar el cambio de
        clases: asi corre tambien renderTab(), que es quien pinta el panel.
@@ -284,7 +288,7 @@
       return estados.then(function (es) {
         var filas = ordenados.map(function (s, i) {
           var debe = s.saldo < 0;
-          var celda = window.AMG.PlanPagosUI ? window.AMG.PlanPagosUI.celdaEstado(es[i]) : "";
+          var celda = window.AMG.PlanPagosUI ? window.AMG.PlanPagosUI.celdaEstado(es[i], s.pacienteId) : "";
           return "<tr><td>" + esc(s.pacienteId) + '</td><td><span class="nucleo-badge ' + (debe ? "rojo" : "verde") + '">' +
             (debe ? "Debe " + fmt(Math.abs(s.saldo)) : "Al día") + "</span></td><td>" + celda + "</td></tr>";
         }).join("");
