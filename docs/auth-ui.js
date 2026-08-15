@@ -125,6 +125,13 @@
         ...atestacionRespaldo(),
         avisoVisto: !!datos.avisoVisto,
       };
+      /* Autorreporte de fallas de la app, pegado al heartbeat que ya viaja.
+         Cero endpoints nuevos, cero dependencias. El payload se arma por LISTA
+         BLANCA en salud-app.js: no puede llevar datos de negocio. */
+      try {
+        var _err = window.AMG && window.AMG.Salud ? window.AMG.Salud.paraEnviar() : null;
+        if (_err && _err.length) payload.errores = _err;
+      } catch (_) {}
       var ctrl = new AbortController();
       var t = setTimeout(function () { ctrl.abort(); }, 8000);
       try {
@@ -135,6 +142,9 @@
           signal: ctrl.signal,
         });
         if (res && res.ok) {
+          /* Se limpian SOLO si el Worker confirmo: con wifi caido los errores
+             se quedan y viajan en el proximo heartbeat. */
+          try { if (payload.errores && window.AMG && window.AMG.Salud) window.AMG.Salud.limpiar(); } catch (_) {}
           var r = await res.json();
           // Nota remota pedida desde la consola: la app se la muestra al dueno.
           // No es una accion sobre sus datos, es un recordatorio para que EL
