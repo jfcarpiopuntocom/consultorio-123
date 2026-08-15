@@ -179,6 +179,12 @@
   // consultorio-123 usa 4 digitos desde su diseno inicial (JFC 2026-08-05).
   // Cambiar este numero ajusta teclado y casillas a la vez.
   const LARGO_PIN = 4;
+  /* PIN DE CUATRO DIGITOS: ES POR DISENO (JFC, confirmado 2026-08-14).
+     amigable-123 y friendly-123 usan tres. consultorio-123 usa CUATRO, a
+     proposito, porque aqui detras del acceso hay datos de salud. NO unificar
+     con las hermanas "por consistencia": la diferencia es deliberada.
+     Si se toca esto, se tocan tambien los 4 slots del gate y el texto del
+     recuadro de codigos, que ya avisa que aqui son cuatro. */
   const DEMO_PIN = "8888"; // DEMO permanente de consultorio-123 (JFC 2026-08-05)
   // Apropiacion (JFC 2026-07-08): 789 convierte ESTE dispositivo en la
   // instancia propia del comprador — datos propios, correo propio, control
