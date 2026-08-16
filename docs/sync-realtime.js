@@ -344,7 +344,9 @@
          Si el codigo trae simbolo de verificacion y NO cuadra, se bloquea: eso
          es un codigo mal tecleado, y dejarlo pasar es lo que manda a alguien a
          una sala vacia sin entender por que no se sincroniza. */
-      var _pre = ["C123", "F123"];
+      /* Consultorio emite C123 y SOLO acepta C123 (JFC 2026-08-15). Aceptar F123
+     aqui era dejar entrar la sala de otra app a este negocio. */
+  var _pre = ["C123"];
       var _cuerpo = codigoNorm.replace(new RegExp("^(" + _pre.join("|") + ")-"), "").replace(/-/g, "");
       var _prefijoOk = _pre.some(function (p) { return codigoNorm.indexOf(p + "-") === 0; });
       if (!_prefijoOk || (_cuerpo.length !== 8 && _cuerpo.length !== 12 && _cuerpo.length !== 17)) {

@@ -273,7 +273,7 @@
      Esto es un guard, no una puerta. */
   function ocLicenciaVerificada(txt) {
     var s = _ocNormalizar(txt);
-    var pre = s.replace(/^(AMG|F123|C123)/, "");
+    var pre = s.replace(/^C123/, "");
     if (pre.length !== 17) return true;      /* longitud vieja: sin juicio */
     return _ocCheck(pre.slice(0, 16)) === pre.charAt(16);
   }
@@ -1052,8 +1052,7 @@
       if (!inp.value) { inp.value = "C123-"; try { inp.setSelectionRange(5, 5); } catch (_) {} }
     });
     inp.addEventListener("blur", function () {
-      if (inp.value === "C123-" || inp.value === "C123" ||
-          inp.value === "F123-" || inp.value === "F123") inp.value = "";
+      if (inp.value === "C123-" || inp.value === "C123") inp.value = "";
     });
   }
 
