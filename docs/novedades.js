@@ -62,7 +62,7 @@
                    generico: "Logro" },
       switchTitulo: "Panel del equipo",
       switchTexto: "Le da a tu equipo su propio panel diario: racha, puntos e insignias por buenos habitos. No compara a unos con otros, nunca sale del dispositivo y nunca toca los datos del negocio.",
-      switchLabel: "Mostrar el panel a los empleados"
+      switchLabel: "Mostrar el panel a los encargados"
     }
   };
   function T() {
