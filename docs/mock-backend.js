@@ -274,7 +274,7 @@
   // siembra falla, se arranca sin historial; el error queda en consola.
   try { sembrarVentasDemo(); } catch (e) { console.error("Seed de ventas fallo (la app arranca sin historial):", e); }
   const gastosMensuales = {"smokeshop":0,"bookshelf":0,"fairbooth":0};
-  // Usuarios nombrados (empleados): hasta 49.
+  // Usuarios nombrados (encargados): hasta 49.
   // El dueno NO aparece aqui — su acceso es por PIN en crypto-store.
   // Cada entrada: { id, nombre, pin, rol:"empleado", activo, creadoEn }
   // NOTA DE SEGURIDAD: en la demo el PIN se almacena en texto porque no hay
@@ -290,7 +290,7 @@
   // se usa tambien en el heartbeat y el estado exportable.)
   let instanceId = (function () { try { return (JSON.parse(localStorage.getItem("f123_owned") || "null") || {}).instanceId || null; } catch (_) { return null; } })();
   // consultorio-123 NO tiene tier gratuito (JFC 2026-08-06): a diferencia de
-  // amigable-123 NO hay tope de 25 productos / 100 ventas / 1 empleado. Esta
+  // amigable-123 NO hay tope de 25 productos / 100 ventas / 1 encargado. Esta
   // bandera apaga TODAS las compuertas free-tier de golpe. Si algun dia se
   // decide cobrar por tier: ponerla en true Y corregir los mensajes (dicen
   // "PIN 789" cuando el de consultorio es 7895, y estan en ingles hardcodeado).
@@ -658,7 +658,7 @@
       // un recibo itemizado (producto, unidades, bruto, comision). Sin esto el pago
       // es un numero suelto y genera desconfianza. Ver marcarComisionPagada() en index.html.
       const detallePendientes = agruparPendientesPorProducto(pendientes);
-      // Dias desde la ultima venta de esta percha (rec 05: promotor/a dormida).
+      // Dias desde la ultima venta de esta percha (rec 05: asociado/a dormida).
       const ultima = ventas.filter((v) => v.ubicacionId === u.id).reduce((mx, v) => (v.fecha > mx ? v.fecha : mx), "");
       const diasSinVenta = ultima ? Math.floor((Date.now() - new Date(ultima).getTime()) / 86400000) : null;
       const prom = u.promotoraId ? promotoras.find((x) => x.id === u.promotoraId) : null;
@@ -1037,7 +1037,7 @@
 
       let m;
       // Edicion libre de la ficha (nombre, foto, precios, codigo interno).
-      // El gating por rol (empleado NO edita) vive en la UI; aca solo se aplica.
+      // El gating por rol (encargado NO edita) vive en la UI; aca solo se aplica.
       if ((m = path.match(/^\/api\/productos\/([^/]+)$/)) && opts && opts.method === "PATCH") {
         const p = productos.find((x) => x.id === m[1]); if (!p) return J({ error: "Producto no encontrado." }, 404);
         if (body.fechaCaducidad !== undefined && body.fechaCaducidad !== null && body.fechaCaducidad !== "" && !fechaValida(body.fechaCaducidad)) return J({ error: "La fecha de caducidad no es válida (usa AAAA-MM-DD)." }, 400);
@@ -1129,7 +1129,7 @@
         return J(await window.AMG.CajaChica.saldoDePercha(u.id));
       }
 
-      // ---- Promotores/as (comision por traer gente) ----
+      // ---- Asociados/as (comision por traer gente) ----
       if (path === "/api/promotoras" && (!opts || opts.method !== "POST")) return J(promotoras);
       if (path === "/api/promotoras" && opts && opts.method === "POST") {
         if (!body.nombre || !body.nombre.trim()) return J({ error: "El nombre es obligatorio." }, 400);
@@ -1141,7 +1141,7 @@
       const mProm = path.match(/^\/api\/promotoras\/([^/]+)$/);
       if (mProm && opts && opts.method === "DELETE") {
         const idxP = promotoras.findIndex((x) => x.id === mProm[1]);
-        if (idxP < 0) return J({ error: "Promotor/a no encontrada." }, 404);
+        if (idxP < 0) return J({ error: "Asociado/a no encontrada." }, 404);
         const prb = promotoras.splice(idxP, 1)[0];
         // Desasignar de las perchas que lo tenian
         ubicaciones.forEach((u) => { if (u.promotoraId === prb.id) u.promotoraId = null; });
@@ -1173,7 +1173,7 @@
         return J({ ok: true });
       }
 
-      // Desempeno por promotor/a: agrega las perchas que tiene asignadas,
+      // Desempeno por asociado/a: agrega las perchas que tiene asignadas,
       // suma comision y ventas del mes, y saca su mejor SKU (rec 04 + 09).
       if (path === "/api/promotores/desempeno") {
         const byId = {};
@@ -1357,7 +1357,7 @@
 
       if (path === "/api/actividad") return J(movimientos.slice().reverse().slice(0, 100));
 
-      // Estrella: dueño marca/desmarca productos para que el empleado promueva
+      // Estrella: dueño marca/desmarca productos para que el encargado promueva
       if ((m = path.match(/^\/api\/productos\/([^/]+)\/estrella$/))) {
         const p = productos.find((x) => x.id === m[1]); if (!p) return J({ error: "Producto no encontrado." }, 404);
         p.estrella = !p.estrella;
@@ -1610,7 +1610,7 @@
         if (body.trato !== undefined) c.evaluacion.trato = Math.max(0, Math.min(5, Number(body.trato)||0));
         if (body.confiabilidad !== undefined) c.evaluacion.confiabilidad = Math.max(0, Math.min(5, Number(body.confiabilidad)||0));
         c.evaluacion.historial = c.evaluacion.historial || [];
-        // horaIncidente: hora local del evento según el empleado (HH:MM), para conciliación con cámaras/audios.
+        // horaIncidente: hora local del evento según el encargado (HH:MM), para conciliación con cámaras/audios.
         c.evaluacion.historial.push({ trato: c.evaluacion.trato, confiabilidad: c.evaluacion.confiabilidad, quien: body.quien || "Sistema", fecha: new Date().toISOString(), horaIncidente: body.horaIncidente || null });
         mov("cliente-evaluado", { cliente: c.nombre, trato: c.evaluacion.trato, confiabilidad: c.evaluacion.confiabilidad, horaIncidente: body.horaIncidente || null });
         guardarEstadoLocal();
@@ -1663,8 +1663,8 @@
       if (path === "/api/inventario/bcg") return J(matrizBCG(uid));
 
       // === USUARIOS NOMBRADOS — multi-usuario 2026-07-07 ========================
-      // El dueno crea empleados desde Avanzado -> Empleados.
-      // Cada empleado tiene un PIN propio de 3 digitos distinto a los demas.
+      // El dueno crea encargados desde Avanzado -> Encargados.
+      // Cada encargado tiene un PIN propio de 3 digitos distinto a los demas.
       // NO se puede verificar aqui si colisiona con el PIN del dueno/contador
       // (esos hashes viven en crypto-store, no en este mock). Se pide al dueno
       // que elija PINs que no coincidan con los suyos.
@@ -1673,8 +1673,8 @@
       if (path === "/api/usuarios" && (!opts || !opts.method || opts.method === "GET")) {
         return J(usuarios.map((u) => ({ id: u.id, nombre: u.nombre, rol: u.rol, email: u.email || null, activo: u.activo, creadoEn: u.creadoEn })));
       }
-      // POST /api/usuarios — crear miembro del equipo (empleado o admin); desde Avanzado = solo dueno.
-      // Los admins NO cuentan contra el limite de empleados del plan free — son co-responsables,
+      // POST /api/usuarios — crear miembro del equipo (encargado o admin); desde Avanzado = solo dueno.
+      // Los admins NO cuentan contra el limite de encargados del plan free — son co-responsables,
       // no personal adicional, y el dueno debe poder agregar al menos uno sin activar.
       if (path === "/api/usuarios" && opts && opts.method === "POST") {
         const nombre = String(body.nombre || "").trim().slice(0, 60);
@@ -1683,7 +1683,7 @@
         const rolNuevo = (body.rol === "admin") ? "admin" : "empleado";
         if (!nombre)                     return J({ error: "El nombre es obligatorio." }, 400);
         if (!/^\d{3}$/.test(pin))        return J({ error: "El PIN debe tener exactamente 3 digitos." }, 400);
-        // Limite free: 1 empleado (admins exentos — son co-duenos, no personal)
+        // Limite free: 1 encargado (admins exentos — son co-duenos, no personal)
         const empleadosActuales = usuarios.filter((u) => u.rol === "empleado").length;
         if (rolNuevo === "empleado" && empleadosActuales >= 1 && (TIER_GRATIS_ACTIVO && (!instanceId || licenciaLimitada())))
           return J({ error: "The free plan includes 1 employee. Activate this device (PIN 789) for unlimited employees.", codigo: "LIMITE_EMPLEADOS" }, 403);
@@ -1694,7 +1694,7 @@
         return J({ id: nuevo.id, nombre: nuevo.nombre, rol: nuevo.rol, email: nuevo.email, activo: nuevo.activo, creadoEn: nuevo.creadoEn });
       }
       // PATCH /api/usuarios/:id — editar nombre, activar/desactivar, cambiar PIN, actualizar email
-      // El admin puede editar empleados pero NO a otros admins (ese control vive en la UI).
+      // El admin puede editar encargados pero NO a otros admins (ese control vive en la UI).
       if (/^\/api\/usuarios\/[^/]+$/.test(path) && opts && opts.method === "PATCH") {
         const uid2 = path.split("/").pop();
         const u = usuarios.find((x) => x.id === uid2);
@@ -1708,8 +1708,8 @@
           if (usuarios.some((x) => x.id !== uid2 && x.pin === np)) return J({ error: "Ese PIN ya lo usa otro miembro del equipo." }, 400);
           u.pin = np;
         }
-        // Promover/degradar rol (JFC 2026-07-30): admin<->empleado. Los admins no
-        // cuentan contra el limite de empleados del plan free (ver POST arriba),
+        // Promover/degradar rol (JFC 2026-07-30): admin<->encargado. Los admins no
+        // cuentan contra el limite de encargados del plan free (ver POST arriba),
         // asi que promover a alguien puede liberar un cupo y degradarlo puede
         // volver a topar el limite en el proximo alta — eso ya lo valida el POST.
         if (body.rol !== undefined && (body.rol === "admin" || body.rol === "empleado")) u.rol = body.rol;
@@ -1728,7 +1728,7 @@
         return J({ ok: true });
       }
       // POST /api/usuarios/verificar — recibe { pin }, devuelve { id, nombre, rol } o 401
-      // Llamado por auth-ui.js durante el login para identificar empleados y admins nombrados.
+      // Llamado por auth-ui.js durante el login para identificar encargados y admins nombrados.
       if (path === "/api/usuarios/verificar" && opts && opts.method === "POST") {
         const pin = String(body.pin || "").trim();
         const u = usuarios.find((x) => x.activo && x.pin === pin);

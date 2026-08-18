@@ -128,7 +128,7 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
 
   // Guard G2 (JFC 2026-08-04): distingue "nunca existió" de "existe pero está
   // dañado" (JSON.parse fallaría o le faltan campos clave). Antes leerSecreto()
-  // trataba ambos casos igual (devolvía null), así que verificarOwner/Empleado
+  // trataba ambos casos igual (devolvía null), así que verificarOwner/Encargado
   // devolvían false para TODOS los PINs y el dueño quedaba viendo "Clave
   // incorrecta" para siempre sin ninguna pista de que el problema no era su
   // memoria del PIN, sino el dato mismo.
@@ -148,9 +148,9 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
     if (!localStorage.getItem("c123_secure_v1")) {
       let viejo = null;
       try { viejo = JSON.parse(localStorage.getItem("f123_auth") || "null"); } catch {}
-      const DEF = { owner: "7895", empleados: ["2605"], acct: "3570", email: "" }; // consultorio-123: 4 digitos (JFC 2026-08-05)
+      const DEF = { owner: "7895", encargados: ["2605"], acct: "3570", email: "" }; // consultorio-123: 4 digitos (JFC 2026-08-05)
       const base = viejo || DEF;
-      await guardarSecreto(base.owner, base.empleados || [], base.acct, base.email || "");
+      await guardarSecreto(base.owner, base.encargados || [], base.acct, base.email || "");
       localStorage.removeItem("f123_auth"); // ya no queda nada en texto plano
     } else if (estadoSecreto() === "corrupto") {
       // Guard G2: auto-reparar a defaults SOLO si el dispositivo NUNCA fue
@@ -166,7 +166,7 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
     }
     // AMIGABLE (JFC 2026-07-02): el PIN de dueño pasó de 159 a 888. Si un
     // navegador ya tenía guardado el default viejo (159), lo subimos a 888 sin
-    // tocar empleado/contable/correo. No-op si el dueño ya no es 159.
+    // tocar encargado/contable/correo. No-op si el dueño ya no es 159.
     // Fix-5: flag de un-solo-run — sin esto verificarOwner("159") corre en CADA
     // pageload y acumula registrarFallo("owner") hasta lockout del dueño.
     // MIGRACION RETIRADA en consultorio-123 (JFC 2026-08-05): era el paso
@@ -212,7 +212,7 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
     try { return JSON.parse(localStorage.getItem("c123_secure_v1")); } catch { return null; }
   }
 
-  // Verifica un PIN de 3 dígitos contra un rol ("owner"|"acct") o la lista de empleados.
+  // Verifica un PIN de 3 dígitos contra un rol ("owner"|"acct") o la lista de encargados.
   // Bloqueo progresivo tras 5 fallos (ver rate limiting arriba) — mitiga que
   // el pequeño espacio de 1000 combinaciones se pueda probar por fuerza bruta.
   async function verificarOwner(pin) {
@@ -230,8 +230,8 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
     ok ? registrarExito("emp") : registrarFallo("emp");
     return ok;
   }
-  // Paridad AMIGABLE (2026-07-17): verificacion combinada dueno/empleado con
-  // UN solo ambito de lockout ("login") — evita que probar un PIN de empleado
+  // Paridad AMIGABLE (2026-07-17): verificacion combinada dueno/encargado con
+  // UN solo ambito de lockout ("login") — evita que probar un PIN de encargado
   // acumule fallos en el contador del dueno y viceversa.
   async function verificarOwnerOEmpleado(pin) {
     if (segundosBloqueo("login") > 0) return null;
@@ -324,7 +324,7 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
   }
 
   // Cambia SOLO el PIN de dueño (re-hash bajo el salt existente) sin rotar
-  // empleado/contable/correo. Usado por la migración 159->888 de AMIGABLE y
+  // encargado/contable/correo. Usado por la migración 159->888 de AMIGABLE y
   // por la activación 789. Devuelve boolean (Guard G1): el llamador debe
   // saber si el PIN nuevo de verdad quedó guardado antes de decirle al
   // usuario "ya puedes entrar con tu PIN nuevo".
@@ -343,8 +343,8 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
   // PIN nuevo. 3) resetearConCodigo() verifica el código, ROTA TODO (nuevo
   // salt) porque el diseño de este archivo usa un salt compartido entre los
   // 3 roles — no se puede cambiar solo el PIN del dueño manteniendo los
-  // hashes de empleado/contable bajo el salt viejo. Por eso también se
-  // generan códigos nuevos de empleado y contable, que se devuelven UNA VEZ
+  // hashes de encargado/contable bajo el salt viejo. Por eso también se
+  // generan códigos nuevos de encargado y contable, que se devuelven UNA VEZ
   // para que la UI se los muestre al dueño ("apunta estos códigos nuevos").
   // ---- Rate limiting anti fuerza bruta (PINs de 3 dígitos = solo 1000
   // combinaciones; sin esto, un script en el mismo dispositivo podría
