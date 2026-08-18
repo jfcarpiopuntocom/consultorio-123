@@ -64,6 +64,7 @@
      OC_PB_URL). Por defecto todo corre local: mock-backend.js en la demo
      estática, o server.js real en el servidor local del negocio. -->
 <script src="./pocketbase-client.js"></script>
+<script src="./estado-idb.js"></script>
 <script src="./mock-backend.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -3743,6 +3744,15 @@ function mostrarFormNuevoProducto(codigoEscaneado){
   document.getElementById("np-perecible").addEventListener("change", (e) => {
     document.getElementById("np-fecha-wrap").style.display = e.target.checked ? "block" : "none";
   });
+  try { if (window.OCCategorias) window.OCCategorias.enganchar(document.getElementById("np-categoria")); } catch (_) {}
+  /* Nada tecleado se pierde: back del navegador, cierre, o el telefono mandando
+     la app al fondo. Ver borradores.js. */
+  try {
+    if (window.OCBorradores) {
+      const _c = document.getElementById("np-nombre");
+      if (_c) window.OCBorradores.enganchar(_c.closest(".ficha-producto"), "alta-producto", { msgId: "np-msg" });
+    }
+  } catch (_) {}
 }
 
 async function crearProductoNuevo(codigoEscaneado){
@@ -3999,6 +4009,15 @@ async function abrirAltaProducto(){
   document.getElementById("np-tipo-proveedor").addEventListener("change", (e) => {
     document.getElementById("np-comision-wrap").style.display = e.target.value === "consignacion" ? "block" : "none";
   });
+  try { if (window.OCCategorias) window.OCCategorias.enganchar(document.getElementById("np-categoria")); } catch (_) {}
+  /* Nada tecleado se pierde: back del navegador, cierre, o el telefono mandando
+     la app al fondo. Ver borradores.js. */
+  try {
+    if (window.OCBorradores) {
+      const _c = document.getElementById("np-nombre");
+      if (_c) window.OCBorradores.enganchar(_c.closest(".ficha-producto"), "alta-producto", { msgId: "np-msg" });
+    }
+  } catch (_) {}
   modal.classList.add("activo");
 }
 
@@ -4982,6 +5001,7 @@ setTimeout(() => {
      percha en IndexedDB en vez de localStorage. -->
 <script src="./idb-fotos.js"></script>
 <script src="./idb-archivo.js"></script>
+<script src="./borradores.js"></script>
 <script src="./vista-perchas.js"></script>
 <script src="./welcome-ui.js"></script>
 <script src="./tutorial-ui.js"></script>
