@@ -42,6 +42,20 @@
 (function () {
   "use strict";
 
+  /* GUARD DE REENTRADA (JFC 2026-08-18). Este modulo REEMPLAZA
+     window.localStorage por un shim que antepone el prefijo de la app. Si por
+     un descuido el <script> quedara dos veces en la pagina, la segunda pasada
+     veria el shim de la primera como si fuera el almacenamiento nativo y
+     prefijaria TODO otra vez: "c123::c123::owned". Cada clave del negocio
+     quedaria inalcanzable de golpe.
+
+     Se detecta con una marca en window y se sale sin tocar nada. */
+  if (window.__OC_AISLAMIENTO_INSTALADO__) {
+    try { console.warn("[aislamiento] ya estaba instalado; la segunda carga se ignora"); } catch (_) {}
+    return;
+  }
+  window.__OC_AISLAMIENTO_INSTALADO__ = true;
+
   // Namespace de ESTA app. Cambiarlo aisla todo de golpe; no debe coincidir
   // con el de las apps hermanas (f123 / amigable).
   var NS = "c123";
@@ -56,10 +70,10 @@
   /* CADA APP RESCATA SOLO LO SUYO (JFC 2026-08-15). Antes las tres tenian la
   // misma lista y una podia importar las claves historicas de otra al abrirlas
   // en el mismo navegador. Compartimentar de verdad empieza aqui. */
-  /* c123 conserva "f123_" porque sus claves historicas nacieron del fork
+  /* c123 conserva "c123_" porque sus claves historicas nacieron del fork
      de friendly y renombrarlas ahora costaria los datos de quien ya la usa.
      Eso NO mezcla apps: el namespace c123:: las mantiene separadas igual. */
-  var PREFIJOS_LEGADO = ["c123_", "f123_"];
+  var PREFIJOS_LEGADO = ["c123_", "f123_"]  /* f123_ NO se renombra aqui: es el prefijo heredado que hay que seguir rescatando del espacio comun (JFC 2026-08-18) */;
 
   var nativo = null;
   try { nativo = window.localStorage; } catch (_) { nativo = null; }
@@ -115,6 +129,52 @@
     } catch (_) {}
   }
   migrarUnaVez();
+
+  /* -------------------------------------------------------------------------
+     RENOMBRE DE LAS CLAVES HEREDADAS f123_ -> c123_  (JFC 2026-08-18)
+     -------------------------------------------------------------------------
+     Este repo nacio como fork de friendly-123 y quedo guardando TODO con el
+     prefijo de la app hermana, incluido `f123_owned`, que es donde vive el
+     registro de licencia del duenio. Funcionaba —el namespace de arriba las
+     aislaba igual— pero era enganiosa: la licencia de un consultorio no se
+     llama "f123".
+
+     Renombrar a secas dejaria huerfano lo que la gente YA tiene guardado, asi
+     que se COPIA clave por clave al nombre nuevo, una sola vez, y la vieja se
+     conserva. No se borra nada: si algo saliera mal, el dato original sigue
+     ahi y basta con revertir el codigo.
+
+     Corre DESPUES de migrarUnaVez() y ANTES de que cualquier otro modulo lea:
+     aislamiento.js es el primer script de la pagina, por contrato.
+     ------------------------------------------------------------------------- */
+  var CLAVE_RENOMBRE = PREFIJO + "_renombre_f123_a_c123_v1";
+  function renombrarClavesHeredadas() {
+    try {
+      if (nativo.getItem(CLAVE_RENOMBRE)) return;
+      var pares = [];
+      for (var i = 0; i < nativo.length; i++) {
+        var k = nativo.key(i);
+        if (!k || k.indexOf(PREFIJO) !== 0) continue;
+        var interna = k.slice(PREFIJO.length);
+        if (interna.indexOf("f123_") !== 0) continue;
+        pares.push([k, PREFIJO + "c123_" + interna.slice(5)]);
+      }
+      pares.forEach(function (par) {
+        try {
+          /* Si el destino YA tiene valor, el nuevo manda: puede venir de una
+             sesion posterior al renombre y pisarlo con lo viejo seria retroceder. */
+          if (nativo.getItem(par[1]) !== null) return;
+          var v = nativo.getItem(par[0]);
+          if (v !== null) nativo.setItem(par[1], v);
+        } catch (_) {}
+      });
+      nativo.setItem(CLAVE_RENOMBRE, String(Date.now()));
+      if (pares.length) {
+        try { console.info("[aislamiento] " + pares.length + " claves f123_ copiadas a c123_ (las originales se conservan)"); } catch (_) {}
+      }
+    } catch (_) {}
+  }
+  renombrarClavesHeredadas();
 
   /* -------------------------------------------------------------------------
      LIMPIEZA DE LICENCIA AJENA (JFC 2026-08-15). Corre SIEMPRE, no una vez: si

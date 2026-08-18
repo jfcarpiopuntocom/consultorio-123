@@ -20,7 +20,7 @@
 (function(){
   try{
     if(!("serviceWorker" in navigator))return;
-    var K="f123_sw_nuke_v1";
+    var K="c123_sw_nuke_v1";
     if(localStorage.getItem(K))return;
     // Marcar ANTES de hacer nada — si el proceso revienta, no vuelve a disparar.
     localStorage.setItem(K,"1");
@@ -2677,7 +2677,7 @@ if (elLogoHeader) elLogoHeader.addEventListener("click", () => {
       const d = await (await fetch(`${API}/instancia/nombre`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre: nuevo }) })).json();
       if (d && d.ok) {
         span.textContent = d.nombreNegocio || nuevo;
-        try { const o = JSON.parse(localStorage.getItem("f123_owned") || "null"); if (o) { o.nombreNegocio = d.nombreNegocio || nuevo; localStorage.setItem("f123_owned", JSON.stringify(o)); } } catch (_) {}
+        try { const o = JSON.parse(localStorage.getItem("c123_owned") || "null"); if (o) { o.nombreNegocio = d.nombreNegocio || nuevo; localStorage.setItem("c123_owned", JSON.stringify(o)); } } catch (_) {}
       }
     } catch (_) {}
   });
@@ -4618,7 +4618,7 @@ function ofrecerResumenSemanalSiToca(){
   if (!window.OCAuth || window.OCAuth.rolActual() !== "dueno") return;
   if (window.OCAuth.esDemo && window.OCAuth.esDemo()) return;
   let ultimo = 0;
-  try { ultimo = Number(localStorage.getItem("f123_resumen_semanal_ofrecido") || 0); } catch (_) {}
+  try { ultimo = Number(localStorage.getItem("c123_resumen_semanal_ofrecido") || 0); } catch (_) {}
   if (Date.now() - ultimo < 7 * 86400000) return;
   // (2026-07-17) el sello de 'ya ofrecido' se guarda al RESPONDER, no al pintar —
   // si el toast falla, la oferta no se quema por 7 dias.
@@ -4630,8 +4630,8 @@ function ofrecerResumenSemanalSiToca(){
       <button id="oc-resumen-sem-no" style="min-height:44px;padding:0 14px;border:2px solid #5294AC;border-radius:7px;background:transparent;color:#F8F9FB !important;-webkit-text-fill-color:#F8F9FB !important;cursor:pointer;">${t("weekly.nudgeNotNow")}</button>
     </div>`;
   document.body.appendChild(toast);
-  toast.querySelector("#oc-resumen-sem-si").addEventListener("click", () => { try { localStorage.setItem("f123_resumen_semanal_ofrecido", String(Date.now())); } catch (_) {} enviarResumenSemanalWhatsApp(); toast.remove(); });
-  toast.querySelector("#oc-resumen-sem-no").addEventListener("click", () => { try { localStorage.setItem("f123_resumen_semanal_ofrecido", String(Date.now())); } catch (_) {} toast.remove(); });
+  toast.querySelector("#oc-resumen-sem-si").addEventListener("click", () => { try { localStorage.setItem("c123_resumen_semanal_ofrecido", String(Date.now())); } catch (_) {} enviarResumenSemanalWhatsApp(); toast.remove(); });
+  toast.querySelector("#oc-resumen-sem-no").addEventListener("click", () => { try { localStorage.setItem("c123_resumen_semanal_ofrecido", String(Date.now())); } catch (_) {} toast.remove(); });
 }
 window.addEventListener("oc-login", () => setTimeout(ofrecerResumenSemanalSiToca, 1200));
 
@@ -4797,11 +4797,11 @@ function inicializarSelectorTimezone(){
   const zonas = TIMEZONES_COMUNES.includes(detectada) ? TIMEZONES_COMUNES : [detectada, ...TIMEZONES_COMUNES];
   sel.innerHTML = `<option value="">${t("adv.timezoneAuto")} — ${detectada}</option>` +
     zonas.map(z => `<option value="${z}">${z}</option>`).join("");
-  sel.value = localStorage.getItem("f123_timezone") || "";
+  sel.value = localStorage.getItem("c123_timezone") || "";
   sel.addEventListener("change", () => {
     const msg = document.getElementById("msgTimezone");
-    if (sel.value) localStorage.setItem("f123_timezone", sel.value);
-    else localStorage.removeItem("f123_timezone");
+    if (sel.value) localStorage.setItem("c123_timezone", sel.value);
+    else localStorage.removeItem("c123_timezone");
     msg.style.color = "var(--verde)";
     msg.textContent = t("adv.timezoneSaved");
     cargarAvanzado();
@@ -5065,10 +5065,10 @@ if ("serviceWorker" in navigator) {
 (async function () {
   try {
     const r = await fetch("./version.json?ts=" + Date.now(), { cache: "no-store" });
-    if (!r.ok) { try { const eb = JSON.parse(localStorage.getItem("f123_errores") || "[]"); eb.push({ ts: Date.now(), tipo: "version-check", msg: "version.json " + r.status }); if (eb.length > 50) eb.splice(0, eb.length - 50); localStorage.setItem("f123_errores", JSON.stringify(eb)); } catch (_) {} return; }
+    if (!r.ok) { try { const eb = JSON.parse(localStorage.getItem("c123_errores") || "[]"); eb.push({ ts: Date.now(), tipo: "version-check", msg: "version.json " + r.status }); if (eb.length > 50) eb.splice(0, eb.length - 50); localStorage.setItem("c123_errores", JSON.stringify(eb)); } catch (_) {} return; }
     const v = String(((await r.json()) || {}).version || "");
     if (!v) return;
-    const K = "f123_version_vista";
+    const K = "c123_version_vista";
     const prev = localStorage.getItem(K);
     if (prev === v) return;
     localStorage.setItem(K, v);
@@ -5100,12 +5100,12 @@ window.addEventListener("oc-datos-importados", async () => {
 // Aviso discreto una sola vez por sesion; jamas bloquea nada.
 (function cajaNegraErrores() {
   let avisado = false;
-  window.addEventListener("unhandledrejection", (e) => { try { const lista = JSON.parse(localStorage.getItem("f123_errores") || "[]"); lista.push({ fecha: new Date().toISOString(), msg: String((e.reason && e.reason.message) || e.reason).slice(0, 300), src: "promise", linea: 0 }); localStorage.setItem("f123_errores", JSON.stringify(lista.slice(-10))); } catch (_) {} }); // (2026-07-17) promesas rechazadas tambien van a la caja negra
+  window.addEventListener("unhandledrejection", (e) => { try { const lista = JSON.parse(localStorage.getItem("c123_errores") || "[]"); lista.push({ fecha: new Date().toISOString(), msg: String((e.reason && e.reason.message) || e.reason).slice(0, 300), src: "promise", linea: 0 }); localStorage.setItem("c123_errores", JSON.stringify(lista.slice(-10))); } catch (_) {} }); // (2026-07-17) promesas rechazadas tambien van a la caja negra
   window.addEventListener("error", (e) => {
     try {
-      const lista = JSON.parse(localStorage.getItem("f123_errores") || "[]");
+      const lista = JSON.parse(localStorage.getItem("c123_errores") || "[]");
       lista.push({ fecha: new Date().toISOString(), msg: String(e.message || ""), src: String(e.filename || "").split("/").pop() + ":" + (e.lineno || 0) });
-      localStorage.setItem("f123_errores", JSON.stringify(lista.slice(-20)));
+      localStorage.setItem("c123_errores", JSON.stringify(lista.slice(-20)));
     } catch (_) {}
     if (avisado) return;
     avisado = true;

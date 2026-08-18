@@ -26,13 +26,13 @@
 // Depends on: window.OCAuth (role), /api/respaldo/exportar (payload).
 // No EmailJS or paid services.
 (function () {
-  const LS_PREFS   = "f123_backup_prefs_v1";
-  const LS_LAST    = "f123_backup_last_v1";    // { ts: number, canal: "email"|"whatsapp"|"both" }
-  const LS_ASSURED = "f123_backup_assurance_last_v1";
+  const LS_PREFS   = "c123_backup_prefs_v1";
+  const LS_LAST    = "c123_backup_last_v1";    // { ts: number, canal: "email"|"whatsapp"|"both" }
+  const LS_ASSURED = "c123_backup_assurance_last_v1";
   // Snooze: until when NOT to show the reminder again. Set by "Later" (24h)
   // and by auto-config (one grace cycle). Without it, toca() only looks at the
   // last backup date and the nag reappears on every login.
-  const LS_SNOOZE  = "f123_backup_snooze_v1";
+  const LS_SNOOZE  = "c123_backup_snooze_v1";
 
   function getSnooze() {
     try { return parseInt(localStorage.getItem(LS_SNOOZE) || "0", 10) || 0; } catch (_) { return 0; }
@@ -457,7 +457,7 @@
     // Gate: if the device is not activated, export gives 403. Better to show
     // this here than let the user configure everything and fail on first attempt.
     try {
-      const owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
+      const owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
       if (!owned.instanceId) {
         mount.innerHTML = `<div style="border:2px solid #E86040;border-radius:12px;padding:14px 16px;background:#FFF3EE;margin-top:16px;">
           <p style="margin:0;font-size:15px;font-weight:700;color:#C05000;">To activate automatic backup, first activate this device.</p>

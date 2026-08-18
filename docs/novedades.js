@@ -18,8 +18,8 @@
      - Transfers handled
 */
 (function () {
-  var LS_ON = "f123_gamification_on";
-  var LS_STATE = "f123_novedades_v1";
+  var LS_ON = "c123_gamification_on";
+  var LS_STATE = "c123_novedades_v1";
 
   // Diccionario local EN/ES (mismo patron que tutorial-ui.js): este panel se
   // pinta fuera del ciclo de i18n.js, asi que resuelve su propio idioma.

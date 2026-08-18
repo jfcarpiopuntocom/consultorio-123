@@ -46,7 +46,7 @@
 
   function leerOwned() {
     try {
-      var raw = global.localStorage && global.localStorage.getItem("f123_owned");
+      var raw = global.localStorage && global.localStorage.getItem("c123_owned");
       var o = raw ? JSON.parse(raw) : null;
       return (o && typeof o === "object") ? o : {};
     } catch (_) { return {}; }

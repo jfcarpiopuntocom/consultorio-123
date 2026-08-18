@@ -17,7 +17,7 @@
 // seguro (mismo criterio que idb-fotos.js) — guardarEstadoLocal() sigue
 // funcionando como hoy, sin este resguardo extra pero sin romperse.
 (function () {
-  const DB_NAME = "f123_archivo";
+  const DB_NAME = "f123_archivo"  /* NO renombrar: cambiar el nombre de una base de IndexedDB no mueve sus registros, deja los datos vivos pero invisibles (JFC 2026-08-18) */;
   const STORE = "movimientos";
   const SOPORTADO = "indexedDB" in window;
   let dbPromise = null;

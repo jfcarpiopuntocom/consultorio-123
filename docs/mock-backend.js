@@ -20,7 +20,7 @@
   window.OC_DEMO = true;
   // Timezone: reads from localStorage (set by store owner in Avanzado) or falls back to browser local.
   const ZONA = (() => {
-    const tz = localStorage.getItem("f123_timezone");
+    const tz = localStorage.getItem("c123_timezone");
     if (!tz) return Intl.DateTimeFormat().resolvedOptions().timeZone;
     try { Intl.DateTimeFormat(undefined, { timeZone: tz }); return tz; }
     catch (_) { return Intl.DateTimeFormat().resolvedOptions().timeZone; }
@@ -302,7 +302,7 @@
   // ya apropiado quedaba null tras recargar. (En consultorio los topes free
   // estan apagados de todas formas — ver TIER_GRATIS_ACTIVO — pero instanceId
   // se usa tambien en el heartbeat y el estado exportable.)
-  let instanceId = (function () { try { return (JSON.parse(localStorage.getItem("f123_owned") || "null") || {}).instanceId || null; } catch (_) { return null; } })();
+  let instanceId = (function () { try { return (JSON.parse(localStorage.getItem("c123_owned") || "null") || {}).instanceId || null; } catch (_) { return null; } })();
   // consultorio-123 NO tiene tier gratuito (JFC 2026-08-06): a diferencia de
   // amigable-123 NO hay tope de 25 productos / 100 ventas / 1 encargado. Esta
   // bandera apaga TODAS las compuertas free-tier de golpe. Si algun dia se
@@ -313,7 +313,7 @@
   // (ej. cliente moroso) sin bloquear del todo. Se comporta como si el
   // dispositivo NUNCA se hubiera activado: vuelve a los topes free (25/100/1).
   function licenciaLimitada() {
-    try { return (JSON.parse(localStorage.getItem("f123_owned") || "null") || {}).licenseEstado === "limitada"; } catch (_) { return false; }
+    try { return (JSON.parse(localStorage.getItem("c123_owned") || "null") || {}).licenseEstado === "limitada"; } catch (_) { return false; }
   }
   // Nombre editable del negocio (identidad de instancia, 2026-07-08). Viaja en
   // respaldos/sync. El header lo muestra; vacío = usa el título por defecto.
@@ -517,12 +517,12 @@
     try {
       const rmFotos = [];
       /* DOS prefijos heredados, no uno (JFC 2026-08-18). idb-fotos.js usa
-         "f123_foto_percha_" como clave vieja y crypto-store.js libera
+         "c123_foto_percha_" como clave vieja y crypto-store.js libera
          "vp_foto_percha_": mirando solo el primero, el orden de sacrificio no
          liberaba las fotos que de verdad estaban ocupando el espacio. */
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && (k.indexOf("f123_foto_percha_") === 0 || k.indexOf("vp_foto_percha_") === 0)) rmFotos.push(k);
+        if (k && (k.indexOf("c123_foto_percha_") === 0 || k.indexOf("vp_foto_percha_") === 0 || k.indexOf("f123_foto_percha_") === 0)) rmFotos.push(k);
       }
       if (rmFotos.length) {
         rmFotos.forEach((k) => { try { localStorage.removeItem(k); } catch (_) {} });
@@ -1065,10 +1065,10 @@
   // nunca sessionStorage: el usuario debe poder vaciar su inventario real
   // legitimamente despues sin que esto se vuelva a disparar).
   try {
-    if (!localStorage.getItem("f123_autoheal_888_v1")) {
-      localStorage.setItem("f123_autoheal_888_v1", "1");
+    if (!localStorage.getItem("c123_autoheal_888_v1")) {
+      localStorage.setItem("c123_autoheal_888_v1", "1");
       if (productos.length === 0 && ubicaciones.length === 0) {
-        localStorage.removeItem("f123_owned");
+        localStorage.removeItem("c123_owned");
         localStorage.removeItem(OC_STATE_KEY);
         // Fase 3: el estado real vive en los buffers A/B, no en OC_STATE_KEY
         // directo (esa clave ahora es solo fallback de migracion) — limpiar

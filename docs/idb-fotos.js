@@ -18,7 +18,7 @@
 // vista de quien llama gracias al cache en memoria de vista-perchas.js (ver
 // precargarFotos() ahi); este archivo solo expone la capa de persistencia.
 (function () {
-  const DB_NAME = "f123_fotos";
+  const DB_NAME = "f123_fotos"  /* NO renombrar: cambiar el nombre de una base de IndexedDB no mueve sus registros, deja los datos vivos pero invisibles (JFC 2026-08-18) */;
   const STORE = "perchas";
   const SOPORTADO = "indexedDB" in window;
   let dbPromise = null;
@@ -39,7 +39,7 @@
 
   // Clave localStorage que usaba el formato viejo (antes de esta migracion) —
   // se mantiene aqui SOLO como fallback si IndexedDB no esta disponible.
-  const claveVieja = (id) => "f123_foto_percha_" + id;
+  const claveVieja = (id) => "c123_foto_percha_" + id;
 
   async function guardarFoto(id, dataUrl) {
     if (!SOPORTADO) {
@@ -89,7 +89,7 @@
       try {
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && k.indexOf("f123_foto_percha_") === 0) out[k.slice("f123_foto_percha_".length)] = localStorage.getItem(k);
+          if (k && k.indexOf("c123_foto_percha_") === 0) out[k.slice("c123_foto_percha_".length)] = localStorage.getItem(k);
         }
       } catch (_) {}
       return out;
@@ -139,16 +139,16 @@
   // sobrescriben con el mismo valor, sin duplicar ni corromper).
   async function migrarSiHaceFalta() {
     if (!SOPORTADO) return;
-    const FLAG = "f123_fotos_migradas_idb_v1";
+    const FLAG = "c123_fotos_migradas_idb_v1";
     if (localStorage.getItem(FLAG)) return;
     try {
       const claves = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && k.indexOf("f123_foto_percha_") === 0) claves.push(k);
+        if (k && k.indexOf("c123_foto_percha_") === 0) claves.push(k);
       }
       for (const k of claves) {
-        const id = k.slice("f123_foto_percha_".length);
+        const id = k.slice("c123_foto_percha_".length);
         const dataUrl = localStorage.getItem(k);
         if (dataUrl) {
           const ok = await guardarFoto(id, dataUrl);

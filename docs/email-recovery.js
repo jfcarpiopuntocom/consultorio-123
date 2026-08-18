@@ -30,7 +30,7 @@
   var _amgEp = "=YXZk5ycyV2ay92du8WawJXYjZmauMXYpNmblNWas1SZsJWYnlWbh9yL6MHc0RHa";
   function workerBase() {
     try {
-      var ov = (localStorage.getItem("f123_cf_worker_url") || "").trim();
+      var ov = (localStorage.getItem("c123_cf_worker_url") || "").trim();
       if (ov) return ov.replace(/\/+$/, "");
     } catch (_) {}
     try { return atob(_amgEp.split("").reverse().join("")).replace(/\/+$/, ""); } catch (_) { return ""; }

@@ -147,11 +147,11 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
   async function migrarSiHaceFalta() {
     if (!localStorage.getItem("c123_secure_v1")) {
       let viejo = null;
-      try { viejo = JSON.parse(localStorage.getItem("f123_auth") || "null"); } catch {}
+      try { viejo = JSON.parse(localStorage.getItem("c123_auth") || "null"); } catch {}
       const DEF = { owner: "7895", encargados: ["2605"], acct: "3570", email: "" }; // consultorio-123: 4 digitos (JFC 2026-08-05)
       const base = viejo || DEF;
       await guardarSecreto(base.owner, base.encargados || [], base.acct, base.email || "");
-      localStorage.removeItem("f123_auth"); // ya no queda nada en texto plano
+      localStorage.removeItem("c123_auth"); // ya no queda nada en texto plano
     } else if (estadoSecreto() === "corrupto") {
       // Guard G2: auto-reparar a defaults SOLO si el dispositivo NUNCA fue
       // activado (sin instanceId en f123_owned). En un dispositivo YA
@@ -159,7 +159,7 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
       // del código bloquea a propósito — ahí se deja corrupto y auth-ui.js
       // ofrece el flujo de recuperación por correo en vez de arreglarlo solo.
       let _apropiado = false;
-      try { _apropiado = !!(JSON.parse(localStorage.getItem("f123_owned") || "null") || {}).instanceId; } catch (_) {}
+      try { _apropiado = !!(JSON.parse(localStorage.getItem("c123_owned") || "null") || {}).instanceId; } catch (_) {}
       if (!_apropiado) {
         await guardarSecreto("7895", ["2605"], "3570", ""); // consultorio-123: 4 digitos (JFC 2026-08-05)
       }
@@ -357,7 +357,7 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
   // intentos fallidos se compartian con AMIGABLE (mismo origen en GitHub
   // Pages). Solo son contadores de lockout, sin datos sensibles — renombrar
   // directo es seguro, en el peor caso un lockout activo se reinicia.
-  function intentosKey(ambito) { return "f123_intentos_" + ambito; }
+  function intentosKey(ambito) { return "c123_intentos_" + ambito; }
   function leerIntentos(ambito) {
     try { return JSON.parse(localStorage.getItem(intentosKey(ambito)) || "null") || { n: 0, bloqueadoHasta: 0 }; }
     catch { return { n: 0, bloqueadoHasta: 0 }; }
@@ -397,17 +397,17 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
     const codigo = randDigits(6);
     const salt = randSalt();
     const codeHash = await hashPin(codigo, salt, "reset");
-    localStorage.setItem("f123_reset", JSON.stringify({ codeHash, salt, expiresAt: Date.now() + 15 * 60 * 1000 }));
+    localStorage.setItem("c123_reset", JSON.stringify({ codeHash, salt, expiresAt: Date.now() + 15 * 60 * 1000 }));
     return codigo; // en claro, solo para que quien llama lo envíe por correo
   }
   function leerReset() {
-    try { return JSON.parse(localStorage.getItem("f123_reset")); } catch { return null; }
+    try { return JSON.parse(localStorage.getItem("c123_reset")); } catch { return null; }
   }
   async function resetearConCodigo(codigoIngresado, nuevoOwnerPin) {
     if (segundosBloqueo("reset") > 0) return { error: `Demasiados intentos. Espera ${segundosBloqueo("reset")}s.` };
     const r = leerReset();
     if (!r) return { error: "No hay ningún reseteo pendiente. Pide un código nuevo." };
-    if (Date.now() > r.expiresAt) { localStorage.removeItem("f123_reset"); return { error: "El código venció (15 min). Pide uno nuevo." }; }
+    if (Date.now() > r.expiresAt) { localStorage.removeItem("c123_reset"); return { error: "El código venció (15 min). Pide uno nuevo." }; }
     const hashIngresado = await hashPin(codigoIngresado, r.salt, "reset");
     if (hashIngresado !== r.codeHash) { registrarFallo("reset"); return { error: "Código incorrecto." }; }
     registrarExito("reset");
@@ -424,7 +424,7 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
     if (!guardado) {
       return { error: "No se pudo guardar tu PIN nuevo (memoria del dispositivo llena). Tu PIN anterior sigue funcionando. Libera espacio (fotos, otras apps) y vuelve a intentar con el mismo código." };
     }
-    localStorage.removeItem("f123_reset");
+    localStorage.removeItem("c123_reset");
     return { ok: true, empleado: nuevoEmpleado, acct: nuevoAcct };
   }
 

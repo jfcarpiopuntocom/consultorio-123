@@ -57,11 +57,11 @@
     const fetchOriginal = window.fetch.bind(window);
     let cola = [];             // operaciones pendientes de enviar, en memoria
     let temporizador = null;
-    let syncOn = localStorage.getItem("f123_sync_on") === "1";
+    let syncOn = localStorage.getItem("c123_sync_on") === "1";
 
     function deviceId() {
-      let id = localStorage.getItem("f123_device_id");
-      if (!id) { id = Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4); localStorage.setItem("f123_device_id", id); }
+      let id = localStorage.getItem("c123_device_id");
+      if (!id) { id = Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4); localStorage.setItem("c123_device_id", id); }
       return id;
     }
     function opId() { return deviceId() + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6); }
@@ -92,11 +92,11 @@
     async function guardarColaCifrada() {
       if (!window.OCSecure.syncActiva()) return;
       const blob = await window.OCSecure.cifrarSync(JSON.stringify(cola));
-      if (blob) localStorage.setItem("f123_sync_pending", blob);
+      if (blob) localStorage.setItem("c123_sync_pending", blob);
     }
     async function restaurarCola() {
       if (!window.OCSecure.syncActiva()) return;
-      const blob = localStorage.getItem("f123_sync_pending");
+      const blob = localStorage.getItem("c123_sync_pending");
       if (!blob) return;
       const texto = await window.OCSecure.descifrarSync(blob);
       if (texto) { try { cola = JSON.parse(texto) || []; } catch { cola = []; } }
@@ -106,10 +106,10 @@
     // dos operaciones con timestamps iguales o paquetes parciales/reenviados
     // ya no se saltan ni se duplican, porque el ledger es por id exacto.
     function idsAplicados() {
-      try { return new Set(JSON.parse(localStorage.getItem("f123_sync_ids_aplicados") || "[]")); } catch { return new Set(); }
+      try { return new Set(JSON.parse(localStorage.getItem("c123_sync_ids_aplicados") || "[]")); } catch { return new Set(); }
     }
     function guardarIdsAplicados(set) {
-      localStorage.setItem("f123_sync_ids_aplicados", JSON.stringify(Array.from(set).slice(-3000)));
+      localStorage.setItem("c123_sync_ids_aplicados", JSON.stringify(Array.from(set).slice(-3000)));
     }
 
     // Reproduce las operaciones de OTROS dispositivos contra el backend
@@ -142,14 +142,14 @@
       const ok = await window.OCSecure.activarSync(pin);
       if (!ok) return false;
       syncOn = true;
-      localStorage.setItem("f123_sync_on", "1");
+      localStorage.setItem("c123_sync_on", "1");
       await restaurarCola();
       arrancarIntervalo();
       return true;
     }
     function desactivar() {
       syncOn = false;
-      localStorage.removeItem("f123_sync_on");
+      localStorage.removeItem("c123_sync_on");
       window.OCSecure.desactivarSync();
       if (temporizador) clearInterval(temporizador);
     }
@@ -431,7 +431,7 @@
       panel.style.cssText = "text-align:left;margin-top:22px;";
       const salaActiva = window.OCSyncControl.salaActiva();
       const codigoPrecargado = (function () {
-        try { return (JSON.parse(localStorage.getItem("f123_owned") || "null") || {}).syncCode || ""; } catch (_) { return ""; }
+        try { return (JSON.parse(localStorage.getItem("c123_owned") || "null") || {}).syncCode || ""; } catch (_) { return ""; }
       })();
       panel.innerHTML = `
         <h3 class="seccion" style="margin-top:0;">${window.t("sync.panel.title")}</h3>
@@ -1149,9 +1149,9 @@
         rNav.addEventListener("click", (e) => {
           const b = e.target.closest("[data-riel-go]"); if (!b) return;
           const id = b.getAttribute("data-riel-go"), el = document.getElementById(id);
-          if (el) { try { el.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (_) { el.scrollIntoView(true); } activo(id); try { localStorage.setItem("f123_riel_tab", id); } catch (_) {} }
+          if (el) { try { el.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (_) { el.scrollIntoView(true); } activo(id); try { localStorage.setItem("c123_riel_tab", id); } catch (_) {} }
         });
-        try { const last = localStorage.getItem("f123_riel_tab"); if (last && document.getElementById(last)) activo(last); else if (secciones[0]) activo(secciones[0].id); } catch (_) { if (secciones[0]) activo(secciones[0].id); }
+        try { const last = localStorage.getItem("c123_riel_tab"); if (last && document.getElementById(last)) activo(last); else if (secciones[0]) activo(secciones[0].id); } catch (_) { if (secciones[0]) activo(secciones[0].id); }
 
         const obs = new MutationObserver((muts) => {
           muts.forEach((m) => {
@@ -1279,7 +1279,7 @@
         const fotosPerchas = {};
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && k.indexOf("f123_foto_percha_") === 0) fotosPerchas[k] = localStorage.getItem(k);
+          if (k && k.indexOf("c123_foto_percha_") === 0) fotosPerchas[k] = localStorage.getItem(k);
         }
         const paquete = { schemaVersion: 2, fecha: new Date().toISOString(), datos, oc_secure: (function () {
           // SEGURIDAD 2026-07-17: ownerPinR va XOR-ofuscado con clave fija visible
@@ -1339,8 +1339,8 @@
         a.download = `respaldo-amigable-${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
-        localStorage.setItem("f123_ultimo_export_manual", String(Date.now()));
-        localStorage.setItem("f123_ultimo_export_verificado", String(Date.now())); // Fase 4: distingue "se hizo" de "se verifico que abre"
+        localStorage.setItem("c123_ultimo_export_manual", String(Date.now()));
+        localStorage.setItem("c123_ultimo_export_verificado", String(Date.now())); // Fase 4: distingue "se hizo" de "se verifico que abre"
         msg("oc-respaldo-msg", "Backup downloaded and verified" + (clave ? " and encrypted" : "") + ". Save it somewhere safe.", "var(--verde)");
       } catch (e) { msg("oc-respaldo-msg", "Export failed: " + e.message, "var(--rojo)"); }
     });
@@ -1423,10 +1423,10 @@
     const CAJA_ALERTA_DIAS = 7; // avisa si el ÚLTIMO RESPALDO MANUAL tiene más de esto
 
     function cajaLeer() {
-      try { return JSON.parse(localStorage.getItem("f123_caja_snapshots") || "[]"); } catch { return []; }
+      try { return JSON.parse(localStorage.getItem("c123_caja_snapshots") || "[]"); } catch { return []; }
     }
     function cajaGuardar(lista) {
-      try { localStorage.setItem("f123_caja_snapshots", JSON.stringify(lista.slice(-CAJA_MAX_SNAPSHOTS))); return true; }
+      try { localStorage.setItem("c123_caja_snapshots", JSON.stringify(lista.slice(-CAJA_MAX_SNAPSHOTS))); return true; }
       catch { return false; } // localStorage lleno: no rompe la app, solo no guarda este punto
     }
     async function cajaGuardarPunto(silencioso) {
@@ -1456,7 +1456,7 @@
       msg("oc-respaldo-msg", "Restored. Screen now shows data from the chosen checkpoint.", "var(--verde)");
     }
     function cajaPintarAlerta() {
-      const ultimo = Number(localStorage.getItem("f123_ultimo_export_manual") || 0);
+      const ultimo = Number(localStorage.getItem("c123_ultimo_export_manual") || 0);
       const el = $("oc-caja-alerta");
       if (!el) return;
       if (!ultimo) { el.textContent = "You have not made a manual backup yet (the one above) — do it at least once."; el.style.color = "var(--rust)"; return; }
@@ -1661,7 +1661,7 @@
       try {
         const url = window.OCAuth.workerUrl();
         let owned = {};
-        try { owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {}; } catch (_) {}
+        try { owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {}; } catch (_) {}
         if (url && owned.instanceId) {
           fetch(url.replace(/\/+$/, "") + "/checkin", {
             method: "POST", headers: { "Content-Type": "application/json" },
@@ -1795,7 +1795,7 @@
         const datos = await (await fetch(`${API}/respaldo/exportar`)).json();
         try { if (window.OCArchivo) { const arch = await window.OCArchivo.leerTodos(); if (arch.length) datos.movimientos = [...arch, ...(datos.movimientos || [])]; } } catch (_) {}
         const fotosPerchas = {};
-        for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf("f123_foto_percha_") === 0) fotosPerchas[k] = localStorage.getItem(k); }
+        for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf("c123_foto_percha_") === 0) fotosPerchas[k] = localStorage.getItem(k); }
         const paquete = { schemaVersion: 2, fecha: new Date().toISOString(), datos, oc_secure: (function () {
           // SEGURIDAD 2026-07-17: ownerPinR va XOR-ofuscado con clave fija visible
           // en el fuente — cualquiera con el archivo recuperaria el PIN del dueno.
@@ -2162,10 +2162,10 @@
            codigo nuevo escrito y puede volver a unirse a mano. Al reves quedaria
            en una sala cuyo codigo no sabe. */
         var owned = {};
-        try { owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {}; } catch (_) {}
+        try { owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {}; } catch (_) {}
         owned.licenseCode = nuevo;
         owned.licenseRotadaEn = Date.now();
-        localStorage.setItem("f123_owned", JSON.stringify(owned));
+        localStorage.setItem("c123_owned", JSON.stringify(owned));
 
         if (window.OCSyncControl) {
           try { window.OCSyncControl.desactivar(); } catch (_) {}

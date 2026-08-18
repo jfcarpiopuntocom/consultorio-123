@@ -350,7 +350,7 @@
       var K = "amg_reconciliacion_sombra_ultimo_v1";
       var ultimo = parseInt(localStorage.getItem(K) || "0", 10) || 0;
       if (Date.now() - ultimo < 86400000) return;
-      var owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
+      var owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
       if (!owned.instanceId) return;
       compararEnSombra().then(function () {
         try { localStorage.setItem(K, String(Date.now())); } catch (_) {}
@@ -512,7 +512,7 @@
       if (Date.now() - ultimo < 86400000) return;
       // Solo si el dispositivo esta activado: en demo no hay nada real que
       // proteger y llenariamos IndexedDB con datos de juguete.
-      var owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
+      var owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
       if (!owned.instanceId) return;
       archivar("automatico-diario").then(function () {
         try { localStorage.setItem(K, String(Date.now())); } catch (_) {}

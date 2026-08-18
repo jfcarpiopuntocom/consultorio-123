@@ -16,7 +16,7 @@
 // exactamente igual que hoy. Cero dependencia obligatoria, mismo criterio que
 // sync-realtime.js.
 (function () {
-  const KEY_ESTADO = "f123_storage_persist";
+  const KEY_ESTADO = "c123_storage_persist";
 
   function leerEstado() {
     try { return JSON.parse(localStorage.getItem(KEY_ESTADO) || "null"); } catch (_) { return null; }
