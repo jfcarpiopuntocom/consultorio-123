@@ -28,6 +28,20 @@
   function hoyISO() {
     return new Intl.DateTimeFormat("en-CA", { timeZone: ZONA, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   }
+  /* BUG DE DINERO (arreglado en amigable-123 el 2026-08-06, portado aqui el
+     2026-08-18). Las atenciones y los abonos se guardan con toISOString(), que
+     es UTC. Compararlo crudo contra el dia o el mes LOCAL solo funciona en
+     UTC+0: en Ecuador (UTC-5) todo lo cobrado despues de las 19:00 ya tiene la
+     fecha del dia siguiente, asi que desaparecia del "hoy" y lo del ultimo dia
+     del mes caia en el corte del mes siguiente. En un consultorio eso es un
+     abono de un paciente contado en el mes equivocado. */
+  function fechaLocalDe(fechaISO) {
+    try {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: ZONA, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(fechaISO));
+    } catch (_) {
+      return String(fechaISO || "").slice(0, 10);
+    }
+  }
   // Días reales del mes actual (28/29/30/31) — espejo de diasEnMesActual() en server.js.
   function diasEnMesActual() {
     const [anio, mes] = hoyISO().split("-").map(Number);
@@ -655,7 +669,7 @@
 
   // ---- Reparto de comisiones (espejo de data.js) ----
   function mesActualISO() { return hoyISO().slice(0, 7); }
-  function esDelMesActual(fechaISO) { return fechaISO && fechaISO.slice(0, 7) === mesActualISO(); }
+  function esDelMesActual(fechaISO) { return !!fechaISO && fechaLocalDe(fechaISO).slice(0, 7) === mesActualISO(); }
   // Conteo global de ventas del mes actual, TODAS las ubicaciones (free-tier
   // gating, 2026-07-15) — distinto de ventasMesAcumuladas (suma montos por
   // una sola ubicacion, para comisiones). Usado para el tope de 100/mes.
@@ -903,7 +917,7 @@
   function filtrar(uid) { return !uid || uid === "todas" ? productos : productos.filter((p) => p.ubicacionId === uid); }
   // BUG latente fijado 2026-07-07: "ventas de HOY" filtraba solo por
   // ubicacion; con historial de dias anteriores el resumen del dia mentia.
-  function ventasHoyDe(uid) { const hoy = hoyISO(); return ventas.filter((v) => String(v.fecha).slice(0, 10) === hoy && (!uid || uid === "todas" || v.ubicacionId === uid)); }
+  function ventasHoyDe(uid) { const hoy = hoyISO(); return ventas.filter((v) => fechaLocalDe(v.fecha) === hoy && (!uid || uid === "todas" || v.ubicacionId === uid)); }
   // Multi-usuario (2026-07-07): cada movimiento captura automaticamente
   // quien estaba logueado (window.OCCurrentUser). Si no hay usuario nombrado
   // (dueno por PIN clasico, sistema) aparece como "Sistema".

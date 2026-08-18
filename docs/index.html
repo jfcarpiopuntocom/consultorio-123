@@ -5209,6 +5209,16 @@ function _ocModalMostrar(mensaje, botonesConfig) {
   });
 }
 // Reemplazo de confirm(): resuelve true (aceptar) / false (cancelar).
+/* BUG HALLADO EN LA CAZA (2026-08-18): el rescate desde IndexedDB existia pero
+   NADIE lo escuchaba en este repo, asi que recuperaba el estado en memoria y la
+   pantalla seguia mostrando lo viejo. En un consultorio eso son abonos y pagos
+   que el medico no ve. */
+window.addEventListener("oc-estado-rescatado", function () {
+  ["cargarHoy", "cargarInventario", "cargarPacientes", "cargarClientes",
+   "cargarUbicaciones", "cargarComisiones"].forEach(function (fn) {
+    try { if (typeof window[fn] === "function") window[fn](); } catch (_) {}
+  });
+});
 function ocConfirm(mensaje, opts) {
   opts = opts || {};
   return _ocModalMostrar(mensaje, [
