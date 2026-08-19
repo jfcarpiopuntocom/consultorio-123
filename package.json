@@ -7,8 +7,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "node server.js",
-    "test": "node --test"
+    "start": "echo 'consultorio-123 corre en el navegador (docs/index.html sobre GitHub Pages). El backend Node de server.js es legado del fork de friendly-123 y no aplica al modelo medico (ver DIRECCION-PRODUCTO). Abrir docs/index.html directamente o servir docs/ con cualquier http server estatico.' && exit 0",
+    "start:legacy-node": "node server.js",
+    "test": "node --test test/*.test.js"
   },
   "keywords": [],
   "author": "",

@@ -18,11 +18,24 @@ const adapter = new FileSync(dbPath);
 const db = low(adapter);
 
 // --- Datos semilla (solo se usan la primera vez que arranca el servidor) ---
-// Tienda de artesanías y licores de Cuenca. Definido en seed-data.js para
-// mantenerse sincronizado con la demo estática (public/mock-backend.js).
-const { ubicaciones, productos, configuracion, promotores } = require("./seed-data");
-const seed = { ubicaciones, productos, ventas: [], movimientos: [], transferencias: [], promotores, configuracion };
+// consultorio-123 no lleva perchas ni productos ni asociados (esa parte es
+// legado del fork de friendly-123 y no aplica al modelo médico — ver
+// DIRECCION-PRODUCTO). El seed-data.js correspondiente NO existe en este
+// repo y no debería existir. Si algun día vuelve un backend Node para
+// consultorio, seed vacío es la base correcta; si el archivo aparece por
+// error de port, se respeta pero no se exige. Fix real (JFC 2026-08-19,
+// caza): antes hacía crash al hacer `npm start` porque el require duro
+// tumbaba db.js sin dejar arrancar el server.
+var semilla = { pacientes: [], atenciones: [], movimientos: [], configuracion: {} };
+try {
+  var extra = require("./seed-data");
+  if (extra && typeof extra === "object") {
+    Object.keys(extra).forEach(function (k) { semilla[k] = extra[k]; });
+  }
+} catch (e) {
+  if (e && e.code !== "MODULE_NOT_FOUND") throw e;
+}
 
-db.defaults(seed).write();
+db.defaults(semilla).write();
 
 module.exports = db;
