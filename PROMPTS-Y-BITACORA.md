@@ -90,3 +90,83 @@ constaba que friendly-123 recibe los avances primero. JFC lo corrigió.
 `vista-perchas.js`, y 7 archivos que a F123 le faltan (`tablero.html`,
 `tablero-avanzado.js`, `estado-idb.js`, `borradores.js`, `micelio-vivo.js`,
 `micelio-ui.js`, `percha-reposicion.js`, `simon-config.js`).
+
+---
+
+## 2026-08-19 — activar consultorio-123 + panel.html + notas OCR
+
+### Prompt textual de JFC (2026-08-19)
+
+> "ahora vamos brevemente pero focused a consultorio-123 (ya quiero que se active
+> y me des un panel de control para friendly-123 y consultorio-123, de cada uno
+> su panel.html como el de amigable-123 pero sin nada de Olimpo Control ni de
+> otras cosas que no sean hyper focused en ellas como apps, y ponles mi misma
+> clave 895759 que no me molesta que sepas, ya la cambiaré luego cuando haya
+> info real etc etc — Aqui van apuntes para cambios en las fotos y aqui abajo a
+> continuacion en texto un MAL ocr de las fotos entonces pensemos bien,
+> /make-plan y me haces aprobar formas, ya sabes mis filosofias y que amo costas
+> estables, hibridas, innovadoras y robustas, en ese orden"
+
+### Qué se hizo ahora
+
+- Verificado que `docs/panel.html` YA tenía la clave 895759 (hash SHA-256
+  coincide con `printf 895759 | sha256sum`).
+- Fix: cross-app auth key. La sesión del panel usaba `panel_auth_f123` (herencia
+  de haber clonado desde friendly). Cambiada a `panel_auth_c123` para que abrir
+  ambos paneles en la misma máquina no cross-autentique.
+- Fix: se quita el PIN escrito en texto plano en la tabla de "Códigos maestros
+  de recuperación" (`4-1-9-2-5-7`). Reemplazado por "oculto (sha256 en
+  _expectedHash)". Regla: la clave nunca en el fuente, sólo su hash.
+- Snapshot: `panel-y-consultorio-notas`.
+- PR #2 mergeado a main.
+
+### Pendiente — 14 items de las notas OCR (JFC dijo que el OCR es imperfecto)
+
+Se listan aquí para retomar. **NO se implementaron todavía porque adivinar la
+interpretación de un OCR malo, sin confirmar con JFC, es exactamente lo que
+la regla 'no alucinar, no asumir' prohíbe.** Cada item necesita 30s de JFC
+para confirmar/aclarar antes de tocar código:
+
+1. **Ingresar → Caja chica / Bancos**: el flujo de ingreso pide destino
+   (¿radio caja/bancos? ¿o es un tab del panel financiero?).
+2. **Forma de pago = pulldown**: efectivo / transferencia / tarjeta / cheque /
+   otro. ¿En qué formulario exactamente — cobro de cita, abono, gasto?
+3. **No etiquetar**: ¿quitar el sistema de tags/etiquetas de contactos? ¿o de
+   otro lado (movimientos, citas)?
+4. **Ayuda a bloquear días** (agenda): botón "Bloquear día"/"Bloquear rango"
+   para feriados/vacaciones. Confirmar que se persiste como hecho.
+5. **Editar agenda**: cita creada debe ser editable (hora, paciente, nota) —
+   ¿cambio de hora reemite hecho o crea `cita_reagendada`? decisión de JFC.
+6. **Informar cuando solo hay [ilegible]** — el OCR corta la palabra clave.
+   Posibles lecturas: "cuando sólo hay poco stock", "cuando sólo hay un
+   paciente", "cuando sólo hay un cobro pendiente". Necesita aclarar.
+7. **Poder agregar gasto**: `caja-chica.js` ya tiene `retiro` que es el
+   equivalente; ¿"gasto" es sólo el label visible, o es una categoría
+   contable distinta (COGS vs OPEX)?
+8. **Editable por campo**: cada fila con lápiz por campo — patrón ya
+   estandarizado. Aplicar a las tablas financieras del panel.
+9. **Solo necesitamos contacto/s**: unificar cliente/proveedor bajo un único
+   modelo "contacto" con banderas. Confirmar antes de migrar registros
+   existentes.
+10. **Interactuar con contactos**: click-to-call, click-to-whatsapp,
+    click-to-mail en la ficha.
+11. **Que ellos puedan elegir el perfil**: el contacto se autoservicia por link
+    corto. Requiere endpoint público firmado — decisión arquitectónica.
+12. **Ejecutar para completar**: la cita queda "pendiente" hasta que se
+    presiona "Completar" (que cobra y cierra).
+13. **Lista de pacientes/clientes**: tab dedicado con buscador y ficha con
+    historial de citas + estado de CxC.
+14. **Fotos de personas**: campo foto en ficha de contacto. Sensibles →
+    `crypto-store` (AES-GCM), no en claro.
+
+### Estado del código para retomar
+
+- `docs/agenda.js` y `docs/agenda-ui.js` ya existen (event-sourcing sobre
+  `hechos.js`, mismo patrón que cxc/ingresos).
+- `docs/caja-chica.js` tiene `ingreso` y `retiro` como hechos inmutables.
+- `docs/nucleo-cxc.js`, `docs/nucleo-ingresos.js`, `docs/nucleo-resultados.js`,
+  `docs/nucleo-ui.js` — núcleo financiero ya montado.
+- `_private/PLAN-AGENDA-CITAS.md` es la referencia arquitectónica de la agenda.
+
+Bloqueado en: aclarar OCR con JFC. Sin eso, cualquier implementación es
+adivinanza — y la regla es no adivinar.
