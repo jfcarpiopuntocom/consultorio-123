@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Deja de perder plata que ya cobraste — consultorio-123</title>
+<meta name="color-scheme" content="light only">
+<meta name="theme-color" content="#F8F9FB">
+<meta name="robots" content="noindex,nofollow">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="consultorio-123">
+<meta property="og:title" content="Deja de perder plata que ya cobraste">
+<meta property="og:description" content="Consultorio-123 organiza tu caja, tus abonos y las cuentas por cobrar de tus pacientes sin que tengas que aprender contabilidad.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#F8F9FB;
+    --ink:#0F1923;
+    --ink-soft:#2C3E50;
+    --ink-dim:#6b7280;
+    --hairline:#e5e7eb;
+    --card:#ffffff;
+    --brass:#5294AC;
+    --brass-deep:#3f7488;
+    --rust:#E86040;
+    --rust-deep:#C05000;
+    --green:#00A968;
+    --amber:#B45309;
+    --red:#B91C1C;
+    --font:"Inter","Segoe UI",system-ui,sans-serif;
+    --font-display:"Space Grotesk","Avenir Next Condensed",sans-serif;
+    --mono:"JetBrains Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;line-height:1.55;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px;}
+  .section{padding:56px 0;}
+  @media(min-width:640px){.section{padding:80px 0;}}
+
+  header{padding:22px 0;border-bottom:1px solid var(--hairline);background:#fff;}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+  header .brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:18px;}
+  header .brand .sello{width:32px;height:32px;border-radius:8px;background:var(--brass);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;}
+  header nav a{color:var(--ink-soft);text-decoration:none;font-size:14px;margin-left:16px;}
+  header nav a:hover{color:var(--ink);}
+
+  h1{font-family:var(--font-display);font-size:36px;font-weight:700;letter-spacing:-0.01em;line-height:1.15;}
+  @media(min-width:768px){h1{font-size:50px;}}
+  h1 .hl{color:var(--brass);}
+  h2{font-family:var(--font-display);font-size:28px;font-weight:700;line-height:1.2;margin-bottom:20px;}
+  @media(min-width:768px){h2{font-size:34px;}}
+  h3{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:8px;}
+  p{font-size:17px;color:var(--ink-soft);}
+  .hero{text-align:center;padding:64px 0 32px;}
+  .hero .sub{font-size:20px;max-width:680px;margin:20px auto 0;}
+
+  .cta{display:inline-flex;align-items:center;gap:8px;background:var(--brass);color:#fff;font-weight:700;padding:14px 24px;border-radius:8px;text-decoration:none;font-size:16px;margin-top:28px;transition:background .15s;}
+  .cta:hover{background:var(--brass-deep);}
+  .cta.ghost{background:transparent;color:var(--brass);border:1.5px solid var(--brass);margin-left:10px;}
+
+  .cards{display:grid;grid-template-columns:1fr;gap:16px;margin-top:24px;}
+  @media(min-width:900px){.cards{grid-template-columns:repeat(3,1fr);}}
+  .card{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:24px;}
+  .card.pain{border-top:4px solid var(--red);}
+  .card.win{border-top:4px solid var(--green);}
+  .card .num{font-family:var(--mono);font-size:14px;color:var(--ink-dim);font-weight:700;letter-spacing:.06em;margin-bottom:8px;}
+  .card p{font-size:15px;line-height:1.6;margin-top:6px;}
+
+  .testimonios{display:grid;grid-template-columns:1fr;gap:16px;max-width:720px;margin:24px auto 32px;}
+  @media(min-width:600px){.testimonios{grid-template-columns:1fr 1fr;}}
+  .testimonio{background:var(--card);border:1px solid var(--hairline);border-radius:10px;padding:20px;}
+  .testimonio .cita{font-family:var(--font-display);font-weight:700;font-size:17px;color:var(--ink);margin-bottom:8px;}
+  .testimonio .autor{font-size:14px;color:var(--ink-dim);}
+
+  .attrib{text-align:center;font-size:14px;color:var(--ink-dim);max-width:660px;margin:-6px auto 20px;}
+  .attrib a{color:var(--brass-deep);}
+
+  .cta-box{background:var(--ink);color:#fff;border-radius:14px;padding:36px 24px;text-align:center;margin-top:24px;}
+  .cta-box h2{color:#fff;}
+  .cta-box p{color:#d1d5db;max-width:560px;margin:12px auto 0;}
+  .cta-box .cta{margin-top:22px;}
+
+  footer{padding:32px 0;border-top:1px solid var(--hairline);text-align:center;color:var(--ink-dim);font-size:14px;background:#fff;}
+  footer a{color:var(--ink-soft);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand"><div class="sello">c</div>consultorio-123</div>
+    <nav>
+      <a href="index.html">Abrir</a>
+      <a href="visualize.html">Cuánto se pierde</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero wrap">
+  <h1>Deja de perder plata que <span class="hl">ya cobraste</span>.</h1>
+  <p class="sub">El paciente pagó una parte, quedó a deber otra, y esa cuenta pendiente se olvidó en un cuaderno o en un chat. Consultorio-123 la recuerda por ti — sin planillas, sin contador, sin curva de aprendizaje.</p>
+  <a class="cta" href="index.html">Abrir la app</a>
+  <a class="cta ghost" href="#dolores">Cómo se ve el problema</a>
+</section>
+
+<section class="section" id="dolores" style="background:#fff;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);">
+  <div class="wrap">
+    <h2 style="text-align:center;">Tres formas típicas de perder ingresos</h2>
+    <p style="text-align:center;max-width:640px;margin:0 auto 12px;">Ninguna es dramática por sí sola. Sumadas, en un año, son la diferencia entre un mes bueno y un mes malo.</p>
+    <div class="cards">
+      <div class="card pain">
+        <div class="num">FUGA 01</div>
+        <h3>Abonos que nadie apunta</h3>
+        <p>El paciente pagó $30 de una consulta de $80 y dijo "el resto la próxima". Sin registro, la próxima ya no llega o llega como si fuera nueva.</p>
+      </div>
+      <div class="card pain">
+        <div class="num">FUGA 02</div>
+        <h3>Citas que se olvidan de cobrar</h3>
+        <p>La agenda dice "atendido" pero la caja no. Terminas la semana con más pacientes que ingresos y no sabes dónde se rompió la línea.</p>
+      </div>
+      <div class="card pain">
+        <div class="num">FUGA 03</div>
+        <h3>Gastos sin bolsillo asignado</h3>
+        <p>Caja chica y bancos se mezclan. Compras material de un lado, cobras del otro, y al fin de mes no sabes si ganaste o si moviste plata de un bolsillo al otro.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section wrap">
+  <h2 style="text-align:center;">Lo que la app hace por ti</h2>
+  <div class="cards">
+    <div class="card win">
+      <div class="num">GANAS 01</div>
+      <h3>Cuentas por cobrar visibles</h3>
+      <p>Cada abono queda como un hecho inmutable. Ves de un vistazo quién debe, cuánto, y desde cuándo — sin abrir hojas ni hacer sumas.</p>
+    </div>
+    <div class="card win">
+      <div class="num">GANAS 02</div>
+      <h3>Agenda que cierra el ciclo</h3>
+      <p>La cita pasa de "agendada" a "atendida" a "cobrada" con un botón. Nada queda en el limbo.</p>
+    </div>
+    <div class="card win">
+      <div class="num">GANAS 03</div>
+      <h3>Caja chica y bancos separados</h3>
+      <p>Un ingreso siempre entra a un bolsillo específico. Un gasto siempre sale de un bolsillo específico. Al final del mes, cada bolsillo tiene un saldo real.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="background:#fff;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);">
+  <div class="wrap">
+    <h2 style="text-align:center;">Consultorios y clínicas que ya cerraron el cuaderno</h2>
+    <p class="attrib">Reviews based on the win app <a href="https://jfcarpiopuntocom.github.io/AMIGABLE/" target="_blank" rel="noopener">amigable-123</a> — el hermano de mercado general, mismo código, mismos operadores.</p>
+    <div class="testimonios">
+      <div class="testimonio">
+        <p class="cita">"Es justo lo que estaba buscando."</p>
+        <p class="autor">B. C. — Idiomarte, Cuenca</p>
+      </div>
+      <div class="testimonio">
+        <p class="cita">"Esto me salva de usar el cuaderno."</p>
+        <p class="autor">J. M. — Cuenca</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section wrap">
+  <div class="cta-box">
+    <h2>Ábrela diez minutos. Sin tarjeta.</h2>
+    <p>Si en diez minutos no entendiste cómo se ve tu consulta, no era para ti — y no gastaste un dólar averiguándolo.</p>
+    <a class="cta" href="index.html">Abrir la app</a>
+  </div>
+</section>
+
+<footer>
+  <p>consultorio-123 — un proyecto de <a href="https://jfcarpio.com" target="_blank" rel="noopener">jfcarpio.com</a> · <a href="https://avatiun.com" target="_blank" rel="noopener">avatiun.com</a></p>
+</footer>
+
+</body>
+</html>
