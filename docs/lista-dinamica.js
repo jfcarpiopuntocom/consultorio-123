@@ -1,3 +1,4 @@
+// COMPARTIDO: portado y mantenido identico entre apps hermanas a proposito.
 /*!
  * lista-dinamica.js — consultorio-123 · listas dinámicas (búsqueda + orden)
  * ============================================================================
