@@ -440,7 +440,7 @@
       <table class="versiones">
         <thead><tr><th>App</th><th>Código(s)</th><th>Uso</th></tr></thead>
         <tbody>
-          <tr><td class="nom">Panel Maestro</td><td>4-1-9-2-5-7</td><td>Acceso a este panel — 6 dígitos, solo tú lo sabes</td></tr>
+          <tr><td class="nom">Panel Maestro</td><td>oculto (sha256 en _expectedHash)</td><td>Acceso a este panel — 6 dígitos, solo tú lo sabes</td></tr>
           <tr><td class="nom">consultorio-123 (app)</td><td>N/A — sin código maestro estático</td><td>La recuperación de PIN del dueño usa reset por EmailJS (código temporal, expira en 15 min), no una lista de códigos fija en el código fuente.</td></tr>
         </tbody>
       </table>
@@ -629,11 +629,11 @@ async function initGate() {
   const padEl = document.getElementById("gate-pad");
   const slotsEl = document.getElementById("gate-slots");
   const msgEl = document.getElementById("gate-msg");
-  if (sessionStorage.getItem("panel_auth_f123") === "1") { mostrarPanel(); return; }
+  if (sessionStorage.getItem("panel_auth_c123") === "1") { mostrarPanel(); return; }
   montarTeclado(padEl, slotsEl, async (codigo, reset) => {
     const h = await sha256hex(codigo);
     if (h === _expectedHash) {
-      sessionStorage.setItem("panel_auth_f123", "1");
+      sessionStorage.setItem("panel_auth_c123", "1");
       mostrarPanel();
     } else {
       msgEl.textContent = "Código incorrecto.";
@@ -655,7 +655,7 @@ function initPanel() {
   document.getElementById("fecha-panel").textContent =
     d.getDate() + " " + meses[d.getMonth()] + " " + d.getFullYear();
   document.getElementById("btn-cerrar").addEventListener("click", () => {
-    sessionStorage.removeItem("panel_auth_f123");
+    sessionStorage.removeItem("panel_auth_c123");
     location.reload();
   });
   document.querySelectorAll("[data-action='liberar']").forEach(btn => {
