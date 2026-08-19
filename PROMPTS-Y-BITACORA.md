@@ -170,3 +170,51 @@ para confirmar/aclarar antes de tocar código:
 
 Bloqueado en: aclarar OCR con JFC. Sin eso, cualquier implementación es
 adivinanza — y la regla es no adivinar.
+
+---
+
+## 2026-08-19 — Top 3 Pains y JTBDs de consultorio-123
+
+### Prompt textual de JFC
+
+> "esto apuntalo para consultorio-123 en tus .md igual que el prompt anterior
+> era lo mismo pero para amigable y friendly, ponlo tambien en tus .md
+>
+> Top 3 Pains
+>
+> 1. No tienen tiempo ni formación contable para saber cuánto ganan realmente
+>    — cargan gastos e ingresos de forma dispersa (agenda, efectivo,
+>    transferencias) y no llegan a "contabilizar" en serio; necesitan algo
+>    simple, no un sistema contable completo.
+> 2. La operación diaria está fragmentada entre agenda, pagos y gastos — no
+>    hay una forma rápida de registrar un cobro (forma de pago debería ser un
+>    simple dropdown, sin etiquetas ni fricción) ni de bloquear días/turnos
+>    cuando el consultorio no atiende.
+> 3. Compartir información sensible sin perder el control — necesitan
+>    exportar cosas como la lista de pacientes (para un colega, un reemplazo,
+>    un socio) pero sin poder dejar constancia de por qué se compartió, lo
+>    que genera desconfianza o riesgo de uso indebido.
+>
+> Top 3 Jobs To Be Done
+>
+> 1. "Déjame registrar un cobro o un gasto en segundos, sin pensar en
+>    categorías" — forma de pago como dropdown, sin etiquetar, ingreso
+>    rápido de gastos con campos mínimos.
+> 2. "Dejame cerrar mis números cuando yo decida, no cuando el sistema me
+>    obligue" — período de cierre elegible por el usuario, agenda con bloqueo
+>    de días para ordenar la operación sin depender de memoria.
+> 3. "Dejame compartir justo lo que hace falta, con trazabilidad de por qué
+>    lo hago" — exportar lista de pacientes dejando registrado el motivo,
+>    acceso protegido por clave para entrar y buscar información del
+>    consultorio.
+
+### Qué se hizo
+
+- Guardado como `PAINS-JTBD-2026-08-19.md` en la raíz del repo, con las
+  implicaciones concretas para el código listadas (dropdown de forma de
+  pago, ingreso rápido de gasto, bloqueo de días en agenda, cierre elegible,
+  exportar pacientes con motivo obligatorio y trazabilidad, acceso protegido).
+- Estas implicaciones se cruzan con los 14 items del OCR apuntados el mismo
+  día — varios se resuelven juntos.
+- Actualización de `visualize.html` y `save.html` para que la landing hable
+  el mismo idioma de estos pains/JTBDs y no palabras sueltas.
