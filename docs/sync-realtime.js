@@ -64,6 +64,12 @@
      signifique lo mismo en los dos. */
   const TIPO_CATALOGO_PEDIDO = "__catalogo_pedido__";
   const TIPO_CATALOGO_TROZO  = "__catalogo_trozo__";
+  /* Tablero (JFC 2026-08-20): pedido de solo-lectura de la cartera de
+     pacientes (nombre + saldo + movimientos, SIN cambiar nada aca). Mismo
+     patron que el catalogo: pedido -> respuesta trozeada -> el que pidio
+     nunca escribe nada, solo pinta. */
+  const TIPO_CARTERA_PEDIDO = "__cartera_pedido__";
+  const TIPO_CARTERA_TROZO  = "__cartera_trozo__";
   const TIPO_CATCHUP_PEDIDO = "__catchup_pedido__";
 
   function leerLog() {
@@ -245,6 +251,12 @@
           try { window.dispatchEvent(new CustomEvent("oc-catalogo-trozo", { detail: op })); } catch (_) {}
           return;
         }
+        if (op && op.tipo === TIPO_CARTERA_PEDIDO) { responderCartera(op); return; }
+        if (op && op.tipo === TIPO_CARTERA_TROZO) {
+          if (op.para && op.para !== deviceId()) return;
+          try { window.dispatchEvent(new CustomEvent("oc-cartera-trozo", { detail: op })); } catch (_) {}
+          return;
+        }
         if (op && op.tipo === TIPO_CATCHUP_PEDIDO) {
           responderCatchup(op);
           return;
@@ -320,6 +332,37 @@
       const op = { opId: uuidCorto(), deviceId: deviceId(), tipo: TIPO_CATALOGO_TROZO, para: pedido.deviceId || null,
         payload: Object.assign({ rol: _c123RolActual(), huella: cat.huella ? cat.huella.corta : "", k: k, deTotal: trozos.length }, trozos[k]),
         fecha: (new Date()).toISOString() };
+      try { ws.send(await cifrar(claveActual, op)); } catch (_) { return; }
+    }
+  }
+
+  async function responderCartera(pedido) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    // Solo el dueño/admin puede pedir la cartera completa por relay -- misma
+    // regla de privacidad que ya aplica dentro de la app (vistaCarteraSegunRol
+    // en cartera.js). Un encargado que se conecte al tablero no ve nada.
+    var rolPedido = pedido && pedido.payload && pedido.payload.rol;
+    if (rolPedido !== "dueno" && rolPedido !== "admin") return;
+    await new Promise((r) => setTimeout(r, Math.random() * 400));
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    var clientes = [];
+    try { if (window.OCSync && window.OCSync.clientesActivos) clientes = window.OCSync.clientesActivos() || []; } catch (_) {}
+    var filas = [];
+    for (var ci = 0; ci < clientes.length; ci++) {
+      var c = clientes[ci];
+      var info = { saldo: 0, movimientos: [] };
+      try {
+        if (window.AMG && window.AMG.Cartera && window.AMG.Cartera.saldoDeCliente) {
+          info = await window.AMG.Cartera.saldoDeCliente(c.id);
+        }
+      } catch (_) {}
+      filas.push({ id: c.id, codigo: c.codigo || "", nombre: c.nombre || "", telefono: c.telefono || "", saldo: info.saldo || 0, movimientos: info.movimientos || [] });
+    }
+    var trozos = _c123Trocear("cartera", filas, 50);
+    for (var k = 0; k < trozos.length; k++) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      var op = { opId: uuidCorto(), deviceId: deviceId(), tipo: TIPO_CARTERA_TROZO, para: pedido.deviceId || null,
+        payload: Object.assign({ k: k, deTotal: trozos.length }, trozos[k]), fecha: (new Date()).toISOString() };
       try { ws.send(await cifrar(claveActual, op)); } catch (_) { return; }
     }
   }

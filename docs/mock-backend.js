@@ -1158,6 +1158,7 @@
   }
 
 window.OCSync = {
+    clientesActivos: function () { return clientes.filter(function (c) { return !c.despedido; }); },
     huella: huellaCatalogo,
     compararCatalogo: compararCatalogo,
     aplicarCatalogo: aplicarCatalogo,

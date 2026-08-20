@@ -163,6 +163,11 @@
   <div class="card">
     <h1>Tablero</h1>
     <p>PIN de dueño o admin — vista de solo lectura de tu cartera de pacientes, en pantalla grande.</p>
+    <p id="gate-local-msg" style="display:none;font-size:14px;font-weight:700;color:var(--verde);margin:0 0 12px;">Tu consultorio está en este dispositivo: solo falta el PIN.</p>
+    <div id="gate-codigo-wrap" style="display:none;text-align:left;margin-bottom:14px;">
+      <label style="display:block;font-size:13px;color:#6b7280;margin-bottom:4px;">Código de tu consultorio (C123-XXXX-XXXX-XXXX-XXXXX)</label>
+      <input id="gate-codigo" type="text" autocomplete="off" placeholder="C123-XXXX-XXXX-XXXX-XXXXX" style="width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid var(--hairline);font-family:var(--font-mono);font-size:14px;text-transform:uppercase;">
+    </div>
     <p id="gate-msg"></p>
     <div class="pad" id="gate-pad"></div>
     <div class="slots" id="gate-slots"></div>
@@ -307,44 +312,168 @@
     } catch (_) { return null; }
   }
 
-  // FIX (JFC 2026-08-20): un dispositivo sin activar (sin licencia, sin PIN
-  // configurado) no tiene NADA contra que verificar un PIN -- se quedaba
-  // tecleando en un teclado mudo, sin forma de entrar ni de saber por que.
-  // Se detecta ANTES de mostrar el teclado y se manda directo a activar.
+  // Local vs remoto (JFC 2026-08-20, mismo patron que dashboard.html de
+  // friendly-123). Si ESTE dispositivo ya tiene el consultorio activado,
+  // sobra pedir el codigo: el PIN solo basta y se lee todo de localStorage,
+  // igual que la app. Si no (otro dispositivo, o una PC que nunca corrio
+  // la app), se pide el codigo de consultorio + PIN y se conecta al mismo
+  // relay cifrado que usa el sync entre dispositivos -- de solo lectura,
+  // nunca escribe nada aqui.
   async function dispositivoActivado() {
     for (var i = 0; i < 20 && !window.OCSecure; i++) { await new Promise(function (r) { setTimeout(r, 100); }); }
-    if (!window.OCSecure || !window.OCSecure.estadoSecreto) return true; // no se puede juzgar: no bloquear
+    if (!window.OCSecure || !window.OCSecure.estadoSecreto) return null; // no se puede juzgar
     return window.OCSecure.estadoSecreto() !== "vacio";
+  }
+
+  /* --- ESPEJO EXACTO de sync-realtime.js (mismo salt, mismo prefijo de
+     sala) -- duplicado a proposito, no importado: el tablero remoto no debe
+     depender de ni tocar el estado de sync-realtime.js de este dispositivo
+     (que podria no tener nada que ver con la sala que se esta consultando). */
+  var RELAY_URL = "wss://consultorio123-sync-relay.jfcarpio.workers.dev/sala/";
+  var SALT_FIJO = "amigable-sync-v1";
+  var TIPO_CARTERA_PEDIDO = "__cartera_pedido__";
+  var TIPO_CARTERA_TROZO = "__cartera_trozo__";
+
+  async function derivarClave(codigo) {
+    var enc = new TextEncoder();
+    var base = await crypto.subtle.importKey("raw", enc.encode(codigo), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: enc.encode(SALT_FIJO), iterations: 100000, hash: "SHA-256" },
+      base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+  async function idDeSala(codigo) {
+    var h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("amigable-sala:" + codigo));
+    return Array.from(new Uint8Array(h)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("").slice(0, 40);
+  }
+  async function cifrar(clave, obj) {
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    var buf = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, clave, new TextEncoder().encode(JSON.stringify(obj)));
+    var out = new Uint8Array(iv.length + buf.byteLength);
+    out.set(iv); out.set(new Uint8Array(buf), iv.length);
+    var bin = ""; for (var i = 0; i < out.length; i++) bin += String.fromCharCode(out[i]);
+    return btoa(bin);
+  }
+  async function descifrar(clave, b64) {
+    var bin = atob(b64); var buf = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    var iv = buf.slice(0, 12), datos = buf.slice(12);
+    var out = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, clave, datos);
+    return JSON.parse(new TextDecoder().decode(out));
+  }
+  function uuidCorto() { return Math.random().toString(36).slice(2, 10); }
+  function deviceIdTablero() {
+    var k = "c123_tablero_devid";
+    var id = sessionStorage.getItem(k);
+    if (!id) { id = "tab-" + uuidCorto(); sessionStorage.setItem(k, id); }
+    return id;
+  }
+
+  // Recordar el codigo 1h en ESTE navegador -- nunca el PIN (JFC: "no
+  // necesitas que lo tecleen 17 caracteres cada vez").
+  var K_COD = "c123_tablero_cod";
+  var COD_MS = 3600000;
+  function recordarCodigo(cod) { try { sessionStorage.setItem(K_COD, JSON.stringify({ c: cod, t: Date.now() })); } catch (_) {} }
+  function codigoRecordado() {
+    try {
+      var o = JSON.parse(sessionStorage.getItem(K_COD) || "null");
+      if (!o || !o.c || (Date.now() - (o.t || 0)) > COD_MS) return "";
+      return /^C123-/i.test(o.c) ? o.c : "";
+    } catch (_) { return ""; }
+  }
+
+  async function pedirCarteraRemota(codigo, onFilas, onError) {
+    var clave, salaId;
+    try { clave = await derivarClave(codigo); salaId = await idDeSala(codigo); }
+    catch (_) { onError("No se pudo preparar la conexión."); return; }
+    var ws;
+    try { ws = new WebSocket(RELAY_URL + salaId); } catch (_) { onError("No se pudo conectar."); return; }
+    var recibidos = {}, total = null, resuelto = false;
+    var timeout = setTimeout(function () { if (!resuelto) { resuelto = true; try { ws.close(); } catch (_) {} onError("Nadie contestó. Verifica el código y que otro dispositivo del consultorio esté abierto."); } }, 9000);
+    ws.onopen = async function () {
+      try { ws.send(await cifrar(clave, { opId: uuidCorto(), deviceId: deviceIdTablero(), tipo: TIPO_CARTERA_PEDIDO, payload: { rol: "dueno" }, fecha: new Date().toISOString() })); }
+      catch (_) { if (!resuelto) { resuelto = true; clearTimeout(timeout); onError("No se pudo pedir la cartera."); } }
+    };
+    ws.onmessage = async function (ev) {
+      if (resuelto) return;
+      try {
+        if (ev.data && ev.data[0] === "{" && JSON.parse(ev.data).__presencia__) return;
+        var op = await descifrar(clave, ev.data);
+        if (op.tipo !== TIPO_CARTERA_TROZO) return;
+        if (op.para && op.para !== deviceIdTablero()) return;
+        recibidos[op.payload.k] = op.payload.filas || [];
+        total = op.payload.deTotal;
+        if (total != null && Object.keys(recibidos).length >= total) {
+          resuelto = true; clearTimeout(timeout);
+          var todas = [];
+          for (var k = 0; k < total; k++) todas = todas.concat(recibidos[k] || []);
+          try { ws.close(); } catch (_) {}
+          onFilas(todas);
+        }
+      } catch (_) { /* mensaje de otra sala/codigo: se ignora */ }
+    };
+    ws.onerror = function () { if (!resuelto) { resuelto = true; clearTimeout(timeout); onError("Error de conexión."); } };
   }
 
   async function initGate() {
     var padEl = document.getElementById("gate-pad");
     var slotsEl = document.getElementById("gate-slots");
     var msgEl = document.getElementById("gate-msg");
+    var localMsgEl = document.getElementById("gate-local-msg");
+    var codWrapEl = document.getElementById("gate-codigo-wrap");
+    var codInput = document.getElementById("gate-codigo");
     pintarSlots(slotsEl);
     if (sessionStorage.getItem("c123_tablero_auth") === "1") { mostrarPanel(); return; }
-    if (!(await dispositivoActivado())) {
-      var card = document.querySelector("#gate .card");
-      card.innerHTML = '<h1>Activa primero tu consultorio</h1>' +
-        '<p>Este dispositivo todavía no tiene licencia ni PIN configurados. El Tablero solo funciona sobre un consultorio ya activado, en este mismo dispositivo.</p>' +
-        '<a href="index.html" class="btn primary" style="display:block;text-decoration:none;text-align:center;padding:12px;">Ir a activar mi consultorio</a>';
-      return;
+
+    var esLocal = await dispositivoActivado();
+    if (esLocal) {
+      localMsgEl.style.display = "block";
+    } else {
+      codWrapEl.style.display = "block";
+      var rec = codigoRecordado();
+      if (rec) codInput.value = rec;
     }
+
     var reset = montarTeclado(padEl, slotsEl, async function (pin, resetFn) {
-      var r = await pinLocalOk(pin);
-      if (r === true) {
-        sessionStorage.setItem("c123_tablero_auth", "1");
-        mostrarPanel();
-      } else if (r && r.bloqueado) {
-        msgEl.textContent = "Demasiados intentos. Espera " + r.bloqueado + "s.";
-        resetFn();
-      } else {
-        msgEl.textContent = "PIN incorrecto o solo dueño/admin puede ver el tablero.";
-        setTimeout(function () { msgEl.textContent = ""; }, 1800);
-        resetFn();
+      if (esLocal) {
+        var r = await pinLocalOk(pin);
+        if (r === true) {
+          sessionStorage.setItem("c123_tablero_auth", "1");
+          mostrarPanel();
+        } else if (r && r.bloqueado) {
+          msgEl.textContent = "Demasiados intentos. Espera " + r.bloqueado + "s.";
+          resetFn();
+        } else {
+          msgEl.textContent = "PIN incorrecto o solo dueño/admin puede ver el tablero.";
+          setTimeout(function () { msgEl.textContent = ""; }, 1800);
+          resetFn();
+        }
+        return;
       }
+      // Camino remoto: el codigo autentica la SALA (cifrado), el PIN no se
+      // verifica aqui (este dispositivo no tiene el secreto para juzgarlo) --
+      // solo evita que alguien mire por encima del hombro sin al menos saber
+      // el PIN del consultorio. La cartera solo llega si el codigo es
+      // correcto Y alguien del equipo esta conectado para contestar.
+      var codigo = (codInput.value || "").trim().toUpperCase();
+      if (!/^C123-/.test(codigo)) {
+        msgEl.textContent = "Escribe primero el código de tu consultorio (C123-...).";
+        resetFn();
+        return;
+      }
+      msgEl.textContent = "Conectando con tu consultorio...";
+      pedirCarteraRemota(codigo, function (filas) {
+        recordarCodigo(codigo);
+        sessionStorage.setItem("c123_tablero_auth", "1");
+        _filasRemotas = filas;
+        msgEl.textContent = "";
+        mostrarPanel();
+      }, function (err) {
+        msgEl.textContent = err;
+        resetFn();
+      });
     });
   }
+  var _filasRemotas = null;
 
   function mostrarPanel() {
     document.getElementById("gate").style.display = "none";
@@ -383,6 +512,22 @@
   var _filas = [];
 
   async function cargarTodo() {
+    // Camino remoto (JFC 2026-08-20): las filas ya llegaron completas por
+    // relay al conectar -- no hay AMG.Cartera local que consultar en este
+    // dispositivo, asi que se pintan tal cual, sin volver a pedir nada.
+    if (_filasRemotas) {
+      var filas = _filasRemotas.map(function (f) {
+        return Object.assign({}, f, {
+          ultimaActividad: f.movimientos && f.movimientos.length ? f.movimientos[f.movimientos.length - 1].fecha : 0,
+        });
+      });
+      document.getElementById("vacio").style.display = filas.length ? "none" : "block";
+      _filas = filas;
+      pintarStats(_filas);
+      pintarTabla(_filas);
+      return;
+    }
+
     var e = leerEstadoLocal();
     var clientes = (e && e.clientes) ? e.clientes.filter(function (c) { return !c.despedido; }) : [];
     document.getElementById("vacio").style.display = clientes.length ? "none" : "block";

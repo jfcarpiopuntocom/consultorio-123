@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v38"; // bumped 2026-08-20: tutorial reescrito (era de AMIGABLE), tablero.html detecta dispositivo sin activar
+const CACHE = "c123-shell-v39"; // bumped 2026-08-20: tablero.html soporta acceso remoto (codigo+PIN via relay), igual que friendly-123
 const SHELL = [
   "./",
   "./index.html",
