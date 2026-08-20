@@ -18,15 +18,21 @@
 // vista de quien llama gracias al cache en memoria de vista-perchas.js (ver
 // precargarFotos() ahi); este archivo solo expone la capa de persistencia.
 (function () {
-  const DB_NAME = "f123_fotos"  /* NO renombrar: cambiar el nombre de una base de IndexedDB no mueve sus registros, deja los datos vivos pero invisibles (JFC 2026-08-18) */;
+  // FIX (JFC 2026-08-20): decia "f123_fotos" -- literal de friendly-123,
+  // compartido sin querer por las 3 apps. La nota de 2026-08-18 sigue siendo
+  // correcta (renombrar una IndexedDB sin migrar deja los datos invisibles),
+  // asi que el rename viene CON migracion: se copian (nunca se borran) las
+  // fotos de la base compartida vieja a la nueva, una sola vez.
+  const DB_NAME = "c123_fotos";
+  const DB_NAME_VIEJA = "f123_fotos";
+  const MIGRACION_DB_KEY = "c123_fotos_db_migrada_v1";
   const STORE = "perchas";
   const SOPORTADO = "indexedDB" in window;
   let dbPromise = null;
 
-  function abrirDB() {
-    if (dbPromise) return dbPromise;
-    dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
+  function abrirCruda(nombre) {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(nombre, 1);
       req.onupgradeneeded = () => {
         if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
       };
@@ -34,6 +40,38 @@
       req.onerror = () => reject(req.error);
       req.onblocked = () => reject(new Error("IndexedDB bloqueado (otra pestaña con una version vieja abierta)"));
     });
+  }
+
+  function migrarDbViejaSiHaceFalta(dbNueva) {
+    try { if (localStorage.getItem(MIGRACION_DB_KEY) === "1") return Promise.resolve(); } catch (_) {}
+    return abrirCruda(DB_NAME_VIEJA).then((dbVieja) => new Promise((resolve) => {
+      try {
+        const txLeer = dbVieja.transaction(STORE, "readonly");
+        const store = txLeer.objectStore(STORE);
+        const out = {};
+        const cur = store.openCursor();
+        cur.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) { out[cursor.key] = cursor.value; cursor.continue(); return; }
+          const claves = Object.keys(out);
+          if (!claves.length) { try { localStorage.setItem(MIGRACION_DB_KEY, "1"); } catch (_) {} resolve(); return; }
+          const txEscribir = dbNueva.transaction(STORE, "readwrite");
+          claves.forEach((k) => { try { txEscribir.objectStore(STORE).put(out[k], k); } catch (_) {} });
+          txEscribir.oncomplete = () => {
+            try { localStorage.setItem(MIGRACION_DB_KEY, "1"); } catch (_) {}
+            try { console.warn("[idb-fotos] migradas " + claves.length + " foto(s) desde la base compartida vieja"); } catch (_) {}
+            resolve();
+          };
+          txEscribir.onerror = () => resolve();
+        };
+        cur.onerror = () => resolve();
+      } catch (_) { resolve(); }
+    })).catch(() => { try { localStorage.setItem(MIGRACION_DB_KEY, "1"); } catch (_) {} });
+  }
+
+  function abrirDB() {
+    if (dbPromise) return dbPromise;
+    dbPromise = abrirCruda(DB_NAME).then((db) => migrarDbViejaSiHaceFalta(db).then(() => db));
     return dbPromise;
   }
 

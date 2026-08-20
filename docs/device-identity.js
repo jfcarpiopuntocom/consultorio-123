@@ -18,7 +18,7 @@
 // overwriting an already-established device ID could disrupt an in-flight
 // sync session keyed on the old value.
 (function () {
-  var CLAVES = ["amigable_device_id", "oc_device_id"];
+  var CLAVES = ["c123_device_id", "amigable_device_id", "oc_device_id"];
   function leer(clave) {
     try { return localStorage.getItem(clave) || null; } catch (_) { return null; }
   }

@@ -65,10 +65,20 @@
 (function (global) {
   "use strict";
 
-  var DB_NAME = "amg_hechos_db";
+  // FIX (JFC 2026-08-20): las 3 apps hermanas usaban el MISMO nombre fisico
+  // de base IndexedDB ("amg_hechos_db") desde el diseno original -- nunca
+  // tuvo aislamiento por app. hechos.js es el motor de cartera (fiado/abono
+  // de pacientes): si alguien usa dos de las apps en el mismo navegador, sus
+  // historiales de pago comparten la misma base de datos fisica. Se renombra
+  // a un nombre propio de consultorio-123 y se migra UNA VEZ lo que ya
+  // hubiera en la base compartida (ver migrarDesdeBaseCompartida) -- nunca se
+  // borra la base vieja, solo se copian sus registros a la nueva.
+  var DB_NAME = "c123_hechos_db";
+  var DB_NAME_VIEJA_COMPARTIDA = "amg_hechos_db";
+  var MIGRACION_KEY = "c123_hechos_migrado_v1";
   var DB_VERSION = 1;
   var STORE = "hechos";
-  var META_KEY = "amg_hechos_meta_v1";   // contador local + reloj + ultimo hash
+  var META_KEY = "c123_hechos_meta_v1";   // contador local + reloj + ultimo hash
 
   // ---------------------------------------------------------------------------
   // Identidad del dispositivo
@@ -85,10 +95,10 @@
       if (owned.instanceId) return owned.instanceId;
     } catch (_) {}
     try {
-      var local = localStorage.getItem("amg_hechos_instancia");
+      var local = localStorage.getItem("c123_hechos_instancia");
       if (local) return local;
       var nuevo = "loc-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
-      localStorage.setItem("amg_hechos_instancia", nuevo);
+      localStorage.setItem("c123_hechos_instancia", nuevo);
       return nuevo;
     } catch (_) {
       return "loc-efimero";
@@ -168,11 +178,10 @@
   // IndexedDB
   // ---------------------------------------------------------------------------
   var _db = null;
-  function abrirDB() {
-    if (_db) return Promise.resolve(_db);
+  function _abrirCruda(nombre) {
     return new Promise(function (resolve, reject) {
       if (!global.indexedDB) { reject(new Error("IndexedDB no disponible")); return; }
-      var req = global.indexedDB.open(DB_NAME, DB_VERSION);
+      var req = global.indexedDB.open(nombre, DB_VERSION);
       req.onupgradeneeded = function (e) {
         var db = e.target.result;
         if (!db.objectStoreNames.contains(STORE)) {
@@ -186,8 +195,52 @@
           st.createIndex("instanceId", "instanceId", { unique: false });
         }
       };
-      req.onsuccess = function (e) { _db = e.target.result; resolve(_db); };
-      req.onerror = function () { reject(req.error || new Error("no se pudo abrir amg_hechos_db")); };
+      req.onsuccess = function (e) { resolve(e.target.result); };
+      req.onerror = function () { reject(req.error || new Error("no se pudo abrir " + nombre)); };
+    });
+  }
+
+  // Migracion de una sola vez: copia (NUNCA borra) lo que hubiera en la base
+  // compartida vieja hacia la base propia de esta app. Sobre-inclusiva a
+  // proposito -- puede copiar hechos de otra app hermana si alguna vez
+  // compartieron la base -- pero eso es inofensivo: cartera.js siempre
+  // filtra por clienteId, asi que un registro ajeno simplemente nunca
+  // coincide con ninguna consulta real. Preferible sobrar datos inertes a
+  // perder un solo hecho de pago real.
+  function migrarDesdeBaseCompartida(dbNueva) {
+    try { if (localStorage.getItem(MIGRACION_KEY) === "1") return Promise.resolve(); } catch (_) {}
+    return _abrirCruda(DB_NAME_VIEJA_COMPARTIDA).then(function (dbVieja) {
+      return new Promise(function (resolve) {
+        try {
+          var txLeer = dbVieja.transaction(STORE, "readonly");
+          var reqTodos = txLeer.objectStore(STORE).getAll();
+          reqTodos.onsuccess = function () {
+            var registros = reqTodos.result || [];
+            if (!registros.length) { try { localStorage.setItem(MIGRACION_KEY, "1"); } catch (_) {} resolve(); return; }
+            var txEscribir = dbNueva.transaction(STORE, "readwrite");
+            registros.forEach(function (r) { try { txEscribir.objectStore(STORE).put(r); } catch (_) {} });
+            txEscribir.oncomplete = function () {
+              try { localStorage.setItem(MIGRACION_KEY, "1"); } catch (_) {}
+              try { console.warn("[hechos] migrados " + registros.length + " registro(s) desde la base compartida vieja"); } catch (_) {}
+              resolve();
+            };
+            txEscribir.onerror = function () { resolve(); }; // best-effort: si falla, se reintenta el proximo load
+          };
+          reqTodos.onerror = function () { resolve(); };
+        } catch (_) { resolve(); }
+      });
+    }).catch(function () {
+      // La base vieja no existe en este dispositivo (nunca corrio otra app
+      // hermana aqui) -- nada que migrar, marcar hecho para no reintentar.
+      try { localStorage.setItem(MIGRACION_KEY, "1"); } catch (_) {}
+    });
+  }
+
+  function abrirDB() {
+    if (_db) return Promise.resolve(_db);
+    return _abrirCruda(DB_NAME).then(function (db) {
+      _db = db;
+      return migrarDesdeBaseCompartida(db).then(function () { return db; });
     });
   }
 

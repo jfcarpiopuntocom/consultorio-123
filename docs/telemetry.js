@@ -35,7 +35,7 @@
   if (typeof F.telemetryLogLevel === "undefined") F.telemetryLogLevel = "INFO";
   if (typeof F.telemetrySampleRate === "undefined") F.telemetrySampleRate = 1;
 
-  var DB_NAME = "amg_telemetry_db";
+  var DB_NAME = "c123_telemetry_db"; // FIX (JFC 2026-08-20): era compartido literal con AMIGABLE/friendly-123
   var DB_VERSION = 1;
   var STORE_NAME = "queue";
   var SESSION_KEY = "amg_session_id_v1";

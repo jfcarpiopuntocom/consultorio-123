@@ -33,7 +33,7 @@
   if (typeof F.auditStoreEnabled === "undefined") F.auditStoreEnabled = true;
   if (!F.auditableSuffixes) F.auditableSuffixes = [":completado", ":error"];
 
-  var DB_NAME = "amg_audit_db";
+  var DB_NAME = "c123_audit_db"; // FIX (JFC 2026-08-20): era compartido literal con AMIGABLE/friendly-123
   var DB_VERSION = 1;
   var STORE_NAME = "eventos";
 

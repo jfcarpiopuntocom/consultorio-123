@@ -45,7 +45,7 @@
   var TIMEOUT_GPS_MS = 12000; // mas tiempo: alta precision tarda mas en cerrar el primer fix
   var TIMEOUT_IP_MS = 6000;
   var CONSENT_KEY = "amg_geo_consentidos_v1"; // set de identidades que ya vieron el aviso
-  var DB_NAME = "amg_geo_db";
+  var DB_NAME = "c123_geo_db"; // FIX (JFC 2026-08-20): era compartido literal con AMIGABLE/friendly-123
   var DB_VERSION = 1;
   var STORE = "pings";
 
@@ -85,7 +85,7 @@
   }
 
   function deviceId() {
-    try { return global.OCDeviceId || localStorage.getItem("amigable_device_id") || localStorage.getItem("oc_device_id") || "dispositivo-sin-id"; }
+    try { return global.OCDeviceId || localStorage.getItem("c123_device_id") || localStorage.getItem("amigable_device_id") || localStorage.getItem("oc_device_id") || "dispositivo-sin-id"; }
     catch (_) { return "dispositivo-sin-id"; }
   }
 
