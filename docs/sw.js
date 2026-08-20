@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v42"; // bumped 2026-08-20: 6 claves cross-app corregidas (sync engine, hechos.js, errores, timezone, nombre consultorio), Salas fuera del nav
+const CACHE = "c123-shell-v43"; // bumped 2026-08-20: Atenciones como boton principal, con tabs internos Agenda/Insumos (probado end-to-end)
 const SHELL = [
   "./",
   "./index.html",

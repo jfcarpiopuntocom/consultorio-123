@@ -150,8 +150,19 @@
   }
 
   var pintado = false;
+  function montar() {
+    if (pintado) return;
+    pintado = true;
+    renderLista();
+  }
+  // FIX (JFC 2026-08-20): Agenda dejo de tener boton propio en el nav --
+  // ahora vive como pestana dentro de Atenciones (vista-escanear). El tab
+  // de Atenciones llama a OCAgendaUI.montar() al hacer click en su tab.
+  // Se conserva el listener del boton viejo por si algun link externo o
+  // atajo todavia lo busca -- no hace nada malo si el boton no existe.
   document.addEventListener("DOMContentLoaded", function () {
     var btn = document.querySelector('nav button[data-vista="agenda"]');
-    if (btn) btn.addEventListener("click", function () { if (!pintado) { pintado = true; renderLista(); } });
+    if (btn) btn.addEventListener("click", montar);
   });
+  window.OCAgendaUI = { montar: montar };
 })();

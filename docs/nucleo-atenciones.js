@@ -93,7 +93,12 @@
 
   var caja = document.createElement("section");
   caja.id = "at-panel";
-  vista.insertBefore(caja, vista.firstChild);
+  // FIX (JFC 2026-08-20): vista-escanear ahora tiene tabs internos
+  // (Atenciones/Agenda/Insumos). El contenido de este archivo debe caer
+  // DENTRO del panel de la pestana Atenciones, no antes de la barra de
+  // tabs -- si no, la tarjeta se pintaba arriba de los botones de tab.
+  var contenedor = document.getElementById("at-tabpanel-atenciones") || vista;
+  contenedor.insertBefore(caja, contenedor.firstChild);
 
   var editando = false;
 
