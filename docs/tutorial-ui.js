@@ -1,63 +1,55 @@
-// tutorial-ui.js — INTERACTIVE TUTORIAL for consultorio-123 (JFC 2026-07-17).
-// This is NOT the welcome guide (welcome-ui.js, a reading modal) nor Help
-// (help-ui.js): this is a LIVE TOUR over the real interface. It dims the
-// screen, spotlights the element being explained, navigates between views on
-// its own, and ends by taking the owner to create their first product.
-// Launch with window.OCTutorial.iniciar() — the "See the tutorial now" button
-// on the welcome card (welcome-ui.js) invokes it.
-// With 888 the tour runs over the demo stock; with 789 (freshly activated real
-// store) it runs over the empty store — same steps, same tour.
-// Bilingual EN/ES: self-contained dictionary keyed by OCI18n.getLang() so this
-// file needs no i18n.js changes and repaints correctly if launched after a
-// language switch.
+// tutorial-ui.js — INTERACTIVE TUTORIAL for consultorio-123 (JFC 2026-08-20).
+// FIX: este archivo era el tutorial de AMIGABLE sin adaptar -- hablaba de
+// "perchas", "comisiones a socios", "productos", "escanear codigo de
+// barras" y apuntaba a vistas que no existen en consultorio-123
+// (inventario, escanear). Reescrito con las vistas reales de esta app
+// (Hoy, Agenda, Clientes, Contabilidad, Salas, Avanzado) y lenguaje de
+// consulta medica.
+// Launch with window.OCTutorial.iniciar().
+// Bilingual EN/ES: self-contained dictionary keyed by OCI18n.getLang().
 (function () {
   const TXT = {
     en: {
       pasoDe: (a, b) => "Step " + a + " of " + b,
-      atras: "Back", sig: "Next", fin: "Create my first product", salir: "Exit tutorial",
+      atras: "Back", sig: "Next", fin: "Got it", salir: "Exit tutorial",
       pasos: [
         { titulo: "Your navigation bar", texto: "From here you move through the whole app. This tutorial walks you through every section — tap Next to move forward." },
-        { titulo: "Today: your day at a glance", texto: "Overall traffic light, today's sales and stock alerts. If something needs your attention, it shows up here first, in red." },
-        { titulo: "Create your products here", texto: "This button adds a product: name, price, cost and stock. It's the heart of your store — at the end of the tutorial you come back here to create yours." },
-        { titulo: "Your products speak in colors", texto: "Red: restock urgently. Yellow: check soon. Blue: good margin, push it. Green: all good. No numbers to interpret — the color tells you." },
-        { titulo: "Sell in seconds", texto: "Scan the barcode (or type the SKU) and the sale is recorded with stock deducted. No cash registers, no extra steps." },
-        { titulo: "Create your racks", texto: "A rack is a selling spot: your store, a partner's stand, a fair. Here you create them and assign products, with partner commission if it applies." },
-        { titulo: "Your customers", texto: "Register customers, rate service and reliability, and see their history. You decide who gets credit and who doesn't — with data." },
-        { titulo: "Commissions without arguments", texto: "The app calculates on its own what each partner or promoter earns from what they sold. Settle with one tap and send the receipt via WhatsApp." },
-        { titulo: "Advanced: your vault", texto: "Backups, PIN codes, recovery email, accounting reports and expenses. Everything lives on YOUR device — no cloud, no subscriptions." },
+        { titulo: "Today: your practice at a glance", texto: "Overall traffic light, today's income and pending payments. If something needs your attention, it shows up here first, in red." },
+        { titulo: "Agenda", texto: "Schedule appointments and block days when you're not attending. It keeps your day organized without depending on memory." },
+        { titulo: "Patients", texto: "Register patients and see their receivables at a glance: who owes, who has credit. You decide who to trust, with data." },
+        { titulo: "Accounting, without the jargon", texto: "Income, expenses, receivables and results — in tabs, in plain language. No accounting background required." },
+        { titulo: "Rooms", texto: "Organize your practice by room or location if you work in more than one. Optional — most solo practices never need this." },
+        { titulo: "Advanced: your vault", texto: "Backups, PIN codes, recovery email, and the accounting report for your accountant. Everything lives on YOUR device — no cloud, no subscriptions." },
       ],
     },
     es: {
       pasoDe: (a, b) => "Paso " + a + " de " + b,
-      atras: "Atrás", sig: "Siguiente", fin: "Crear mi primer producto", salir: "Salir del tutorial",
+      atras: "Atrás", sig: "Siguiente", fin: "Entendido", salir: "Salir del tutorial",
       pasos: [
         { titulo: "Tu barra de navegación", texto: "Desde aquí te mueves por toda la app. Este tutorial te lleva de la mano por cada sección — usa Siguiente para avanzar." },
-        { titulo: "Hoy: tu día de un vistazo", texto: "Semáforo general, ventas de hoy y alertas de stock. Si algo necesita tu atención, aparece aquí primero, en rojo." },
-        { titulo: "Crea tus productos aquí", texto: "Con este botón das de alta un producto: nombre, precio, costo y stock. Es el corazón de tu negocio — al final del tutorial vuelves aquí a crear el tuyo." },
-        { titulo: "Tus productos hablan en colores", texto: "Rojo: reponer urgente. Amarillo: revisar pronto. Azul: buen margen, impúlsalo. Verde: todo en orden. No hay que interpretar números — el color te lo dice." },
-        { titulo: "Vende en segundos", texto: "Escanea el código de barras (o escribe el SKU) y la venta queda registrada con stock descontado. Sin cajas registradoras ni pasos extra." },
-        { titulo: "Crea tus perchas", texto: "Una percha es un punto de venta: tu local, un stand de socio, una feria. Aquí las creas y les asignas productos, con comisión por socio si aplica." },
-        { titulo: "Tus clientes", texto: "Registra clientes, evalúa trato y confiabilidad, y mira su historial. Tú decides a quién fiar y a quién no, con datos." },
-        { titulo: "Comisiones sin peleas", texto: "La app calcula sola cuánto le toca a cada socio o promotora según lo vendido. Liquidas con un toque y puedes mandar el recibo por WhatsApp." },
-        { titulo: "Avanzado: tu caja fuerte", texto: "Respaldos, claves, correo de recuperación, reportes contables y gastos. Todo vive en TU dispositivo — sin nube, sin suscripciones." },
+        { titulo: "Hoy: tu consultorio de un vistazo", texto: "Semáforo general, ingresos de hoy y cobros pendientes. Si algo necesita tu atención, aparece aquí primero, en rojo." },
+        { titulo: "Agenda", texto: "Programa tus citas y bloquea los días que no atiendes. Mantiene tu día ordenado sin depender de la memoria." },
+        { titulo: "Pacientes", texto: "Registra pacientes y mira su cuenta pendiente de un vistazo: quién debe, quién tiene crédito a favor. Tú decides a quién fiar, con datos." },
+        { titulo: "Contabilidad, sin tecnicismos", texto: "Ingresos, gastos, cuentas por cobrar y resultados — en pestañas, en lenguaje simple. No necesitas formación contable." },
+        { titulo: "Salas", texto: "Organiza tu consultorio por sala o sede si trabajas en más de un lugar. Opcional — la mayoría de consultorios individuales nunca lo necesitan." },
+        { titulo: "Avanzado: tu caja fuerte", texto: "Respaldos, claves, correo de recuperación, y el reporte contable para tu contador. Todo vive en TU dispositivo — sin nube, sin suscripciones." },
       ],
     },
   };
-  // Vista + selector por paso (mismo orden que TXT.*.pasos).
+  // Vista + selector por paso (mismo orden que TXT.*.pasos). Vistas reales
+  // de consultorio-123 (confirmadas contra los data-vista del nav).
   const DESTINOS = [
     { vista: "hoy", sel: "nav" },
     { vista: "hoy", sel: null },
-    { vista: "inventario", sel: "#btnAltaProducto" },
-    { vista: "inventario", sel: "#gridInventario" },
-    { vista: "escanear", sel: null },
-    { vista: "perchas", sel: "#vp-btn-agregar" },
+    { vista: "agenda", sel: null },
     { vista: "clientes", sel: "#btnAltaCliente" },
-    { vista: "comisiones", sel: null },
+    { vista: "contabilidad", sel: null },
+    { vista: "vista-perchas", sel: null },
     { vista: "avanzado", sel: null },
   ];
 
   function idioma() {
-    try { return (window.OCI18n && window.OCI18n.getLang() === "es") ? TXT.es : TXT.en; } catch (_) { return TXT.en; }
+    try { return (window.OCI18n && window.OCI18n.getLang() === "es") ? TXT.es : TXT.en; } catch (_) { return TXT.es; }
   }
 
   let idx = -1;
@@ -70,8 +62,6 @@
     if (document.getElementById("oc-tut-css")) return;
     const st = document.createElement("style");
     st.id = "oc-tut-css";
-    // Solid colors always (JFC visual rule): pure white text on dark card,
-    // brand accents. Buttons min 44px.
     st.textContent =
       "#oc-tut-foco{position:fixed;z-index:10060;pointer-events:none;border:3px solid #E86040;border-radius:10px;box-shadow:0 0 0 9999px rgba(15,25,35,.78);transition:all .28s ease;}" +
       "#oc-tut-card{position:fixed;z-index:10061;width:min(340px,calc(100vw - 24px));background:#0F1923;border:2px solid #E86040;border-radius:12px;padding:16px;box-shadow:0 10px 34px #060d14;}" +
@@ -94,10 +84,8 @@
   }
 
   function objetivoDe(d) {
-    // Selector may not exist yet (view not painted): fallback to that view's
-    // nav button, and lastly the nav itself.
     let el = d.sel ? $(d.sel) : null;
-    if (!el) el = $('main .vista.activa') || $('[id^="vista-"].activa') || $('#vista-' + d.vista);
+    if (!el) el = $('main .vista.activa') || $('[id^="vista-"].activa') || $('#vista-' + d.vista) || $('#' + d.vista);
     if (!el) el = document.querySelector('nav button[data-vista="' + d.vista + '"]');
     if (!el) el = $("nav");
     return el;
@@ -112,11 +100,6 @@
     if (!el) return;
     try { el.scrollIntoView({ block: "center", behavior: "instant" }); } catch (_) {}
     const r = el.getBoundingClientRect();
-    // Blindaje (homologado de AMIGABLE, 2026-07-23): en vistas que pintan su
-    // contenido async (Perchas, Clientes) o en equipos lentos, el elemento a
-    // veces mide 0x0 justo cuando este timeout dispara — el foco quedaba
-    // clavado en la esquina (0,0) en vez de rodear el boton real. Reintentamos
-    // con backoff en vez de rendirnos.
     if (r.width === 0 && r.height === 0 && intento < 10) {
       setTimeout(() => { if (idx >= 0) pintar(intento + 1); }, 150);
       return;
@@ -146,18 +129,13 @@
     idx = Math.max(0, n);
     if (idx >= DESTINOS.length) return terminar();
     irAVista(DESTINOS[idx].vista);
-    // Short wait so the view paints before measuring the target.
     setTimeout(pintar, 620);
-    // segundo ajuste tras asentar scroll/animacion: realinea el foco
     setTimeout(() => { if (idx === n) pintar(); }, 900);
   }
 
   function terminar() {
-    // Tour end: land on Inventory, ready to create the first real product.
     cerrar();
-    irAVista("inventario");
-    const b = $("#btnAltaProducto");
-    if (b) { try { b.scrollIntoView({ block: "center" }); } catch (_) {} }
+    irAVista("hoy");
   }
 
   function cerrar() {

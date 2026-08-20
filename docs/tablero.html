@@ -307,12 +307,29 @@
     } catch (_) { return null; }
   }
 
+  // FIX (JFC 2026-08-20): un dispositivo sin activar (sin licencia, sin PIN
+  // configurado) no tiene NADA contra que verificar un PIN -- se quedaba
+  // tecleando en un teclado mudo, sin forma de entrar ni de saber por que.
+  // Se detecta ANTES de mostrar el teclado y se manda directo a activar.
+  async function dispositivoActivado() {
+    for (var i = 0; i < 20 && !window.OCSecure; i++) { await new Promise(function (r) { setTimeout(r, 100); }); }
+    if (!window.OCSecure || !window.OCSecure.estadoSecreto) return true; // no se puede juzgar: no bloquear
+    return window.OCSecure.estadoSecreto() !== "vacio";
+  }
+
   async function initGate() {
     var padEl = document.getElementById("gate-pad");
     var slotsEl = document.getElementById("gate-slots");
     var msgEl = document.getElementById("gate-msg");
     pintarSlots(slotsEl);
     if (sessionStorage.getItem("c123_tablero_auth") === "1") { mostrarPanel(); return; }
+    if (!(await dispositivoActivado())) {
+      var card = document.querySelector("#gate .card");
+      card.innerHTML = '<h1>Activa primero tu consultorio</h1>' +
+        '<p>Este dispositivo todavía no tiene licencia ni PIN configurados. El Tablero solo funciona sobre un consultorio ya activado, en este mismo dispositivo.</p>' +
+        '<a href="index.html" class="btn primary" style="display:block;text-decoration:none;text-align:center;padding:12px;">Ir a activar mi consultorio</a>';
+      return;
+    }
     var reset = montarTeclado(padEl, slotsEl, async function (pin, resetFn) {
       var r = await pinLocalOk(pin);
       if (r === true) {
