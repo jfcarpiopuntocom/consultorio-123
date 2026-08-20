@@ -334,10 +334,21 @@
     </div>
     <div id="lic-config" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px;">
       <label style="display:block;font-size:13px;color:var(--ink-soft);margin-bottom:4px;">URL del Cloudflare Worker</label>
-      <input class="lic-input" id="lic-worker-url" type="url" placeholder="https://consultorio123-lic.tucuenta.workers.dev" style="width:100%;margin-bottom:10px;">
-      <label style="display:block;font-size:13px;color:var(--ink-soft);margin-bottom:4px;">Master Key del Worker (viaja como X-Master-Key)</label>
-      <input class="lic-input" id="lic-master-key" type="password" placeholder="tu-clave-secreta-larga" style="width:100%;margin-bottom:12px;">
-      <button class="btn btn-primary" onclick="licGuardarConfig()">Guardar</button>
+      <input class="lic-input" id="lic-worker-url" type="url" value="https://consultorio123-licencias.jfcarpio.workers.dev" placeholder="https://consultorio123-licencias.jfcarpio.workers.dev" style="width:100%;margin-bottom:10px;">
+      <label style="display:block;font-size:13px;color:var(--ink-soft);margin-bottom:4px;">Seed del secret value (el que escribiste en CMD)</label>
+      <input class="lic-input" id="lic-master-key" type="password" placeholder="el seed del secret value que escribiste en CMD" style="width:100%;margin-bottom:8px;">
+      <p style="font-size:13px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5;">
+        Es lo que escribiste en CMD cuando
+        <code>npx wrangler secret put MASTER_KEY</code> te pidio
+        <em>Enter a secret value</em>. Se llama asi — <b>seed del secret
+        value</b> — para que puedas recordar cuando y donde lo generaste: fue
+        en la terminal, no aqui.
+        Cloudflare no lo puede devolver ni mostrar a nadie, asi que hay que
+        pegarlo aqui una vez por navegador. Se guarda solo en ESTE navegador,
+        nunca en el repo. Si lo perdiste, corre el comando otra vez en CMD con
+        un seed nuevo.
+      </p>
+      <button class="btn btn-primary" onclick="licGuardarConfig()">Guardar y conectar</button>
     </div>
     <div class="stats-bar" id="lic-stats" style="margin-bottom:14px;"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
