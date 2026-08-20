@@ -1309,6 +1309,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><line x1="8" y1="12" x2="16" y2="12"></line><line x1="8" y1="16" x2="13" y2="16"></line></svg>
     <span>Contabilidad</span>
   </button>
+  <button data-vista="vista-perchas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+    <span>Salas</span>
+  </button>
   <!-- SACADOS DEL NAV (JFC 2026-08-19, pedido directo — "otro enfoque y
        layout", ya en PAINS-JTBD-2026-08-19.md: "Consultorio es un producto
        DISTINTO: no gestiona perchas, ni comisiones, ni variantes"). Eran 5
@@ -5016,10 +5020,7 @@ setTimeout(() => {
      percha en IndexedDB en vez de localStorage. -->
 <script src="./idb-fotos.js"></script>
 <script src="./idb-archivo.js"></script>
-<!-- vista-perchas.js -- DORMANTE (JFC 2026-08-20): panel de perchas de retail (AMIGABLE),
-     no aplica a un consultorio y no tiene nav que lo alcance desde el retiro de
-     ese boton. NO BORRAR el archivo -- se deja apagado, no eliminado. Para
-     reactivar: descomentar esta linea y su entrada en sw.js SHELL. -->
+<script src="./vista-perchas.js"></script>
 <script src="./welcome-ui.js"></script>
 <script src="./tutorial-ui.js"></script>
 <!-- MICELIO (homologado de AMIGABLE, 2026-07-28). El bus va primero:
