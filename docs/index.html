@@ -1659,9 +1659,14 @@
   </section>
 
   <!-- VISTA: ETIQUETAS -->
-  <!-- VISTA: PERCHAS — panel de fotos con semaforo de meta (JFC 2026-07-02).
-       El grid lo renderiza vista-perchas.js; el dueño toca una foto para
-       tomarla con la camara (se guarda en localStorage, resize 640px). -->
+  <!-- VISTA: PERCHAS — DORMANTE en consultorio-123 (JFC 2026-08-20). NO BORRAR.
+       Es de AMIGABLE (retail): "perchas" no existe en un consultorio medico.
+       vista-perchas.js (el script que la renderiza) tambien esta dormido —
+       ver el comentario de cabecera de ese archivo. Comentada entera para
+       que quede claro que no hay ruta de nav hacia aca (bug C1/C2 encontrado
+       en la auditoria de hoy: el script y esta seccion seguian activos pese
+       a decir "ya no carga"). Para reactivar: descomentar esto Y restaurar
+       vista-perchas.js en index.html/sw.js.
   <section id="vista-perchas" class="vista">
     <h3 class="seccion" style="margin-top:0;" data-i18n="shelves.myShelvesHeading">My shelves</h3>
     <p style="font-size:14px;color:var(--ink-soft);margin-top:0;" data-i18n="shelves.myShelvesIntro">Real photos of each shelf with its target status. Tap a photo to update it.</p>
@@ -1678,6 +1683,7 @@
     </div>
     <div id="vp-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;"></div>
   </section>
+  -->
 
   <!-- VISTA: COMISIONES (solo dueño) -->
   <!-- VISTA: CLIENTES (JFC 2026-07-07) — codigo unico + estaciones RFM.
@@ -5064,7 +5070,9 @@ setTimeout(() => {
      percha en IndexedDB en vez de localStorage. -->
 <script src="./idb-fotos.js"></script>
 <script src="./idb-archivo.js"></script>
-<script src="./vista-perchas.js"></script>
+<!-- vista-perchas.js DORMANTE (JFC 2026-08-20, bug C1 de la auditoria) — ver
+     el comentario de cabecera de ese archivo. NO restaurar este <script> sin
+     tambien descomentar #vista-perchas y agregarlo de nuevo al SHELL de sw.js. -->
 <script src="./welcome-ui.js"></script>
 <script src="./tutorial-ui.js"></script>
 <!-- MICELIO (homologado de AMIGABLE, 2026-07-28). El bus va primero:

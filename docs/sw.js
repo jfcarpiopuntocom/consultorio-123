@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v46"; // bumped 2026-08-20: reconciliacion.js migrado a c123_archivo_db + autocuracion IndexedDB en aislamiento.js
+const CACHE = "c123-shell-v47"; // bumped 2026-08-20: vista-perchas.js (bug C1/C2) desactivado de verdad -- ya no en index.html ni SHELL
 const SHELL = [
   "./",
   "./index.html",
@@ -39,7 +39,6 @@ const SHELL = [
   "./idb-fotos.js",
   "./idb-archivo.js",
   "./welcome-ui.js",
-  "./vista-perchas.js",
   "./tutorial-ui.js",
   /* FALTABAN 24 scripts (caza 2026-08-19, portado del mismo bug encontrado
      hoy en friendly-123/amigable-123): agregar un <script> a index.html y no
