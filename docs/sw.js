@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v25"; // bumped 2026-08-20: traduccion masiva de ingles colado en avanzado-extra.js e index.html (MOODS, FRASES semaforo, panel sync entre dispositivos, backup, errores de red)
+const CACHE = "c123-shell-v26"; // bumped 2026-08-20: fix ReferenceError en crearProductoNuevo (el() no existia), scope de campos duplicados np-*, migracion f123_owned->c123_owned, precache con cache:reload
 const SHELL = [
   "./",
   "./index.html",
@@ -88,7 +88,7 @@ self.addEventListener("install", (evento) => {
   // resto queda cacheado: la app sigue abriendo offline en teléfonos/tablets.
   evento.waitUntil(
     caches.open(CACHE).then((cache) => Promise.allSettled(
-      SHELL.map((u) => cache.add(u).catch((e) => { try { console.warn("[SW] no se pudo precachear", u, e && e.message); } catch (_) {} }))
+      SHELL.map((u) => cache.add(new Request(u, { cache: "reload" })).catch((e) => { try { console.warn("[SW] no se pudo precachear", u, e && e.message); } catch (_) {} }))
     )).catch((e) => { try { console.warn("[SW] precache incompleto:", e && e.message); } catch (_) {} })
   );
   self.skipWaiting();
