@@ -1082,6 +1082,7 @@
 
     // --- Transferencias (brote 2) — panel operativo, fuera del candado
     // contable: el dueño necesita aprobar/rechazar rápido, no es info financiera.
+    try {
     const transfPanel = document.createElement("div");
     transfPanel.className = "tag-card";
     transfPanel.style.cssText = "text-align:left;margin-top:22px;";
@@ -1091,6 +1092,7 @@
       <div id="oc-transf-lista"></div>`;
     vista.appendChild(transfPanel);
     renderTransferencias();
+    } catch (e) { console.error("Panel de traslados no cargo (aislado, no rompe Avanzado):", e); }
 
     // --- Sync remoto (opcional, JFC 2026-07-04) — LOCAL-FIRST por diseño:
     // sin URL guardada, el negocio corre 100% local (server.js + db.json o
@@ -1140,12 +1142,14 @@
     // desde EL PANEL CENTRAL de JFC (PocketBase); este es para que DOS
     // DISPOSITIVOS DEL MISMO NEGOCIO (ej. caja + bodega) se pongan al día
     // entre ellos, cifrado de punta a punta con el PIN del dueño.
-    const syncDevPanel = document.createElement("div");
-    syncDevPanel.id = "oc-syncdev-panel";
-    syncDevPanel.className = "tag-card";
-    syncDevPanel.style.cssText = "text-align:left;margin-top:22px;";
-    vista.appendChild(syncDevPanel);
-    pintarSyncDev();
+    try {
+      const syncDevPanel = document.createElement("div");
+      syncDevPanel.id = "oc-syncdev-panel";
+      syncDevPanel.className = "tag-card";
+      syncDevPanel.style.cssText = "text-align:left;margin-top:22px;";
+      vista.appendChild(syncDevPanel);
+      pintarSyncDev();
+    } catch (e) { console.error("Panel de sync entre dispositivos no cargo (aislado, no rompe Avanzado):", e); }
 
     // === RIEL FLEX (JFC 2026-07-30, importado de su avance en otra sesion,
     // "SOLO el menu de Avanzados en cascada/texto, be surgical") ===========
