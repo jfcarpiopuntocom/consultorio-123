@@ -50,7 +50,7 @@ try {
   // campos: instanceId, licenseCode, email/nombre/apellido/cedula/whatsapp
   // (todos opcionales, solo si el dueno los ingreso), y el estado de accion
   // (register/login/update). JAMAS productos, ventas, clientes, inventario,
-  // ni nada de negocio. Ver worker.js para el lado servidor de esta regla.
+  // ni nada de consultorio. Ver worker.js para el lado servidor de esta regla.
   var _ocEp = "=YXZk5ycyV2ay92du8WawJXYjZmauMXYpNmblNWas1yMyEzbpJ3b0xWdz52bj9yL6MHc0RHa";
   var OC_WORKER_URL = (function () { try { return atob(_ocEp.split("").reverse().join("")); } catch (_) { return ""; } })();
   // Muestra la nota que la consola dejo en la licencia. Una sola vez: al
@@ -154,7 +154,7 @@ try {
       };
       /* Autorreporte de fallas de la app, pegado al heartbeat que ya viaja.
          Cero endpoints nuevos, cero dependencias. El payload se arma por LISTA
-         BLANCA en salud-app.js: no puede llevar datos de negocio. */
+         BLANCA en salud-app.js: no puede llevar datos de consultorio. */
       try {
         var _err = window.AMG && window.AMG.Salud ? window.AMG.Salud.paraEnviar() : null;
         if (_err && _err.length) payload.errores = _err;
@@ -399,7 +399,7 @@ try {
   /* Rol CONTADOR (JFC 2026-07-15): PIN 357 directo en el candado principal
      entra en modo solo-lectura contable — sin POS, inventario, clientes ni
      botones de exportar/importar/caja fuerte. Solo se ve el nav "contable"
-     y el reporte CSV (informativo, no exporta el negocio completo). */
+     y el reporte CSV (informativo, no exporta el consultorio completo). */
   body.rol-contador nav button:not([data-vista="contable"]){display:none!important;}
   body.rol-contador #oc-exportar,
   body.rol-contador #oc-importar-file,
@@ -585,7 +585,7 @@ try {
     if (await window.OCSecure.verificarAcct(code)) { registrarExito(); return entrar("contador"); }
     // El acceso demo (456) SOLO existe en la copia pública de demostración.
     // En una instancia YA apropiada (789) daría acceso nivel-dueño a los datos
-    // reales del negocio a cualquiera que teclee 456 — un backdoor. Se bloquea.
+    // reales del consultorio a cualquiera que teclee 456 — un backdoor. Se bloquea.
     // Fix de seguridad 2026-07-08.
     if (code === DEMO_PIN && !dispositivoApropiado()) { registrarExito(); return entrar("demo"); }
     // Multi-usuario (2026-07-07): si el PIN no coincidio con dueno/empleado-gen/demo,
@@ -601,7 +601,7 @@ try {
     // PINs, eso NO debe pasar"): en un dispositivo NUNCA activado, un PIN que
     // no coincide con nada NUNCA deja la pantalla trabada — cae directo a
     // demo. Es seguro porque un dispositivo sin activar YA esta mostrando
-    // datos de muestra genericos, nunca datos reales de un negocio.
+    // datos de muestra genericos, nunca datos reales de un consultorio.
     //
     // En un dispositivo YA activado esto NO puede hacer lo mismo: "demo" no
     // es un set de datos separado, es el MISMO localStorage real con acceso
@@ -672,7 +672,7 @@ try {
   // El comprador convierte este dispositivo en SU instancia. Flujo:
   //   1) elige empezar vacio o conservar lo ya cargado
   //   2) registra su correo (unico requisito, para recuperacion)
-  //   3) se genera un instanceId unico (datos atados a su negocio)
+  //   3) se genera un instanceId unico (datos atados a su consultorio)
   //   4) el PIN de dueno queda en 789 (con nudge a cambiarlo)
   // Todo local: cero servidor, cero dependencia del creador. La sincronizacion
   // con otros dispositivos va por los canales de Avanzado (WhatsApp/QR/copiar).
@@ -763,7 +763,7 @@ try {
       try { pinGuardado = await window.OCSecure.fijarOwnerPin("7895"); } catch (_) {}
       if (!pinGuardado) {
         btn.disabled = false;
-        setMsg("No se pudo activar (memoria del dispositivo llena). Libera espacio y toca \"Activar mi negocio\" de nuevo — nada quedó a medias.");
+        setMsg("No se pudo activar (memoria del dispositivo llena). Libera espacio y toca \"Activar mi consultorio\" de nuevo — nada quedó a medias.");
         return;
       }
       try { window.OCSecure.actualizarCorreo(email); } catch (_) {}
@@ -800,7 +800,7 @@ try {
       var seguro = email.replace(/[&<>"']/g, "");
       // BUG FIJADO (JFC 2026-08-06): decia "tu PIN es 789" pero el PIN que se
       // fija de verdad (fijarOwnerPin de arriba) es ACTIVATION_PIN = 7895 — el
-      // dueno quedaba fuera de su propio negocio con el numero equivocado.
+      // dueno quedaba fuera de su propio consultorio con el numero equivocado.
       // Ademas estaba hardcodeado en ingles; ahora respeta el switch.
       var _esES = true;
       try { _esES = !window.OCI18n || window.OCI18n.getLang() !== "en"; } catch (_) {}
@@ -830,7 +830,43 @@ try {
 
     return wrap;
   }
+  /* BIFURCACION ANTES DE ACTIVAR (portado de friendly-123, 2026-08-20;
+     JFC lo sufrio en carne propia con friendly-123: puso 789 pensando que
+     asi entraba a su consultorio, y 789 CREA UNO NUEVO con licencia propia. Un
+     dispositivo nuevo casi nunca es un consultorio nuevo -- casi siempre es el
+     segundo telefono de alguien que YA tiene su consultorio. Preguntar
+     cuesta un toque; no preguntar cuesta una licencia duplicada.
+     No se pregunta si el dispositivo ya esta apropiado: ahi 789 ya no es
+     el codigo de activacion (ver ACTIVATION_PIN). */
   function iniciarActivacion() {
+    if (document.getElementById("oc-act-bifurcacion")) return;
+    var b = document.createElement("div");
+    b.id = "oc-act-bifurcacion";
+    b.style.cssText = "position:fixed;inset:0;z-index:10005;background:#0F1923EE;display:flex;align-items:center;justify-content:center;padding:20px;";
+    b.innerHTML =
+      '<div style="background:#FFFFFF;border-radius:16px;padding:26px 22px;max-width:440px;width:100%;text-align:left;">' +
+      '<h2 style="font-size:21px;font-weight:800;margin:0 0 10px;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;">Antes de configurar esto</h2>' +
+      '<p style="font-size:16px;line-height:1.5;margin:0 0 18px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;">¿Es el primer dispositivo de un consultorio nuevo, u otro dispositivo de un consultorio que ya tienes?</p>' +
+      '<button type="button" id="oc-act-nuevo" style="width:100%;min-height:52px;padding:14px;border:none;border-radius:12px;background:#E86040;color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-weight:800;font-size:16px;cursor:pointer;">Un consultorio nuevo</button>' +
+      '<p style="font-size:14px;line-height:1.45;margin:6px 0 16px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;">Crea un consultorio nuevo con su propia licencia. Empieza vacio.</p>' +
+      '<button type="button" id="oc-act-unirme" style="width:100%;min-height:52px;padding:14px;border:2px solid #2C3E50;border-radius:12px;background:transparent;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;font-weight:800;font-size:16px;cursor:pointer;">Otro dispositivo de mi consultorio</button>' +
+      '<p style="font-size:14px;line-height:1.45;margin:6px 0 16px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;">Se une al consultorio que ya tienes, con todos sus datos. Vas a necesitar su codigo de equipo.</p>' +
+      '<button type="button" id="oc-act-nada" style="width:100%;min-height:44px;background:none;border:none;font-size:15px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;cursor:pointer;">Ahora no</button>' +
+      "</div>";
+    document.body.appendChild(b);
+    var cerrar = function () { try { b.remove(); } catch (_) {} };
+    document.getElementById("oc-act-nada").addEventListener("click", cerrar);
+    document.getElementById("oc-act-unirme").addEventListener("click", function () {
+      cerrar();
+      try { abrirUnirseEquipo(); } catch (_) {}
+    });
+    document.getElementById("oc-act-nuevo").addEventListener("click", function () {
+      cerrar();
+      _activacionRealmente();
+    });
+  }
+
+  function _activacionRealmente() {
     var w = construirModalActivacion();
     w.querySelector("#oc-act-form").style.display = "block";
     w.querySelector("#oc-act-exito").style.display = "none";
@@ -950,7 +986,7 @@ try {
   // ---------------------------------------------------------------------------
   // Unirme a mi equipo (homologado de AMIGABLE, 2026-07-23): flujo liviano
   // para dispositivos de empleados/admins — solo pide el codigo de sala del
-  // negocio, no activa modo dueno ni toca f123_owned. Una vez, para siempre.
+  // consultorio, no activa modo dueno ni toca f123_owned. Una vez, para siempre.
   /* =====================================================================
      BLINDAJE DE MODALES .oc-subgate  (homologado de AMIGABLE, 2026-07-28)
      Corrige 4 fallas que dejaban al usuario tirado:
@@ -1237,7 +1273,7 @@ try {
     // 2026-07-16): reusa la misma resolucion de URL que enviarHeartbeat
     // (override en localStorage si existe, si no el endpoint ofuscado por
     // defecto) — sin duplicar el string. NO usar esto para guardar datos del
-    // negocio en el worker — ver nota "NO CLOUD" al inicio de worker.js.
+    // consultorio en el worker — ver nota "NO CLOUD" al inicio de worker.js.
     workerUrl: () => (localStorage.getItem("c123_cf_worker_url") || "").trim() || OC_WORKER_URL,
     // Pide la subclave contable con su propio teclado (emojis barajados, casillas enmascaradas).
     pedirSubclaveContable() {

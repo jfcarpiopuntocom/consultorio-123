@@ -23,7 +23,7 @@
   // SINCRONIZACIÓN ENTRE DISPOSITIVOS (lazy sync, JFC 2026-07-04)
   // ---------------------------------------------------------------------------
   // Modelo "relay ciego" al estilo nostr: cada dispositivo lleva un LOG DE
-  // OPERACIONES (no una foto del negocio) — toda escritura (POST/PUT/PATCH/
+  // OPERACIONES (no una foto del consultorio) — toda escritura (POST/PUT/PATCH/
   // DELETE a /api/*) que YA se aplicó con éxito en este dispositivo queda
   // anotada con quién (deviceId), cuándo (ts) y qué (método+url+body). Ese
   // log se cifra con AES-256-GCM (crypto-store.js, llave derivada del PIN del
@@ -31,7 +31,7 @@
   //   1) Automático — POST /api/sync/push y GET /api/sync/pull, si tu backend
   //      en Fly.io ya tiene esas rutas (relay ciego: solo guarda y reenvía
   //      bytes, nunca los descifra). Si no existen, falla en silencio: el
-  //      negocio sigue 100% funcional en modo local.
+  //      consultorio sigue 100% funcional en modo local.
   //   2) Manual — botón "Copiar cambios" / "Pegar cambios". Cero servidor,
   //      cero mantenimiento, sirve por WhatsApp o cualquier medio.
   // En ambos casos, al recibir el log de otro dispositivo, sus operaciones se
@@ -223,7 +223,7 @@
       if (!paquete || paquete.v !== 1 || typeof paquete.blob !== "string" || typeof paquete.device !== "string") return { ok: false, motivo: "El paquete no tiene el formato esperado." };
       if (paquete.device === deviceId()) return { ok: false, motivo: "Este paquete es de este mismo dispositivo." };
       const texto2 = await window.OCSecure.descifrarSync(paquete.blob);
-      if (!texto2) return { ok: false, motivo: "No se pudo descifrar (¿es de este mismo negocio, con el mismo PIN de dueño activado aquí?)." };
+      if (!texto2) return { ok: false, motivo: "No se pudo descifrar (¿es de este mismo consultorio, con el mismo PIN de dueño activado aquí?)." };
       let ops = []; try { ops = JSON.parse(texto2); } catch (_) {}
       if (!Array.isArray(ops)) return { ok: false, motivo: "El contenido del paquete no es una lista válida de operaciones." };
       if (!ops.length) return { ok: true, recibido: 0 };
@@ -289,7 +289,7 @@
 
     // --- Respaldo exportable/importable (tronco 3, JFC 2026-07-01) ---
     // Vive DENTRO de "cont" (detrás de la subclave contable): exportar/
-    // importar el negocio completo es una acción sensible, no debe estar al
+    // importar el consultorio completo es una acción sensible, no debe estar al
     // alcance de un encargado ni de cualquiera que abra Avanzado.
     const respaldo = document.createElement("div");
     respaldo.className = "tag-card";
@@ -297,7 +297,7 @@
     respaldo.innerHTML = `
       <h3 class="seccion" style="margin-top:0;">Respaldo</h3>
       <p style="font-size:14px;color:var(--ink-soft);margin-top:0;">
-        Descarga todos los datos de tu negocio (productos, ventas, movimientos, costos, claves y fotos de perchas) en un archivo. Guárdalo en tu correo, Drive o donde quieras — es tu respaldo si se borra la caché o falla el dispositivo.</p>
+        Descarga todos los datos de tu consultorio (productos, ventas, movimientos, costos, claves y fotos de perchas) en un archivo. Guárdalo en tu correo, Drive o donde quieras — es tu respaldo si se borra la caché o falla el dispositivo.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button id="oc-exportar" class="ir" style="background:var(--azul-medio);color:var(--blanco-calido);border-color:var(--azul-oscuro);">⬇️ Exportar respaldo</button>
         <label class="ir" style="background:var(--rust);color:var(--blanco-calido);border-color:var(--rust-deep);display:inline-flex;align-items:center;cursor:pointer;">⬆️ Importar respaldo
@@ -605,9 +605,9 @@
       const btnCompartir = document.getElementById("oc-sync-compartir");
       if (btnCompartir) btnCompartir.addEventListener("click", () => {
         const codigo = (window.OCSyncControl.salaActiva() || "").trim();
-        const negocio = (function () { try { const s = document.getElementById("oc-negocio-nombre"); return s ? s.textContent.trim() : ""; } catch (_) { return ""; } })();
+        const consultorio = (function () { try { const s = document.getElementById("oc-consultorio-nombre"); return s ? s.textContent.trim() : ""; } catch (_) { return ""; } })();
         const texto = window.t("sync.panel.shareText")
-          .replace("{business}", negocio ? " (" + negocio + ")" : "")
+          .replace("{business}", consultorio ? " (" + consultorio + ")" : "")
           .replace("{code}", codigo);
         window.open("https://wa.me/?text=" + encodeURIComponent(texto), "_blank");
       });
@@ -1095,10 +1095,10 @@
     } catch (e) { console.error("Panel de traslados no cargo (aislado, no rompe Avanzado):", e); }
 
     // --- Sync remoto (opcional, JFC 2026-07-04) — LOCAL-FIRST por diseño:
-    // sin URL guardada, el negocio corre 100% local (server.js + db.json o
+    // sin URL guardada, el consultorio corre 100% local (server.js + db.json o
     // mock-backend.js en la demo). Esto NO es un backend obligatorio: es
     // solo el canal para que el panel central master de JFC pueda mandar
-    // patches/actualizaciones a este negocio via PocketBase en Fly.io.
+    // patches/actualizaciones a este consultorio via PocketBase en Fly.io.
     // Ver docs/pocketbase-client.js para el adaptador completo.
     const syncPanel = document.createElement("div");
     syncPanel.className = "tag-card";
@@ -1115,7 +1115,7 @@
       <p style="font-size:14px;font-weight:700;margin:8px 0;color:${conectado ? "var(--sim-verde-dk)" : "var(--ink)"};">
         Estado: ${conectado ? "Conectado" : "Local (sin sincronizar)"}
       </p>
-      <input id="oc-pb-url" type="text" placeholder="https://tu-negocio.fly.dev" value="${escHtml(pbUrlActual)}" style="width:100%;max-width:340px;padding:8px;border:2px solid var(--azul-medio);border-radius:5px;">
+      <input id="oc-pb-url" type="text" placeholder="https://tu-consultorio.fly.dev" value="${escHtml(pbUrlActual)}" style="width:100%;max-width:340px;padding:8px;border:2px solid var(--azul-medio);border-radius:5px;">
       <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
         <button id="oc-pb-guardar" class="ir" style="background:var(--azul-medio);color:var(--blanco-calido);border-color:var(--azul-oscuro);">Guardar y conectar</button>
         ${pbUrlActual ? `<button id="oc-pb-quitar" class="ir" style="background:transparent;color:var(--rojo);border-color:var(--rojo);">Cambiar a local</button>` : ""}
@@ -1170,7 +1170,7 @@
           "Gastos mensuales": "Arriendo, nómina, servicios… prorrateados en el estado de resultados.",
           "Acceso y recuperación": "Correo, WhatsApp, PINs y clave.",
           "Sincronizar tu equipo": "Sincronización en vivo entre todos los dispositivos de tu equipo.",
-          "Equipo": "Miembros del equipo, roles y PINs de este negocio.",
+          "Equipo": "Miembros del equipo, roles y PINs de este consultorio.",
           "Log de actividad": "Quién hizo qué, y cuándo.",
           "Control antifraude": "Integridad de las operaciones sensibles.",
           "Traslados entre sucursales": "Mover stock entre sucursales.",
@@ -1359,7 +1359,7 @@
       URL.revokeObjectURL(a.href);
     });
 
-    // El respaldo incluye TANTO los datos del negocio (server/mock, vía
+    // El respaldo incluye TANTO los datos del consultorio (server/mock, vía
     // /api/respaldo/exportar) COMO el estado de acceso cifrado
     // (localStorage["oc_secure"]: hashes de PIN + correo) — sin esto último,
     // restaurar en otra tablet dejaría al dueño sin sus propias claves.
@@ -1825,7 +1825,7 @@
     box.innerHTML = `
       <h3 class="seccion" style="margin-top:0;">Sincronizar entre dispositivos</h3>
       <p style="font-size:14px;color:var(--ink-soft);margin-top:0;">
-        Para cuando el mismo negocio corre en más de un celular/tablet (ej. caja y bodega).
+        Para cuando el mismo consultorio corre en más de un celular/tablet (ej. caja y bodega).
         Cada dispositivo cifra sus propios cambios con tu PIN de dueño — ni siquiera el
         servidor de sincronización puede leerlos.
       </p>
@@ -1942,7 +1942,7 @@
         const nombre = `respaldo-amigable-${new Date().toISOString().slice(0, 10)}.json`;
         const file = new File([archivoFinal], nombre, { type: "application/json" });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: "Respaldo de consultorio-123", text: "Mi respaldo de negocio (consultorio-123)." });
+          await navigator.share({ files: [file], title: "Respaldo de consultorio-123", text: "Mi respaldo de consultorio (consultorio-123)." });
           msg("oc-syncdev-msg", "Respaldo compartido. En el otro dispositivo: Avanzado → Importar respaldo.", "var(--verde)");
         } else {
           const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = nombre; a.click(); URL.revokeObjectURL(a.href);
@@ -2105,7 +2105,7 @@
       return;
     }
     // Cuentas T derivadas del día (partida doble simplificada). El IVA
-    // cobrado NO es ingreso del negocio — es un pasivo (se le debe al SRI),
+    // cobrado NO es ingreso del consultorio — es un pasivo (se le debe al SRI),
     // por eso tiene su propia cuenta en vez de mezclarse con Ventas.
     const cuentas = [
       { nombre: "Cash (Asset)", debe: [["Collected today (incl. VAT)", pl.ingresosConIva]], haber: [["Operating expenses", pl.gastosOperativos]] },
@@ -2244,7 +2244,7 @@
     m.id = "oc-rot-modal";
     m.innerHTML =
       '<div class="caja" style="background:#FFFFFF;border:2px solid #E86040;border-radius:16px;padding:24px 20px;max-width:460px;width:100%;text-align:left;margin:auto;">' +
-      '<h2 style="font-size:21px;font-weight:800;margin:0 0 12px;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;">Cambiar el c&oacute;digo de tu negocio</h2>' +
+      '<h2 style="font-size:21px;font-weight:800;margin:0 0 12px;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;">Cambiar el c&oacute;digo de tu consultorio</h2>' +
       '<p style="font-size:16px;line-height:1.5;margin:0 0 12px;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;">Se genera un c&oacute;digo nuevo y el actual deja de servir. Todos los tel&eacute;fonos de tu equipo tendr&aacute;n que volver a unirse con el nuevo, incluido el tuyo si usas m&aacute;s de un dispositivo.</p>' +
       '<p style="font-size:15px;line-height:1.5;margin:0 0 12px;padding:11px 13px;background:#F8F9FB;border-left:4px solid #2C3E50;border-radius:0 8px 8px 0;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;">Haz esto solo si el c&oacute;digo se filtr&oacute;: alguien lo public&oacute;, lo dej&oacute; en un grupo, o se fue de la empresa con &eacute;l anotado. Para un ex encargado normal alcanza con darlo de baja en Usuarios, que es mucho menos molesto para el resto del equipo.</p>' +
       '<p style="font-size:15px;line-height:1.5;margin:0 0 18px;padding:11px 13px;background:#FFF6F2;border-left:4px solid #E86040;border-radius:0 8px 8px 0;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;">Esto corta el acceso de aqu&iacute; en adelante. Lo que esa persona ya haya visto o copiado no se puede recuperar.</p>' +

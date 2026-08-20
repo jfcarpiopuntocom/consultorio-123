@@ -239,7 +239,7 @@
   //   Invierno ❄️ = frio y sin valor reciente, o nunca ha comprado
   // R = recencia (dias desde la ultima compra), F = frecuencia (compras en 90
   // dias), M = monto ($ en 90 dias). "Valor alto" = monto >= mediana de los
-  // clientes con compras — umbral honesto que se adapta al negocio.
+  // clientes con compras — umbral honesto que se adapta al consultorio.
   // ==========================================================================
   // evaluacion: { trato: -1|0|1, confiabilidad: -1|0|1, historial: [], despedido: false }
   // Valores demo pre-sembrados para mostrar las 4 categorias de la matriz.
@@ -296,7 +296,7 @@
   const usuarios = [];
   // Apropiación 789 (2026-07-08): ID único de esta instancia. null en la demo;
   // se fija al activar con 789. Viaja en respaldos/sync para que los datos
-  // queden atados a un negocio y no se confundan entre compradores.
+  // queden atados a un consultorio y no se confundan entre compradores.
   // instanceId se HIDRATA desde f123_owned en el arranque (JFC 2026-08-06):
   // antes arrancaba null y solo se seteaba al activar, asi que un dispositivo
   // ya apropiado quedaba null tras recargar. (En consultorio los topes free
@@ -315,7 +315,7 @@
   function licenciaLimitada() {
     try { return (JSON.parse(localStorage.getItem("c123_owned") || "null") || {}).licenseEstado === "limitada"; } catch (_) { return false; }
   }
-  // Nombre editable del negocio (identidad de instancia, 2026-07-08). Viaja en
+  // Nombre editable del consultorio (identidad de instancia, 2026-07-08). Viaja en
   // respaldos/sync. El header lo muestra; vacío = usa el título por defecto.
   let nombreNegocio = "";
   // Cadena anti-tamper (2026-07-08): sello (hash) del último movimiento.
@@ -327,7 +327,7 @@
   // CRITICO (2026-07-17): la clave vieja "amigable_demo_state_v4" nunca tuvo
   // prefijo f123_, y GitHub Pages sirve consultorio-123 y AMIGABLE bajo el MISMO
   // origen (jfcarpiopuntocom.github.io) — localStorage se comparte por origen,
-  // no por carpeta. Con la clave vieja, TODO el estado del negocio (productos,
+  // no por carpeta. Con la clave vieja, TODO el estado del consultorio (productos,
   // ventas, clientes) se mezclaba entre ambas apps en el mismo navegador.
   // v2 (JFC 2026-08-06): se abandona c123_estado_v1 porque en navegadores de
   // prueba ya quedo CONTAMINADO con el estado retail de AMIGABLE (bug de la
@@ -1975,7 +1975,7 @@ window.OCSync = {
       }
       // DELETE /api/usuarios/:id — quitar por completo (distinto de desactivar:
       // desactivar conserva el registro para reactivarlo despues; borrar es
-      // definitivo, para cuando alguien deja el negocio de verdad).
+      // definitivo, para cuando alguien deja el consultorio de verdad).
       if (/^\/api\/usuarios\/[^/]+$/.test(path) && opts && opts.method === "DELETE") {
         const uid3 = path.split("/").pop();
         const i3 = usuarios.findIndex((x) => x.id === uid3);
@@ -1996,7 +1996,7 @@ window.OCSync = {
 
       // === APROPIACIÓN 789 — instancia propia (2026-07-08) =====================
       // Llamado por auth-ui.js durante la secuencia de activación con 789.
-      // { vaciar:bool, instanceId:string }. Si vaciar=true, entrega el negocio
+      // { vaciar:bool, instanceId:string }. Si vaciar=true, entrega el consultorio
       // en blanco (sin datos-semilla de ejemplo). Persiste el estado para que
       // el arranque quede fijado como instancia propia, no como demo.
       if (path === "/api/instancia/activar" && opts && opts.method === "POST") {
@@ -2009,7 +2009,7 @@ window.OCSync = {
           movimientos.length = 0; transferencias.length = 0; clientes.length = 0;
           usuarios.length = 0; promotoras.length = 0; sucursales.length = 0;
           for (const k of Object.keys(gastosMensuales)) delete gastosMensuales[k];
-          selloUltimo = ""; // cadena anti-tamper arranca limpia con el negocio nuevo
+          selloUltimo = ""; // cadena anti-tamper arranca limpia con el consultorio nuevo
         }
         guardarEstadoLocal(); // fija el arranque: al recargar ya no reseedea el ejemplo
         return J({ ok: true, instanceId: instanceId });
@@ -2018,7 +2018,7 @@ window.OCSync = {
       if (path === "/api/instancia" && (!opts || !opts.method || opts.method === "GET")) {
         return J({ instanceId: instanceId, apropiada: !!instanceId, nombreNegocio: nombreNegocio });
       }
-      // POST /api/instancia/nombre — el dueño edita el nombre de su negocio.
+      // POST /api/instancia/nombre — el dueño edita el nombre de su consultorio.
       if (path === "/api/instancia/nombre" && opts && opts.method === "POST") {
         nombreNegocio = String(body.nombre || "").trim().slice(0, 80);
         guardarEstadoLocal();
