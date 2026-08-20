@@ -92,11 +92,14 @@
     async function guardarColaCifrada() {
       if (!window.OCSecure.syncActiva()) return;
       const blob = await window.OCSecure.cifrarSync(JSON.stringify(cola));
-      if (blob) localStorage.setItem("c123_sync_pending", blob);
+      if (blob) {
+        if (window.OCOutbox) await window.OCOutbox.guardar(blob);
+        else localStorage.setItem("c123_sync_pending", blob);
+      }
     }
     async function restaurarCola() {
       if (!window.OCSecure.syncActiva()) return;
-      const blob = localStorage.getItem("c123_sync_pending");
+      const blob = window.OCOutbox ? await window.OCOutbox.leer() : localStorage.getItem("c123_sync_pending");
       if (!blob) return;
       const texto = await window.OCSecure.descifrarSync(blob);
       if (texto) { try { cola = JSON.parse(texto) || []; } catch { cola = []; } }

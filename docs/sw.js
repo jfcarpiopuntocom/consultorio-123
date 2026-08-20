@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v32"; // bumped 2026-08-20: nuevo tablero.html (cartera de pacientes en pantalla grande)
+const CACHE = "c123-shell-v33"; // bumped 2026-08-20: R2 outbox en IndexedDB (sync-outbox.js)
 const SHELL = [
   "./",
   "./index.html",
@@ -56,6 +56,7 @@ const SHELL = [
   "./feature-gate.js",
   "./audit-store.js",
   "./sync-queue.js",
+  "./sync-outbox.js",
   "./ui-actions.js",
   "./salud-app.js",
   "./hechos.js",
