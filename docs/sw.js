@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v26"; // bumped 2026-08-20: fix ReferenceError en crearProductoNuevo (el() no existia), scope de campos duplicados np-*, migracion f123_owned->c123_owned, precache con cache:reload
+const CACHE = "c123-shell-v27"; // bumped 2026-08-20: A2 reparador de estado + A4 autodiagnostico de version portados de friendly-123
 const SHELL = [
   "./",
   "./index.html",
@@ -147,4 +147,17 @@ self.addEventListener("fetch", (evento) => {
       caches.match(evento.request).then((cacheada) => cacheada || fetch(evento.request).then(guardar))
     );
   }
+});
+
+/* A4 -- AUTODIAGNOSTICO DE VERSION (portado de friendly-123, 2026-08-20).
+   El service worker es el unico que sabe DE VERDAD que shell esta sirviendo.
+   La pagina se lo pregunta y lo compara con el shell que declara version.json
+   (que nunca se cachea). Si no coinciden, el dispositivo quedo con media
+   version vieja y se le ofrece recargar en vez de dejarlo roto en silencio. */
+self.addEventListener("message", (ev) => {
+  try {
+    if (ev.data && ev.data.tipo === "que-shell" && ev.source && ev.source.postMessage) {
+      ev.source.postMessage({ tipo: "shell-actual", shell: CACHE });
+    }
+  } catch (_) {}
 });

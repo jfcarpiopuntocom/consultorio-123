@@ -578,6 +578,69 @@
       (document.body || document.documentElement).appendChild(d);
     } catch (_) {}
   }
+  /* A2 -- REPARADOR DE ESTADO (portado de friendly-123, 2026-08-20). Ultimo
+     recurso solo cuando FALLAN LOS DOS buffers A/B: poda lo ilegible y
+     conserva el resto, en vez de descartar el estado entero. Una percha solo
+     se descarta si le falta el id; un nombre ilegible se reemplaza por uno
+     provisional -- leccion medida en friendly-123: la primera version podaba
+     por nombre corrupto y se llevaba 26/61 productos por delante. */
+  function repararRespaldo(body) {
+    if (!body || typeof body !== "object") return null;
+    if (!Array.isArray(body.productos) || !Array.isArray(body.ubicaciones)) return null;
+    const podados = { productos: 0, ubicaciones: 0, listas: 0 };
+    const ubicVistas = new Set();
+    let ubicRenombradas = 0;
+    const ubicOk = [];
+    body.ubicaciones.forEach((u) => {
+      const id = u && typeof u === "object" ? String(u.id || "") : "";
+      if (!id || ubicVistas.has(id) || !esTextoCorto(id, 120)) { podados.ubicaciones++; return; }
+      ubicVistas.add(id);
+      const copia = Object.assign({}, u);
+      if (!esTextoCorto(String(copia.nombre || ""), 240)) {
+        copia.nombre = "Sala " + (ubicOk.length + 1);
+        ubicRenombradas++;
+      }
+      ubicOk.push(copia);
+    });
+    podados.renombradas = ubicRenombradas;
+    if (!ubicOk.length) return null;
+    const prodVistos = new Set();
+    const prodOk = body.productos.filter((p) => {
+      if (!p || typeof p !== "object") { podados.productos++; return false; }
+      const id = String(p.id || "");
+      const numsOk = Number.isFinite(Number(p.precio)) && Number.isFinite(Number(p.costo)) && Number.isFinite(Number(p.stockActual))
+        && Number(p.precio) >= 0 && Number(p.costo) >= 0 && Number(p.stockActual) >= 0;
+      const ubicOkRef = !p.ubicacionId || p.ubicacionId === "todas" || ubicVistas.has(String(p.ubicacionId));
+      const ok = !!id && !prodVistos.has(id) && esTextoCorto(id, 120)
+        && esTextoCorto(String(p.nombre || ""), 240) && numsOk && ubicOkRef;
+      if (ok) prodVistos.add(id); else podados.productos++;
+      return ok;
+    });
+    const limpio = Object.assign({}, body, { productos: prodOk, ubicaciones: ubicOk });
+    ["ventas", "movimientos", "transferencias", "clientes"].forEach((k) => {
+      if (limpio[k] && !Array.isArray(limpio[k])) { limpio[k] = []; podados.listas++; }
+    });
+    if (validarRespaldo(limpio)) return null;
+    return { limpio, podados };
+  }
+
+  function avisarEstadoReparado(podados) {
+    try {
+      const d = document.createElement("div");
+      d.setAttribute("role", "status");
+      d.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:10001;background:#B54E0A;padding:10px 16px;text-align:center;cursor:pointer;";
+      const n = (podados.productos || 0) + (podados.ubicaciones || 0);
+      const ren = podados.renombradas || 0;
+      d.innerHTML = '<span style="color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:14px;font-weight:700;">'
+        + "Se recupero tu consultorio de una copia danada. " + n + " registro(s) ilegibles quedaron fuera"
+        + (ren ? " y " + ren + " sala(s) perdieron su nombre; renombralas en Salas" : "")
+        + ". Revisa tus datos y exporta un respaldo en AVANZADO."
+        + "</span>";
+      d.addEventListener("click", () => d.remove());
+      (document.body || document.documentElement).appendChild(d);
+    } catch (_) {}
+  }
+
   function cargarEstadoLocal() {
     try {
       const activo = localStorage.getItem(OC_STATE_PTR);
@@ -612,6 +675,26 @@
         }
         return;
       }
+      // A2 (portado de friendly-123, 2026-08-20): ningun buffer A/B valido.
+      // Antes de arrancar en blanco, se intenta reparar el mas fresco podando
+      // lo ilegible.
+      try {
+        const _act = localStorage.getItem(OC_STATE_PTR);
+        const _orden = _act ? [_act, _act === "A" ? "B" : "A"] : ["A", "B"];
+        for (const _l of _orden) {
+          const _raw = localStorage.getItem(claveBuffer(_l));
+          if (_raw == null) continue;
+          let _b; try { _b = JSON.parse(_raw); } catch (_) { continue; }
+          const _rep = repararRespaldo(_b);
+          if (!_rep) continue;
+          aplicarRespaldo(_rep.limpio);
+          try { localStorage.setItem(OC_STATE_PTR, _l); } catch (_) {}
+          console.warn("[cargarEstadoLocal] estado reparado; registros podados:", _rep.podados);
+          setTimeout(function () { avisarEstadoReparado(_rep.podados); }, 800);
+          return;
+        }
+      } catch (_) { /* si el reparador falla, se sigue al camino de siempre */ }
+
       // Ningun buffer A/B valido: migracion desde la clave de un solo buffer
       // (dispositivos que aun no corrieron esta version) o corrupcion total.
       const raw = localStorage.getItem(OC_STATE_KEY);
