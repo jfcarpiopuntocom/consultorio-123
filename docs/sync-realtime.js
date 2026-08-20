@@ -27,9 +27,9 @@
 (function () {
   const RELAY_URL = "wss://consultorio123-sync-relay.jfcarpio.workers.dev/sala/";
   const ROOM_KEY = "c123_sync_room"; // {codigo} — si no existe, sync apagado
-  const DEVICE_ID_KEY = "amigable_device_id";
-  const LAMPORT_KEY = "amigable_sync_lamport";
-  const COLA_KEY = "amigable_sync_cola"; // ops pendientes de enviar (offline)
+  const DEVICE_ID_KEY = "c123_device_id";
+  const LAMPORT_KEY = "c123_sync_lamport";
+  const COLA_KEY = "c123_sync_cola"; // ops pendientes de enviar (offline)
   const SALT_FIJO = "amigable-sync-v1"; // salt fijo: codigo de sala = "clave de cuarto", no defensa contra MITM
 
   // ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@
   // Si nadie estuvo online mientras el otro vendia (caso raro: todo el
   // equipo apagado a la vez), la brecha no se puede cerrar sola — ahi sigue
   // el respaldo manual/WhatsApp como red de ultimo recurso (Fases 2 y 4).
-  const LOG_KEY = "amigable_sync_log"; // ultimas ops vistas (propias + ajenas), para poder RE-enviarlas a un par que las perdio
+  const LOG_KEY = "c123_sync_log"; // ultimas ops vistas (propias + ajenas), para poder RE-enviarlas a un par que las perdio
   const LOG_TOPE = 500; // mismo tope que el dedup de mock-backend.js, mismo criterio
   /* Portado de friendly-123/amigable-123, 2026-08-19: pedir/responder el
      CATALOGO entre dispositivos del mismo equipo, para que "sincronizado"

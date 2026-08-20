@@ -18,7 +18,6 @@
         { titulo: "Agenda", texto: "Schedule appointments and block days when you're not attending. It keeps your day organized without depending on memory." },
         { titulo: "Patients", texto: "Register patients and see their receivables at a glance: who owes, who has credit. You decide who to trust, with data." },
         { titulo: "Accounting, without the jargon", texto: "Income, expenses, receivables and results — in tabs, in plain language. No accounting background required." },
-        { titulo: "Rooms", texto: "Organize your practice by room or location if you work in more than one. Optional — most solo practices never need this." },
         { titulo: "Advanced: your vault", texto: "Backups, PIN codes, recovery email, and the accounting report for your accountant. Everything lives on YOUR device — no cloud, no subscriptions." },
       ],
     },
@@ -31,7 +30,6 @@
         { titulo: "Agenda", texto: "Programa tus citas y bloquea los días que no atiendes. Mantiene tu día ordenado sin depender de la memoria." },
         { titulo: "Pacientes", texto: "Registra pacientes y mira su cuenta pendiente de un vistazo: quién debe, quién tiene crédito a favor. Tú decides a quién fiar, con datos." },
         { titulo: "Contabilidad, sin tecnicismos", texto: "Ingresos, gastos, cuentas por cobrar y resultados — en pestañas, en lenguaje simple. No necesitas formación contable." },
-        { titulo: "Salas", texto: "Organiza tu consultorio por sala o sede si trabajas en más de un lugar. Opcional — la mayoría de consultorios individuales nunca lo necesitan." },
         { titulo: "Avanzado: tu caja fuerte", texto: "Respaldos, claves, correo de recuperación, y el reporte contable para tu contador. Todo vive en TU dispositivo — sin nube, sin suscripciones." },
       ],
     },
@@ -44,7 +42,6 @@
     { vista: "agenda", sel: null },
     { vista: "clientes", sel: "#btnAltaCliente" },
     { vista: "contabilidad", sel: null },
-    { vista: "vista-perchas", sel: null },
     { vista: "avanzado", sel: null },
   ];
 

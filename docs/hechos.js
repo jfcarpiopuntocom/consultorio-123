@@ -81,7 +81,7 @@
   // fueron generados por este aparato antes de tener licencia.
   function instanceId() {
     try {
-      var owned = JSON.parse(localStorage.getItem("amigable_owned") || "null") || {};
+      var owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
       if (owned.instanceId) return owned.instanceId;
     } catch (_) {}
     try {
