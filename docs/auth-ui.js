@@ -830,43 +830,7 @@ try {
 
     return wrap;
   }
-  /* BIFURCACION ANTES DE ACTIVAR (portado de friendly-123, 2026-08-20;
-     JFC lo sufrio en carne propia con friendly-123: puso 789 pensando que
-     asi entraba a su consultorio, y 789 CREA UNO NUEVO con licencia propia. Un
-     dispositivo nuevo casi nunca es un consultorio nuevo -- casi siempre es el
-     segundo telefono de alguien que YA tiene su consultorio. Preguntar
-     cuesta un toque; no preguntar cuesta una licencia duplicada.
-     No se pregunta si el dispositivo ya esta apropiado: ahi 789 ya no es
-     el codigo de activacion (ver ACTIVATION_PIN). */
   function iniciarActivacion() {
-    if (document.getElementById("oc-act-bifurcacion")) return;
-    var b = document.createElement("div");
-    b.id = "oc-act-bifurcacion";
-    b.style.cssText = "position:fixed;inset:0;z-index:10005;background:#0F1923EE;display:flex;align-items:center;justify-content:center;padding:20px;";
-    b.innerHTML =
-      '<div style="background:#FFFFFF;border-radius:16px;padding:26px 22px;max-width:440px;width:100%;text-align:left;">' +
-      '<h2 style="font-size:21px;font-weight:800;margin:0 0 10px;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;">Antes de configurar esto</h2>' +
-      '<p style="font-size:16px;line-height:1.5;margin:0 0 18px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;">¿Es el primer dispositivo de un consultorio nuevo, u otro dispositivo de un consultorio que ya tienes?</p>' +
-      '<button type="button" id="oc-act-nuevo" style="width:100%;min-height:52px;padding:14px;border:none;border-radius:12px;background:#E86040;color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-weight:800;font-size:16px;cursor:pointer;">Un consultorio nuevo</button>' +
-      '<p style="font-size:14px;line-height:1.45;margin:6px 0 16px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;">Crea un consultorio nuevo con su propia licencia. Empieza vacio.</p>' +
-      '<button type="button" id="oc-act-unirme" style="width:100%;min-height:52px;padding:14px;border:2px solid #2C3E50;border-radius:12px;background:transparent;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;font-weight:800;font-size:16px;cursor:pointer;">Otro dispositivo de mi consultorio</button>' +
-      '<p style="font-size:14px;line-height:1.45;margin:6px 0 16px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;">Se une al consultorio que ya tienes, con todos sus datos. Vas a necesitar su codigo de equipo.</p>' +
-      '<button type="button" id="oc-act-nada" style="width:100%;min-height:44px;background:none;border:none;font-size:15px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;cursor:pointer;">Ahora no</button>' +
-      "</div>";
-    document.body.appendChild(b);
-    var cerrar = function () { try { b.remove(); } catch (_) {} };
-    document.getElementById("oc-act-nada").addEventListener("click", cerrar);
-    document.getElementById("oc-act-unirme").addEventListener("click", function () {
-      cerrar();
-      try { abrirUnirseEquipo(); } catch (_) {}
-    });
-    document.getElementById("oc-act-nuevo").addEventListener("click", function () {
-      cerrar();
-      _activacionRealmente();
-    });
-  }
-
-  function _activacionRealmente() {
     var w = construirModalActivacion();
     w.querySelector("#oc-act-form").style.display = "block";
     w.querySelector("#oc-act-exito").style.display = "none";

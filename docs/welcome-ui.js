@@ -1,37 +1,46 @@
-// COMPARTIDO: portado y mantenido identico entre apps hermanas a proposito.
-// welcome-ui.js — Mensaje de bienvenida para first-timers (JFC 2026-07-02).
-// AMIGABLE (demo de Amigable). Aparece UNA sola vez, tras el primer login
-// exitoso (escucha "oc-login"), y marca un flag en localStorage para no
-// repetirse. Aquí conviven, sin chocar, el slogan informal de la línea
-// ("tu negocio, a color") y el nombre formal ("Amigable: punto de venta y
-// control de inventario") con su variante ("control de lo que ya es suyo").
+// welcome-ui.js — Mensaje de bienvenida para consultorio-123 (JFC 2026-08-20).
+// FIX: este archivo era una copia sin adaptar de AMIGABLE (decia "AMIGABLE"
+// en su propio comentario de cabecera, "comisiones"/"perchas" que no existen
+// aqui, todo en ingles duro sin pasar por i18n, y nunca mostraba la licencia
+// del consultorio). Reescrito para consultorio-123: espanol por defecto
+// (respeta el switch), lenguaje de consulta medica, y muestra el codigo de
+// licencia real leido de c123_owned -- para que nadie salga de la activacion
+// sin haberlo visto donde de verdad importa.
 //
-// Reglas de legibilidad (CLAUDE.md): colores sólidos hex, sin opacidad en
-// texto, tamaños >=13px, color + -webkit-text-fill-color con !important y
+// Aparece UNA sola vez, tras el primer login exitoso (escucha "oc-login"), y
+// marca un flag en localStorage para no repetirse.
+//
+// Reglas de legibilidad (CLAUDE.md): colores solidos hex, sin opacidad en
+// texto, tamanos >=13px, color + -webkit-text-fill-color con !important y
 // bloque prefers-color-scheme:dark repetido para que iOS/WhatsApp no oscurezca.
 (function () {
   'use strict';
 
-  const FLAG = 'f123_bienvenida_v3'; // subir versión = volver a mostrarla
-  // v3 (2026-07-16): bug corregido — auth-ui.js marcaba esta flag como "vista"
-  // en el momento de activar (antes de que el wizard se mostrara ni una vez).
-  // Subir la version fuerza a que TODOS los dispositivos ya activados (incluidos
-  // clientes reales de JFC) vean el wizard de verdad al menos una vez.
-  const FLAG_CONFIRMADO = 'f123_bienvenida_confirmada'; // 2do login: exige confirmar, no solo cerrar
+  const FLAG = 'c123_bienvenida_v1';
+  const FLAG_CONFIRMADO = 'c123_bienvenida_confirmada';
+
+  function esES() {
+    try { return !window.OCI18n || window.OCI18n.getLang() !== 'en'; } catch (_) { return true; }
+  }
+  function t(k, es, en) {
+    try { if (window.t) { const v = window.t(k); if (v && v !== k) return v; } } catch (_) {}
+    return esES() ? es : en;
+  }
+  function licenciaActual() {
+    try {
+      const ow = JSON.parse(localStorage.getItem('c123_owned') || 'null') || {};
+      return ow.licenseCode || ow.syncCode || '';
+    } catch (_) { return ''; }
+  }
 
   const css = document.createElement('style');
-  // Paleta: SOLO el chasis semaforo de colores oficial de index.html (plata
-  // #C4CDD8, tinta azul #0F1923, brass #5294AC, rust #E86040, fondo frio
-  // #F8F9FB). PROHIBIDO beige/ocre/castano aqui — regla JFC 2026-07-07:
-  // "respeta el color scheme del index". Se usan var() con fallback al hex
-  // oficial por si este script cargara fuera de index.html.
   css.textContent = `
   .am-welcome-overlay{position:fixed;inset:0;z-index:9997;background:var(--azul-oscuro,#0F1923);
     display:none;align-items:center;justify-content:center;padding:20px;}
   .am-welcome-overlay.abierto{display:flex;}
   .am-welcome-card{background:var(--blanco-calido,#F8F9FB);width:100%;max-width:440px;border-radius:14px;
     border:2px solid var(--sim-plata,#C4CDD8);border-top:4px solid var(--brass,#5294AC);
-    padding:30px 24px 26px;text-align:center;box-shadow:0 12px 40px #060d14;}
+    padding:30px 24px 26px;text-align:center;box-shadow:0 12px 40px #060d14;max-height:88vh;overflow-y:auto;}
   .am-welcome-overlay .marca{font-family:var(--font-mono,monospace);font-size:14px;font-weight:700;
     letter-spacing:.14em;text-transform:uppercase;color:#2E6278 !important;-webkit-text-fill-color:#2E6278 !important;margin:0 0 6px;}
   .am-welcome-overlay h2{font-family:var(--font-display,sans-serif);font-size:27px;font-weight:700;line-height:1.15;
@@ -41,11 +50,15 @@
   .am-welcome-overlay .formal{font-family:var(--font-mono,monospace);font-size:14px;
     color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;margin:0 0 18px;}
   .am-welcome-overlay .cuerpo{font-family:var(--font-body,sans-serif);font-size:16px;line-height:1.5;
-    color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;margin:0 0 22px;}
+    color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;margin:0 0 18px;}
+  .am-welcome-overlay .licencia-box{background:#FFF6F2;border-left:4px solid #E86040;border-radius:0 8px 8px 0;
+    padding:12px 14px;margin:0 0 22px;text-align:left;}
+  .am-welcome-overlay .licencia-box .lbl{font-size:13px;font-weight:700;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;margin:0 0 4px;}
+  .am-welcome-overlay .licencia-box .cod{font-family:var(--font-mono,monospace);font-size:17px;letter-spacing:.06em;
+    font-weight:700;color:#E86040 !important;-webkit-text-fill-color:#E86040 !important;word-break:break-all;}
   .am-welcome-overlay button{width:100%;min-height:48px;padding:14px;border-radius:9px;border:2px solid var(--brass,#5294AC);
     background:var(--azul-oscuro,#0F1923);color:#F8F9FB !important;-webkit-text-fill-color:#F8F9FB !important;
     font-family:var(--font-display,sans-serif);font-size:16px;font-weight:700;cursor:pointer;}
-  /* "Ver la guia": secundario (outline plata/azul) sobre el primario "Empezar" */
   .am-welcome-overlay button#am-welcome-guia{background:transparent;border-color:var(--azul-medio,#2E6278);
     color:#2E6278 !important;-webkit-text-fill-color:#2E6278 !important;margin:0 0 10px;}
   @media (prefers-color-scheme: dark){
@@ -57,6 +70,8 @@
     .am-welcome-overlay .tagline{color:#E86040 !important;-webkit-text-fill-color:#E86040 !important;}
     .am-welcome-overlay button{color:#F8F9FB !important;-webkit-text-fill-color:#F8F9FB !important;}
     .am-welcome-overlay button#am-welcome-guia{color:#2E6278 !important;-webkit-text-fill-color:#2E6278 !important;}
+    .am-welcome-overlay .licencia-box .lbl{color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;}
+    .am-welcome-overlay .licencia-box .cod{color:#E86040 !important;-webkit-text-fill-color:#E86040 !important;}
   }
   @media (prefers-reduced-motion: no-preference){
     .am-welcome-overlay.abierto .am-welcome-card{animation:amwin .28s ease;}
@@ -75,122 +90,118 @@
   modal.id = 'am-welcome';
   modal.className = 'am-welcome-overlay';
   modal.setAttribute('aria-hidden', 'true');
-  modal.innerHTML = `
-    <div id="am-welcome-card" class="am-welcome-card" role="dialog" aria-label="Welcome">
-      <p class="marca">consultorio-123</p>
-      <h2>Welcome</h2>
-      <p class="tagline">Manage your business, in color</p>
-      <p class="formal">Inventory management · clients · commissions · racks</p>
-      <p class="cuerpo">Managing your business doesn't have to be complicated. Products talk in colors that light up when action is needed: green when everything's good, gold when money is waiting, red when it's time to move. Works offline. Your data is yours alone. No subscriptions, no ads.</p>
-      <button id="am-welcome-tut" style="width:100%;min-height:46px;margin-bottom:8px;border-radius:8px;border:2px solid #E86040;background:#E86040;color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:15px;font-weight:700;cursor:pointer;">Take the guided tutorial</button>
-      <button id="am-welcome-guia">See the guide</button>
-      <button id="am-welcome-ok">Get started</button>
-    </div>`;
   document.body.appendChild(modal);
 
-  // Recordatorio (2do login sin confirmar): a diferencia del modal de arriba,
-  // este NO se puede cerrar clickeando afuera ni con un boton neutro — exige
-  // tildar el checkbox para habilitar "Continue". Intencional (JFC 2026-07-16):
-  // "es mejor cargosearles" que dejar que alguien distraido se lo salte.
   const reminder = document.createElement('div');
   reminder.id = 'am-welcome-reminder';
   reminder.className = 'am-welcome-overlay';
   reminder.setAttribute('aria-hidden', 'true');
-  reminder.innerHTML = `
-    <div id="am-rec-card" class="am-welcome-card" role="dialog" aria-label="Confirm you watched the welcome tutorial">
-      <p class="marca">consultorio-123</p>
-      <h2>Quick check</h2>
-      <p class="cuerpo" style="margin-bottom:16px;">Before you continue, confirm you went through the welcome tutorial. It only takes a minute and it's how everything below will make sense.</p>
-      <button id="am-rec-ver" style="width:100%;min-height:44px;padding:10px;border-radius:7px;border:2px solid var(--brass,#5294AC);background:transparent;color:var(--azul-medio,#2E6278) !important;-webkit-text-fill-color:var(--azul-medio,#2E6278) !important;font-family:var(--font-display,sans-serif);font-size:15px;font-weight:700;cursor:pointer;margin:0 0 14px;">See the tutorial now</button>
-      <label><input type="checkbox" id="am-rec-check"> Yes, I already went through the welcome tutorial</label>
-      <button id="am-rec-continuar" disabled>Continue</button>
-    </div>`;
   document.body.appendChild(reminder);
+
+  // El contenido se pinta en pintar(), no en un template estatico, porque el
+  // idioma y el codigo de licencia pueden no estar listos al parsear el
+  // script (i18n.js carga async, la licencia se escribe recien al activar).
+  function pintar() {
+    const lic = licenciaActual();
+    modal.innerHTML = `
+      <div id="am-welcome-card" class="am-welcome-card" role="dialog" aria-label="${esES() ? 'Bienvenida' : 'Welcome'}">
+        <p class="marca">consultorio-123</p>
+        <h2>${t('welcome.title', 'Bienvenido a tu consultorio digital', 'Welcome to your digital practice')}</h2>
+        <p class="tagline">${t('welcome.tagline', 'Tu consultorio, en color', 'Your practice, in color')}</p>
+        <p class="formal">${t('welcome.formal', 'Ingresos · inventario · cuentas por cobrar · resultados', 'Income · inventory · receivables · results')}</p>
+        <p class="cuerpo">${t('welcome.body',
+          'No necesitas saber contabilidad para llevar tu consultorio en orden. Tus cifras hablan en colores que se encienden solos cuando hace falta actuar: verde cuando todo fluye, ámbar cuando hay un cobro pendiente, rojo cuando toca actuar hoy. Funciona sin conexión. Tus datos son solo tuyos, sin suscripciones ni anuncios.',
+          "You don't need an accounting background to keep your practice in order. Your numbers speak in colors that light up on their own when action is needed: green when everything flows, amber when a payment is pending, red when it's time to act today. Works offline. Your data is yours alone, no subscriptions, no ads.")}</p>
+        ${lic ? `
+        <div class="licencia-box">
+          <p class="lbl">${t('welcome.licenseLabel', 'Tu código de licencia (guárdalo):', 'Your license code (save it):')}</p>
+          <p class="cod">${String(lic).replace(/[&<>]/g, '')}</p>
+        </div>` : ''}
+        <button id="am-welcome-tut" style="width:100%;min-height:46px;margin-bottom:8px;border-radius:8px;border:2px solid #E86040;background:#E86040;color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:15px;font-weight:700;cursor:pointer;">${t('welcome.tutBtn', 'Hacer el tutorial guiado', 'Take the guided tutorial')}</button>
+        <button id="am-welcome-guia">${t('welcome.guideBtn', 'Ver la guía', 'See the guide')}</button>
+        <button id="am-welcome-ok">${t('welcome.okBtn', 'Empezar', 'Get started')}</button>
+      </div>`;
+
+    reminder.innerHTML = `
+      <div id="am-rec-card" class="am-welcome-card" role="dialog" aria-label="${esES() ? 'Confirma que viste el tutorial' : 'Confirm you watched the tutorial'}">
+        <p class="marca">consultorio-123</p>
+        <h2>${t('welcome.checkTitle', 'Un momento', 'Quick check')}</h2>
+        <p class="cuerpo" style="margin-bottom:16px;">${t('welcome.checkBody', 'Antes de seguir, confirma que ya viste el tutorial de bienvenida. Toma un minuto y es lo que hace que todo lo demás tenga sentido.', "Before you continue, confirm you went through the welcome tutorial. It only takes a minute and it's how everything below will make sense.")}</p>
+        <button id="am-rec-ver" style="width:100%;min-height:44px;padding:10px;border-radius:7px;border:2px solid var(--brass,#5294AC);background:transparent;color:var(--azul-medio,#2E6278) !important;-webkit-text-fill-color:var(--azul-medio,#2E6278) !important;font-family:var(--font-display,sans-serif);font-size:15px;font-weight:700;cursor:pointer;margin:0 0 14px;">${t('welcome.seeTutNow', 'Ver el tutorial ahora', 'See the tutorial now')}</button>
+        <label><input type="checkbox" id="am-rec-check"> ${t('welcome.checkLabel', 'Sí, ya vi el tutorial de bienvenida', 'Yes, I already went through the welcome tutorial')}</label>
+        <button id="am-rec-continuar" disabled>${t('welcome.continueBtn', 'Continuar', 'Continue')}</button>
+      </div>`;
+
+    cablear();
+  }
 
   function cerrar() {
     modal.classList.remove('abierto');
-    try { localStorage.setItem(FLAG, '1'); } catch (_) { /* modo privado: se mostrará otra vez, aceptable */ }
+    try { localStorage.setItem(FLAG, '1'); } catch (_) {}
   }
-  /* Blindaje (homologado de AMIGABLE, 2026-07-28): antes estos botones hacian
-     cerrar() PRIMERO y recien despues comprobaban que el modulo destino
-     existiera. Si tutorial-ui.js o help-ui.js no habian cargado (red lenta,
-     script diferido, cache a medias), el usuario perdia la bienvenida Y no
-     recibia nada a cambio: pantalla vacia, sin camino de vuelta, y con la flag
-     ya marcada como "visto". Ahora se comprueba ANTES: si el destino no esta
-     listo, el modal se queda abierto y se avisa. Nunca se cierra a cambio de
-     nada. El aviso sale de i18n (EN por defecto). */
+
   function _amAvisarCargando(cardId) {
     const c = document.getElementById(cardId);
     if (!c || c.querySelector('.am-welcome-err')) return;
     const p = document.createElement('p');
     p.className = 'am-welcome-err';
     p.style.cssText = 'font-size:15px;font-weight:700;line-height:1.4;margin:10px 0 0;color:#B2461F !important;-webkit-text-fill-color:#B2461F !important;';
-    let txt = 'Still loading. Give it a moment and tap again.';
-    try { if (window.t) txt = window.t('welcome.stillLoading') || txt; } catch (_) {}
-    p.textContent = txt;
+    p.textContent = t('welcome.stillLoading', 'Todavía está cargando. Dale un momento y toca de nuevo.', 'Still loading. Give it a moment and tap again.');
     c.appendChild(p);
     setTimeout(() => { try { p.remove(); } catch (_) {} }, 4000);
   }
-  document.getElementById('am-welcome-ok').addEventListener('click', cerrar);
-  document.getElementById('am-welcome-tut').addEventListener('click', () => {
-    if (!(window.OCTutorial && window.OCTutorial.iniciar)) { _amAvisarCargando('am-welcome-card'); return; }
-    cerrar();
-    window.OCTutorial.iniciar();
-  });
-  // "Ver la guia" cierra la bienvenida (queda marcada como vista) y abre la
-  // Ayuda completa via la API de help-ui.js. La Ayuda sigue siempre
-  // disponible en el boton (?) — esto es solo el atajo del primer minuto.
-  document.getElementById('am-welcome-guia').addEventListener('click', () => {
-    if (!(window.OCHelp && window.OCHelp.abrir)) { _amAvisarCargando('am-welcome-card'); return; }
-    cerrar();
-    window.OCHelp.abrir();
-  });
-  modal.addEventListener('click', (e) => { if (e.target === modal) cerrar(); });
 
-  const recCheck = document.getElementById('am-rec-check');
-  const recBtn = document.getElementById('am-rec-continuar');
-  recCheck.addEventListener('change', () => { recBtn.disabled = !recCheck.checked; });
-  recBtn.addEventListener('click', () => {
-    if (recCheck.checked) {
-      try { localStorage.setItem(FLAG_CONFIRMADO, '1'); } catch (_) {}
-      reminder.classList.remove('abierto');
+  function cablear() {
+    const okBtn = document.getElementById('am-welcome-ok');
+    if (okBtn) okBtn.addEventListener('click', cerrar);
+    const tutBtn = document.getElementById('am-welcome-tut');
+    if (tutBtn) tutBtn.addEventListener('click', () => {
+      if (!(window.OCTutorial && window.OCTutorial.iniciar)) { _amAvisarCargando('am-welcome-card'); return; }
+      cerrar();
+      window.OCTutorial.iniciar();
+    });
+    const guiaBtn = document.getElementById('am-welcome-guia');
+    if (guiaBtn) guiaBtn.addEventListener('click', () => {
+      if (!(window.OCHelp && window.OCHelp.abrir)) { _amAvisarCargando('am-welcome-card'); return; }
+      cerrar();
+      window.OCHelp.abrir();
+    });
+
+    const recCheck = document.getElementById('am-rec-check');
+    const recBtn = document.getElementById('am-rec-continuar');
+    if (recCheck && recBtn) {
+      recCheck.addEventListener('change', () => { recBtn.disabled = !recCheck.checked; });
+      recBtn.addEventListener('click', () => {
+        if (recCheck.checked) {
+          try { localStorage.setItem(FLAG_CONFIRMADO, '1'); } catch (_) {}
+          reminder.classList.remove('abierto');
+        }
+      });
     }
-  });
-  document.getElementById('am-rec-ver').addEventListener('click', () => {
-    // Launches the interactive TUTORIAL (tutorial-ui.js) — NOT the reading guide.
-    /* Este caso era mas grave que el del modal de arriba: se quitaba el
-       recordatorio ANTES de comprobar OCTutorial, asi que con el modulo sin
-       cargar el candado de confirmacion se abria solo y el usuario entraba sin
-       tutorial y sin haber tildado nada — justo lo que este modal existe para
-       impedir. Ahora el candado solo cede si el tutorial va a correr de verdad. */
-    if (!(window.OCTutorial && window.OCTutorial.iniciar)) { _amAvisarCargando('am-rec-card'); return; }
-    reminder.classList.remove('abierto');
-    window.OCTutorial.iniciar();
-  });
-  // Sin click-outside-to-close ni tecla Escape aqui a proposito: el candado
-  // de confirmacion es el punto entero de este modal.
+    const recVer = document.getElementById('am-rec-ver');
+    if (recVer) recVer.addEventListener('click', () => {
+      if (!(window.OCTutorial && window.OCTutorial.iniciar)) { _amAvisarCargando('am-rec-card'); return; }
+      reminder.classList.remove('abierto');
+      window.OCTutorial.iniciar();
+    });
+  }
+  modal.addEventListener('click', (e) => { if (e.target === modal) cerrar(); });
 
   function quizasMostrar() {
     let visto = false, confirmado = false;
     try { visto = localStorage.getItem(FLAG) === '1'; } catch (_) {}
     try { confirmado = localStorage.getItem(FLAG_CONFIRMADO) === '1'; } catch (_) {}
+    pintar();
     if (!visto) { modal.classList.add('abierto'); return; }
     if (!confirmado) reminder.classList.add('abierto');
   }
 
-  // API para "Ver el tutorial de bienvenida nuevamente" en Ayuda (help-ui.js).
-  // Reabre el wizard completo sin tocar ninguna flag — es solo un replay.
-  window.OCWelcome = { abrir: () => modal.classList.add('abierto') };
+  window.OCWelcome = { abrir: () => { pintar(); modal.classList.add('abierto'); } };
 
-  // SOLO tras un login real (evento oc-login que auth-ui dispara DESPUÉS de
-  // ocultar el candado). Regla JFC 2026-07-07: la bienvenida JAMÁS puede
-  // aparecer antes de digitar el PIN, ni saltárselo. Doble candado: si por
-  // cualquier razón #oc-gate sigue visible, no se muestra nada.
   window.addEventListener('oc-login', (e) => {
-    // Solo mostrar al dueño — no encargado, contador, ni demo
     if (!e.detail || e.detail.rol !== 'dueno' || e.detail.demo) return;
     const gate = document.getElementById('oc-gate');
-    if (gate && gate.style.display !== 'none') return; // candado visible: ni hablar
+    if (gate && gate.style.display !== 'none') return;
     quizasMostrar();
   });
 })();
