@@ -101,8 +101,21 @@
     return out;
   }
 
+  /* CORTACIRCUITOS (portado de friendly-123, 2026-08-19; patron de cockatiel
+     escrito a mano). Sin esto, con el nodo caido cada llamada espera 8s de
+     timeout. Tras 5 fallos seguidos se pausa 5 min; un exito lo cierra. */
+  var _cbFallos = 0, _cbAbiertoHasta = 0;
+  var CB_TOPE = 5, CB_PAUSA_MS = 5 * 60 * 1000;
+  function _cbBloqueado() { return Date.now() < _cbAbiertoHasta; }
+  function _cbFallo() {
+    _cbFallos++;
+    if (_cbFallos >= CB_TOPE) { _cbAbiertoHasta = Date.now() + CB_PAUSA_MS; _cbFallos = 0; try { console.warn("[heartbeat] pausa 5 min"); } catch (_) {} }
+  }
+  function _cbExito() { _cbFallos = 0; _cbAbiertoHasta = 0; }
+
   async function enviarHeartbeat(datos) {
     try {
+      if (_cbBloqueado()) return;
       var url = (localStorage.getItem("c123_cf_worker_url") || "").trim() || OC_WORKER_URL;
       if (!url) return;
       var trim = function (v, n) { if (v == null) return v; var s = String(v); return s.length > n ? s.slice(0, n) : s; };
@@ -111,6 +124,7 @@
         instanceId: trim(datos.instanceId, 100),
         licenseCode: trim(datos.licenseCode, 40),
         email: trim(datos.email, 160),
+        whatsapp: trim(datos.whatsapp, 20),
         nombre: trim(datos.nombre, 120),
         apellido: trim(datos.apellido, 120),
         cedula: trim(datos.cedula, 40),
@@ -141,6 +155,7 @@
           body: JSON.stringify(payload),
           signal: ctrl.signal,
         });
+        if (res && res.ok) { _cbExito(); } else { _cbFallo(); }
         if (res && res.ok) {
           /* Se limpian SOLO si el Worker confirmo: con wifi caido los errores
              se quedan y viajan en el proximo heartbeat. */
@@ -154,10 +169,13 @@
             var owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
             owned.licenseEstado = r.estado;
             owned.licenseEstadoAt = Date.now();
+            /* RESCATE DE LICENCIA (portado de friendly-123). Solo rellena un
+               hueco: nunca pisa un codigo que el dispositivo ya tiene. */
+            try { var _lr = r.licenseCode; if (!owned.licenseCode && typeof _lr === "string" && /^C123-[0-9A-Z*~$=-]{8,34}$/.test(_lr)) owned.licenseCode = _lr; } catch (_) {}
             localStorage.setItem("f123_owned", JSON.stringify(owned));
           }
         }
-      } finally { clearTimeout(t); }
+      } catch (eRed) { _cbFallo(); throw eRed; } finally { clearTimeout(t); }
     } catch (_) { /* never block UI */ }
   }
 
@@ -661,7 +679,7 @@
       + "#oc-act label.op strong{font-size:15px;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;}"
       + "#oc-act label.op span{display:block;font-size:14px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;margin-top:2px;}"
       + "#oc-act .lbl{display:block;font-size:14px;font-weight:700;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;margin:14px 0 6px;}"
-      + "#oc-act input[type=email]{width:100%;box-sizing:border-box;padding:11px 12px;border:2px solid #5294AC;border-radius:8px;font-size:16px;font-family:var(--font-mono,monospace);color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;background:#FFFFFF;}"
+      + "#oc-act input[type=email],#oc-act input[type=tel]{width:100%;box-sizing:border-box;padding:11px 12px;border:2px solid #5294AC;border-radius:8px;font-size:16px;font-family:var(--font-mono,monospace);color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;background:#FFFFFF;}"
       + "#oc-act .primario{width:100%;min-height:48px;margin-top:16px;padding:14px;border-radius:9px;border:2px solid #E86040;background:#E86040;color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:16px;font-weight:700;cursor:pointer;}"
       + "#oc-act .secundario{width:100%;min-height:44px;margin-top:10px;padding:11px;border-radius:9px;border:2px solid #5294AC;background:transparent;color:#2E6278 !important;-webkit-text-fill-color:#2E6278 !important;font-size:15px;font-weight:700;cursor:pointer;}"
       + "#oc-act .msg{font-size:14px;font-weight:700;margin:10px 0 0;color:#B0183E !important;-webkit-text-fill-color:#B0183E !important;}"
@@ -682,6 +700,11 @@
       +     '<label class="op"><input type="radio" name="oc-act-datos" value="conservar"><strong>' + window.t("auth.act.keepTitle") + '</strong><span>' + window.t("auth.act.keepDesc") + '</span></label>'
       +     '<label class="lbl" for="oc-act-email">' + window.t("auth.act.emailLabel") + '</label>'
       +     '<input id="oc-act-email" type="email" inputmode="email" autocomplete="email" placeholder="' + window.t("auth.act.emailPlaceholder") + '">'
+      /* TELEFONO OBLIGATORIO (portado de friendly-123, JFC 2026-08-19, regla
+         para TODAS sus apps: "Telf es mas importante que ID incluso"). Sin
+         depender de CDN alguno: validacion a mano, 7-15 digitos. */
+      +     '<label class="lbl" for="oc-act-tel">' + window.t("auth.act.phoneLabel") + '</label>'
+      +     '<input id="oc-act-tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="' + window.t("auth.act.phonePlaceholder") + '">'
       +     '<button id="oc-act-confirmar" class="primario">' + window.t("auth.act.confirmBtn") + '</button>'
       +     '<button id="oc-act-cancelar" class="secundario">' + window.t("auth.act.cancelBtn") + '</button>'
       +     '<p id="oc-act-msg" class="msg"></p>'
@@ -705,6 +728,9 @@
     wrap.querySelector("#oc-act-confirmar").addEventListener("click", async function () {
       var email = (emailIn.value || "").trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setMsg(window.t("auth.act.invalidEmail")); emailIn.focus(); return; }
+      var telIn = wrap.querySelector("#oc-act-tel");
+      var telDigitos = ((telIn && telIn.value) || "").replace(/\D/g, "");
+      if (telDigitos.length < 7 || telDigitos.length > 15) { setMsg(window.t("auth.act.invalidPhone")); if (telIn) telIn.focus(); return; }
       var vaciar = (wrap.querySelector('input[name="oc-act-datos"]:checked') || {}).value !== "conservar";
       var btn = wrap.querySelector("#oc-act-confirmar");
       btn.disabled = true; setMsg(window.t("auth.act.activating"), true);
@@ -739,7 +765,13 @@
       // queda encendido 24/7 desde ahora, no es un "modo evento".
       var syncCode = generarCodigoSync();
       try { if (window.OCSyncControl) window.OCSyncControl.activar(syncCode); } catch (_) {}
-      try { localStorage.setItem("f123_owned", JSON.stringify({ instanceId: idInstancia, email: email, activatedAt: Date.now(), syncCode: syncCode })); } catch (_) {}
+      try { if (window.OCSecure && window.OCSecure.actualizarWhatsapp) window.OCSecure.actualizarWhatsapp(telDigitos); } catch (_) {}
+      /* BUG DE RAIZ (portado de friendly-123, 2026-08-19): aqui se guardaba
+         SOLO syncCode, nunca licenseCode, asi que NINGUNA instancia llegaba a
+         registrar su licencia. Se guardan los dos: hoy valen lo mismo, en
+         campos separados para poder rotar la sala sin tocar la licencia. */
+      var licenseCode = syncCode;
+      try { localStorage.setItem("f123_owned", JSON.stringify({ instanceId: idInstancia, email: email, whatsapp: telDigitos, activatedAt: Date.now(), syncCode: syncCode, licenseCode: licenseCode })); } catch (_) {}
       // NO marcar f123_bienvenida_v3 aqui — el wizard debe mostrarse de verdad
       // tras el primer login post-activacion (ver welcome-ui.js). Bug anterior:
       // se marcaba "vista" en este punto sin que el usuario la viera nunca.
@@ -751,7 +783,7 @@
       try { if (window.OCStorageDurable) window.OCStorageDurable.verificarYSolicitar(); } catch (_) {}
       // Ping: record new activation in license panel
       var ow2 = {}; try { ow2 = JSON.parse(localStorage.getItem("f123_owned") || "null") || {}; } catch (_) {}
-      enviarHeartbeat({ instanceId: idInstancia, licenseCode: ow2.licenseCode || "", email: email, activatedAt: ow2.activatedAt, accion: "register" });
+      enviarHeartbeat({ instanceId: idInstancia, licenseCode: ow2.licenseCode || "", email: email, whatsapp: telDigitos, activatedAt: ow2.activatedAt, accion: "register" });
       var seguro = email.replace(/[&<>"']/g, "");
       // BUG FIJADO (JFC 2026-08-06): decia "tu PIN es 789" pero el PIN que se
       // fija de verdad (fijarOwnerPin de arriba) es ACTIVATION_PIN = 7895 — el
@@ -830,7 +862,7 @@
         // Ping: heartbeat on each login
         try {
           var ow3 = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
-          if (ow3.instanceId) enviarHeartbeat({ instanceId: ow3.instanceId, licenseCode: ow3.licenseCode || "", email: ow3.email || "", accion: "login" });
+          if (ow3.instanceId) enviarHeartbeat({ instanceId: ow3.instanceId, licenseCode: ow3.licenseCode || "", email: ow3.email || "", whatsapp: ow3.whatsapp || "", accion: "login" });
         } catch (_) {}
             window.dispatchEvent(new CustomEvent("oc-login", { detail: { rol, demo: esDemo } }));
     // El rol contador aterriza directo en su vista propia (creada al vuelo

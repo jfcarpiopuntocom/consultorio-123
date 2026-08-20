@@ -2737,12 +2737,28 @@ document.querySelectorAll("nav button").forEach(btn => {
 // Detecta la 2ª por BroadcastChannel y la tapa con un aviso (con escape para el
 // caso legítimo de una pestaña zombie). NO borrar sin reemplazo equivalente.
 (function guardiaDoblePestana() {
-  if (typeof BroadcastChannel === "undefined") return; // navegador viejo: sin guardia, igual que antes
   var esES = true;
   try { esES = !window.OCI18n || window.OCI18n.getLang() !== "en"; } catch (_) {}
+
+  /* CANDADO REAL ENTRE PESTANAS (portado de friendly-123, 2026-08-19).
+     El apreton de manos por BroadcastChannel es una carrera; navigator.locks
+     es un mutex de verdad. El BroadcastChannel se queda de RESPALDO para
+     Safari < 15.4. */
+  function taparPestana() { if (!document.getElementById("oc-doble-tab")) _pintarAvisoDoble(); }
+  var _hayLocks = false;
+  try { _hayLocks = !!(navigator.locks && navigator.locks.request); } catch (_) {}
+  if (_hayLocks) {
+    navigator.locks.request("consultorio-123-sesion-unica", { ifAvailable: true }, function (lock) {
+      if (!lock) { taparPestana(); return Promise.resolve(); }
+      return new Promise(function () {});
+    }).catch(function () {});
+  }
+
+  if (typeof BroadcastChannel === "undefined") return; // navegador viejo: sin guardia, igual que antes
   var canal = new BroadcastChannel("consultorio-123-sesion-unica");
   var soyPrincipal = true;
   canal.onmessage = function (e) {
+    if (_hayLocks) return; // el candado ya decidio; este respaldo no vuelve a opinar
     if (e.data === "hola" && soyPrincipal) canal.postMessage("ocupado");
     if (e.data === "ocupado" && !document.getElementById("oc-doble-tab")) {
       soyPrincipal = false;
@@ -5120,25 +5136,11 @@ window.dialogosBloqueados = function () {
   } catch (_) { return true; }
 };
 
-(function guardiaDobleCaja() {
-  if (typeof BroadcastChannel === "undefined") return; // navegador viejo: sin guardia, igual que antes
-  const canal = new BroadcastChannel("amigable-caja-unica");
-  let soyPrincipal = true;
-  canal.onmessage = (e) => {
-    if (e.data === "hola" && soyPrincipal) canal.postMessage("ocupado");
-    if (e.data === "ocupado" && !document.getElementById("oc-doble-tab")) {
-      soyPrincipal = false;
-      const d = document.createElement("div");
-      d.id = "oc-doble-tab";
-      d.style.cssText = "position:fixed;inset:0;z-index:10003;background:#0F1923;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;";
-      d.innerHTML = '<p style="color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:18px;font-weight:700;max-width:420px;">A consultorio-123 session is already open in another tab. To avoid data conflicts, use only one at a time.</p>' +
-        '<button id="oc-doble-usar" style="min-height:48px;padding:12px 22px;border-radius:8px;border:2px solid #5294AC;background:transparent;color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:16px;font-weight:700;cursor:pointer;">Use here anyway</button>';
-      document.body.appendChild(d);
-      document.getElementById("oc-doble-usar").addEventListener("click", () => { soyPrincipal = true; d.remove(); });
-    }
-  };
-  canal.postMessage("hola");
-})();
+/* GUARDIA DE DOBLE PESTANA — BORRADA DE AQUI (portado de amigable-123/
+   friendly-123, 2026-08-19). Habia DOS guardias haciendo lo mismo, y esta
+   escuchaba "amigable-caja-unica" — el canal de la app HERMANA. Abrir
+   amigable-123 en otra pestana disparaba el bloqueo de consultorio-123.
+   Queda UNA sola, mas arriba (guardiaDoblePestana), sobre Web Locks. */
 
 </script>
 

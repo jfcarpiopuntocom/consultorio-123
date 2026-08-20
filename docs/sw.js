@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v19"; // bumped 2026-08-06: calificador de clientes portado 1-1 de amigable-123 (1-5 estrellas/corazones), fuera el tri-estado -1/0/1
+const CACHE = "c123-shell-v21"; // bumped 2026-08-06: calificador de clientes portado 1-1 de amigable-123 (1-5 estrellas/corazones), fuera el tri-estado -1/0/1
 const SHELL = [
   "./",
   "./index.html",
@@ -41,6 +41,37 @@ const SHELL = [
   "./vista-perchas.js",
   "./welcome-ui.js",
   "./tutorial-ui.js",
+  /* FALTABAN 24 scripts (caza 2026-08-19, portado del mismo bug encontrado
+     hoy en friendly-123/amigable-123): agregar un <script> a index.html y no
+     agregarlo aqui deja la app rota SOLO en dispositivos ya instalados — los
+     de los pacientes/clientes reales. Incluia el NUCLEO CONTABLE ENTERO
+     (nucleo-ingresos, nucleo-cxc, nucleo-resultados...), que es la razon de
+     ser de esta app. Ver check-sw.sh: correrlo antes de cada push que toque
+     index.html o agregue un script. */
+  "./event-bus.js",
+  "./logger.js",
+  "./telemetry.js",
+  "./identity-context.js",
+  "./audit-store.js",
+  "./sync-queue.js",
+  "./ui-actions.js",
+  "./salud-app.js",
+  "./hechos.js",
+  "./nucleo-ingresos.js",
+  "./nucleo-inventario.js",
+  "./nucleo-cxc.js",
+  "./plan-pagos.js",
+  "./plan-pagos-ui.js",
+  "./nucleo-resultados.js",
+  "./nucleo-atenciones.js",
+  "./nucleo-ui.js",
+  "./agenda.js",
+  "./agenda-ui.js",
+  "./reconciliacion.js",
+  "./cartera.js",
+  "./caja-chica.js",
+  "./respaldo-empleado.js",
+  "./edutips.js",
   "./manifest.json",
 ];
 
