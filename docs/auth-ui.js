@@ -29,6 +29,19 @@
 //   llama a OCSecure para verificar/guardar; nunca compara strings de PIN
 //   directamente.
 // ===========================================================================
+// MIGRACION UNA-VEZ (JFC, 2026-08-20): hasta hoy la activacion guardaba la
+// licencia bajo "f123_owned" (clave de friendly-123) por un copy-paste no
+// corregido. Los otros 6 archivos de esta app siempre leyeron "c123_owned",
+// que nunca se escribia. Dispositivos activados ANTES de este fix tienen su
+// licencia real solo en "f123_owned" -- sin esta migracion quedarian sin
+// licencia (rescate, WhatsApp guardado, respaldo) al primer login tras
+// actualizar. Se corre una sola vez: si ya existe "c123_owned" no hace nada.
+try {
+  if (!localStorage.getItem("c123_owned") && localStorage.getItem("f123_owned")) {
+    localStorage.setItem("c123_owned", localStorage.getItem("f123_owned"));
+  }
+} catch (_) {}
+
 (function () {
   // Ping: sends activation + login checkins to the license worker.
   // Fire-and-forget — never blocks UI. Worker URL obfuscated to deter scraping.
@@ -166,13 +179,13 @@
           // respalde con sus propias manos.
           try { if (r && r.avisoRespaldo) mostrarAvisoRespaldoRemoto(r.avisoRespaldo); } catch (_) {}
           if (r && typeof r.estado === "string" && /^[a-z]{2,20}$/.test(r.estado)) { // whitelist 2026-07-17: una respuesta corrupta del worker no puede escribir estados basura
-            var owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
+            var owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
             owned.licenseEstado = r.estado;
             owned.licenseEstadoAt = Date.now();
             /* RESCATE DE LICENCIA (portado de friendly-123). Solo rellena un
                hueco: nunca pisa un codigo que el dispositivo ya tiene. */
             try { var _lr = r.licenseCode; if (!owned.licenseCode && typeof _lr === "string" && /^C123-[0-9A-Z*~$=-]{8,34}$/.test(_lr)) owned.licenseCode = _lr; } catch (_) {}
-            localStorage.setItem("f123_owned", JSON.stringify(owned));
+            localStorage.setItem("c123_owned", JSON.stringify(owned));
           }
         }
       } catch (eRed) { _cbFallo(); throw eRed; } finally { clearTimeout(t); }
@@ -221,7 +234,7 @@
   // puede redundar la apropiacion en el mismo dispositivo.
   const ACTIVATION_PIN = "7895"; // activacion de consultorio-123 (JFC 2026-08-05)
   function dispositivoApropiado() {
-    try { return !!(JSON.parse(localStorage.getItem("f123_owned") || "null") || {}).instanceId; }
+    try { return !!(JSON.parse(localStorage.getItem("c123_owned") || "null") || {}).instanceId; }
     catch (_) { return false; }
   }
   // Codigo de sala para "sincro-equipos" (homologado de AMIGABLE, 2026-07-23).
@@ -771,7 +784,7 @@
          registrar su licencia. Se guardan los dos: hoy valen lo mismo, en
          campos separados para poder rotar la sala sin tocar la licencia. */
       var licenseCode = syncCode;
-      try { localStorage.setItem("f123_owned", JSON.stringify({ instanceId: idInstancia, email: email, whatsapp: telDigitos, activatedAt: Date.now(), syncCode: syncCode, licenseCode: licenseCode })); } catch (_) {}
+      try { localStorage.setItem("c123_owned", JSON.stringify({ instanceId: idInstancia, email: email, whatsapp: telDigitos, activatedAt: Date.now(), syncCode: syncCode, licenseCode: licenseCode })); } catch (_) {}
       // NO marcar f123_bienvenida_v3 aqui — el wizard debe mostrarse de verdad
       // tras el primer login post-activacion (ver welcome-ui.js). Bug anterior:
       // se marcaba "vista" en este punto sin que el usuario la viera nunca.
@@ -782,7 +795,7 @@
       // LEE el resultado y lo recuerda, para poder avisar si quedo denegado.
       try { if (window.OCStorageDurable) window.OCStorageDurable.verificarYSolicitar(); } catch (_) {}
       // Ping: record new activation in license panel
-      var ow2 = {}; try { ow2 = JSON.parse(localStorage.getItem("f123_owned") || "null") || {}; } catch (_) {}
+      var ow2 = {}; try { ow2 = JSON.parse(localStorage.getItem("c123_owned") || "null") || {}; } catch (_) {}
       enviarHeartbeat({ instanceId: idInstancia, licenseCode: ow2.licenseCode || "", email: email, whatsapp: telDigitos, activatedAt: ow2.activatedAt, accion: "register" });
       var seguro = email.replace(/[&<>"']/g, "");
       // BUG FIJADO (JFC 2026-08-06): decia "tu PIN es 789" pero el PIN que se
@@ -831,7 +844,7 @@
     const esDemo = nuevoRol === "demo";
     if (!esDemo) {
       try {
-        var owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
+        var owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
         if (owned.licenseEstado === "bloqueada") {
           var _esESb = true; try { _esESb = !window.OCI18n || window.OCI18n.getLang() !== "en"; } catch (_) {}
           error(_esESb ? "Este dispositivo está bloqueado. Contacta al administrador de consultorio-123." : "This instance is blocked. Contact the consultorio-123 administrator.");
@@ -861,7 +874,7 @@
 
         // Ping: heartbeat on each login
         try {
-          var ow3 = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
+          var ow3 = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
           if (ow3.instanceId) enviarHeartbeat({ instanceId: ow3.instanceId, licenseCode: ow3.licenseCode || "", email: ow3.email || "", whatsapp: ow3.whatsapp || "", accion: "login" });
         } catch (_) {}
             window.dispatchEvent(new CustomEvent("oc-login", { detail: { rol, demo: esDemo } }));
@@ -1138,7 +1151,7 @@
     msgEl.textContent = window.t("auth.gate.sending");
     // Bug fix (2026-07-21): pasar instanceId para que el Worker pueda validar
     // la instancia en KV (anti-abuso leve en /recover-pin).
-    var _f123owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
+    var _f123owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
     const resultado = window.OCEmailRecovery
       ? await window.OCEmailRecovery.enviarCodigo(email, pin, _f123owned.instanceId || "")
       : { enviado: false, codigo: pin };
