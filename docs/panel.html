@@ -377,14 +377,14 @@
           <dt>versión</dt><dd class="ok">v1.2.0</dd>
           <dt>último</dt><dd>0bc3621 · 07-15 13:20</dd>
           <dt>backend</dt><dd>estático · GitHub Pages</dd>
-          <dt>LS key</dt><dd>f123_secure</dd>
+          <dt>LS key</dt><dd>c123_secure_v1</dd>
           <dt>códigos</dt><dd class="warn">sin código maestro estático (reset por EmailJS)</dd>
           <dt>backups</dt><dd class="warn">no trackeados aún</dd>
         </dl>
         <div class="pcard-actions">
           <a class="btn btn-primary" href="https://jfcarpiopuntocom.github.io/consultorio-123/" target="_blank" rel="noopener">Abrir</a>
           <a class="btn btn-outline" href="https://github.com/jfcarpiopuntocom/consultorio-123" target="_blank" rel="noopener">Repo</a>
-          <button class="btn btn-danger" data-action="liberar" data-key="f123_secure" data-nombre="consultorio-123">🔓 Liberar correo</button>
+          <button class="btn btn-danger" data-action="liberar" data-key="c123_secure_v1" data-nombre="consultorio-123">🔓 Liberar correo</button>
           <a class="btn btn-outline" href="https://github.com/jfcarpiopuntocom/consultorio-123/edit/master/docs/version.json" target="_blank" rel="noopener" title="Editar version.json: al commitear, cada instalación de consultorio-123 detecta la versión nueva y muestra el aviso. No auto-reemplaza nada.">⬆️ Publicar update</a>
         </div>
       </div>
@@ -666,11 +666,11 @@ function initPanel() {
 
 // ── LICENCIAS — config en localStorage, datos vía Cloudflare Worker ──
 function licGetCfg() {
-  try { return JSON.parse(localStorage.getItem("f123_master_cfg") || "{}"); } catch (_) { return {}; }
+  try { return JSON.parse(localStorage.getItem("c123_master_cfg") || "{}"); } catch (_) { return {}; }
 }
 function licSetCfg(obj) {
   const prev = licGetCfg();
-  localStorage.setItem("f123_master_cfg", JSON.stringify({ ...prev, ...obj }));
+  localStorage.setItem("c123_master_cfg", JSON.stringify({ ...prev, ...obj }));
 }
 function licWorkerUrl() { return (licGetCfg().workerUrl || "").trim(); }
 function licMasterKey() { return (licGetCfg().masterKey || "").trim(); }

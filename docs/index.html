@@ -2347,25 +2347,37 @@ function toggleAlertaCliente(clienteId, activa) {
   if (window.AMG && window.AMG.Cartera) window.AMG.Cartera.fijarAlerta(clienteId, activa);
   pintarSaldoCartera(clienteId);
 }
+// R6 (JFC 2026-08-20): guardia contra doble-toque, mismo patron que
+// _ventasEnCurso en venderUno(). Sin esto, tocar "Registrar" dos veces
+// (dedo lento, doble-tap accidental) podia crear DOS fiados o DOS abonos
+// del mismo pago -- y aqui es plata real de un paciente, no una venta
+// reversible con un clic.
+const _carteraEnCurso = new Set();
 async function fiarCliente(clienteId, nombre) {
   const monto = parseFloat((await ocPrompt(`Monto que ${nombre} toma a crédito ($):`, "") || "").trim());
   if (!(monto > 0)) return;
   const motivo = (await ocPrompt("Motivo (opcional):", "") || "").trim();
   if (!(await ocConfirm(`¿Registrar ${fmtMoney(monto)} adeudado por ${nombre}?`))) return;
+  if (_carteraEnCurso.has(clienteId)) return;
+  _carteraEnCurso.add(clienteId);
   try {
     await fetch(`${API}/clientes/${clienteId}/fiar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ monto, motivo }) });
     pintarSaldoCartera(clienteId);
   } catch (e) { console.error("Error registrando fiado:", e); }
+  finally { _carteraEnCurso.delete(clienteId); }
 }
 async function abonarCliente(clienteId, nombre) {
   const monto = parseFloat((await ocPrompt(`Monto del pago de ${nombre} ($):`, "") || "").trim());
   if (!(monto > 0)) return;
   const motivo = (await ocPrompt("Motivo (opcional):", "") || "").trim();
   if (!(await ocConfirm(`¿Registrar ${fmtMoney(monto)} pagado por ${nombre}?`))) return;
+  if (_carteraEnCurso.has(clienteId)) return;
+  _carteraEnCurso.add(clienteId);
   try {
     await fetch(`${API}/clientes/${clienteId}/abonar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ monto, motivo }) });
     pintarSaldoCartera(clienteId);
   } catch (e) { console.error("Error registrando abono:", e); }
+  finally { _carteraEnCurso.delete(clienteId); }
 }
 async function cargarClientes(){
   // dueño Y admin ven todo ("plenamente visibles", JFC 2026-07-29) — solo
