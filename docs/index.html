@@ -2348,20 +2348,20 @@ function toggleAlertaCliente(clienteId, activa) {
   pintarSaldoCartera(clienteId);
 }
 async function fiarCliente(clienteId, nombre) {
-  const monto = parseFloat((await ocPrompt(`Amount ${nombre} is taking on credit ($):`, "") || "").trim());
+  const monto = parseFloat((await ocPrompt(`Monto que ${nombre} toma a crédito ($):`, "") || "").trim());
   if (!(monto > 0)) return;
-  const motivo = (await ocPrompt("Reason (optional):", "") || "").trim();
-  if (!(await ocConfirm(`Record ${fmtMoney(monto)} owed by ${nombre}?`))) return;
+  const motivo = (await ocPrompt("Motivo (opcional):", "") || "").trim();
+  if (!(await ocConfirm(`¿Registrar ${fmtMoney(monto)} adeudado por ${nombre}?`))) return;
   try {
     await fetch(`${API}/clientes/${clienteId}/fiar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ monto, motivo }) });
     pintarSaldoCartera(clienteId);
   } catch (e) { console.error("Error registrando fiado:", e); }
 }
 async function abonarCliente(clienteId, nombre) {
-  const monto = parseFloat((await ocPrompt(`Payment amount from ${nombre} ($):`, "") || "").trim());
+  const monto = parseFloat((await ocPrompt(`Monto del pago de ${nombre} ($):`, "") || "").trim());
   if (!(monto > 0)) return;
-  const motivo = (await ocPrompt("Reason (optional):", "") || "").trim();
-  if (!(await ocConfirm(`Record ${fmtMoney(monto)} paid by ${nombre}?`))) return;
+  const motivo = (await ocPrompt("Motivo (opcional):", "") || "").trim();
+  if (!(await ocConfirm(`¿Registrar ${fmtMoney(monto)} pagado por ${nombre}?`))) return;
   try {
     await fetch(`${API}/clientes/${clienteId}/abonar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ monto, motivo }) });
     pintarSaldoCartera(clienteId);
@@ -2552,14 +2552,14 @@ function inicializarImportCSV(){
     if (!f) return;
     if (f.size > 1024 * 1024){ msg.textContent = "El archivo es muy grande (maximo 1 MB)."; msg.style.color = "var(--sim-rojo-dk)"; inp.value = ""; return; }
     let texto;
-    try { texto = await f.text(); } catch (_){ msg.textContent = "Could not read the file."; msg.style.color = "var(--sim-rojo-dk)"; inp.value = ""; return; }
+    try { texto = await f.text(); } catch (_){ msg.textContent = "No se pudo leer el archivo."; msg.style.color = "var(--sim-rojo-dk)"; inp.value = ""; return; }
     let filas = parsearCSV(texto);
     if (!filas.length){ msg.textContent = "El archivo esta vacio."; msg.style.color = "var(--sim-rojo-dk)"; inp.value = ""; return; }
     // Descartar una cabecera si la primera fila parece titulos.
     const c0 = (filas[0][0] || "").toLowerCase(), c1 = (filas[0][1] || "").toLowerCase();
     if (c0.includes("nombre") || c1.includes("tel")) filas = filas.slice(1);
     const nuevos = filas.map((r) => ({ nombre: r[0] || "", telefono: r[1] || "" })).filter((c) => c.nombre);
-    if (!nuevos.length){ msg.textContent = "No valid names found. The first column must be the name."; msg.style.color = "var(--sim-rojo-dk)"; inp.value = ""; return; }
+    if (!nuevos.length){ msg.textContent = "No se encontraron nombres válidos. La primera columna debe ser el nombre."; msg.style.color = "var(--sim-rojo-dk)"; inp.value = ""; return; }
     if (nuevos.length > 5000){ msg.textContent = "Demasiados pacientes de una vez (máximo 5.000)."; msg.style.color = "var(--sim-rojo-dk)"; inp.value = ""; return; }
     msg.textContent = "Importando " + nuevos.length + "..."; msg.style.color = "var(--ink)";
     let r;
@@ -2772,18 +2772,18 @@ document.querySelectorAll("nav button").forEach(btn => {
 
 // Mood/flavor del día para el dueño (12, voz JFC). Estable por día.
 const MOODS = [
-  "What you already have counts double: protect your inventory before chasing the next sale.",
-  "Fine-pricing day. Look at what moves slowly and give it a reason to leave.",
-  "Start with the red. Restock the urgent and the rest falls into place.",
-  "Balance the till early. A clear number in the morning is worth ten at night.",
-  "Your racks are talking. See which ones perform and which ones are sleeping.",
-  "Today's star is your call. Pick one product, focus on it, and push it.",
-  "Less discount, more story. Sell the why, not just the price.",
-  "Every sale logged right is a better decision tomorrow. Record everything.",
-  "What doesn't move, weighs you down. Spot the slow items and move them before they go cold.",
-  "Your margin takes care of itself only if you take care of it. Review costs today.",
-  "A tidy space sells more. Ten minutes of order, a full day of clarity.",
-  "Trust your colors. The signal already told you where to start.",
+  "Lo que ya tienes cuenta doble: cuida tu inventario antes de perseguir la próxima venta.",
+  "Día de ajustar precios. Mira qué se mueve lento y dale una razón para salir.",
+  "Empieza por el rojo. Reabastece lo urgente y el resto cae solo.",
+  "Cuadra la caja temprano. Un número claro en la mañana vale diez en la noche.",
+  "Tus perchas están hablando. Mira cuáles rinden y cuáles están dormidas.",
+  "La estrella de hoy la eliges tú. Elige un producto, enfócate y empújalo.",
+  "Menos descuento, más historia. Vende el por qué, no solo el precio.",
+  "Cada venta bien registrada es una mejor decisión mañana. Registra todo.",
+  "Lo que no se mueve, pesa. Detecta lo lento y muévelo antes de que se enfríe.",
+  "Tu margen se cuida solo solo si tú lo cuidas. Revisa costos hoy.",
+  "Un espacio ordenado vende más. Diez minutos de orden, un día entero de claridad.",
+  "Confía en tus colores. La señal ya te dijo por dónde empezar.",
 ];
 
 // Reloj del hero (sin clima). Se actualiza al cargar y cada 20s.
@@ -2936,11 +2936,11 @@ function calcularNivelBloom(p){
 // un vistazo (espíritu de la Alternativa C, sin sacrificar el rigor de B).
 function captionBloom(estado, nivel){
   const FRASES = {
-    verde:    ["Right on time, don't let up", "Healthy stock cushion", "Plenty to last a while"],
-    amarillo: ["Start thinking about restocking", "Getting close to restock time", "Last unit — don't wait any longer"],
-    naranja:  ["Keep an eye on it, still time", "Don't let it slip by", "Expiring soon — move it"],
-    rojo:     ["Act today", "Act today", "Emergency: out of stock"],
-    negro:    ["Cooling down", "Has been dormant for a while", "Nobody has touched it in months"],
+    verde:    ["Justo a tiempo, no aflojes", "Colchón de stock sano", "Alcanza para rato"],
+    amarillo: ["Empieza a pensar en reabastecer", "Se acerca el momento de reabastecer", "Última unidad — no esperes más"],
+    naranja:  ["Mantén el ojo puesto, aún hay tiempo", "No lo dejes pasar", "Vence pronto — muévelo"],
+    rojo:     ["Actúa hoy", "Actúa hoy", "Emergencia: sin stock"],
+    negro:    ["Enfriándose", "Lleva un rato inactivo", "Nadie lo toca hace meses"],
   };
   const arr = FRASES[estado];
   if (!arr) return "";
@@ -3601,7 +3601,7 @@ async function abrirFichaDesdeInventario(id){
     p = await res.json();
   } catch (err) {
     console.error("[abrirFichaDesdeInventario]", err);
-    await ocAlert("Could not reach the server. Check your connection and try again.");
+    await ocAlert("No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.");
     return;
   }
   fichaTargetActual = "fichaModalBody";
@@ -3781,7 +3781,7 @@ async function crearProductoNuevo(codigoEscaneado){
     data = await res.json();
   } catch (err) {
     console.error("[crearProductoNuevo]", err);
-    msg.style.color = "var(--rojo)"; msg.textContent = "Could not reach the server. Check your connection and try again.";
+    msg.style.color = "var(--rojo)"; msg.textContent = "No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.";
     return;
   }
   if (!res.ok){ msg.style.color = "var(--rojo)"; msg.textContent = data.error; return; }
@@ -3804,7 +3804,7 @@ async function mostrarFormEditarProducto(id){
     if (!res.ok || !p || !p.id) throw new Error(p && p.error ? p.error : "product not found");
   } catch (err) {
     console.error("[mostrarFormEditarProducto]", err);
-    await ocAlert("Could not reach the server. Check your connection and try again.");
+    await ocAlert("No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.");
     return;
   }
   // Blindaje (2026-07-22, homologado de AMIGABLE): las perchas son OPCIONALES
@@ -3908,7 +3908,7 @@ async function guardarEdicionProducto(id){
     data = await res.json();
   } catch (err) {
     console.error("[guardarEdicionProducto]", err);
-    msg.style.color = "var(--rojo)"; msg.textContent = "Could not reach the server. Check your connection and try again.";
+    msg.style.color = "var(--rojo)"; msg.textContent = "No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.";
     return;
   }
   if (!res.ok){ msg.style.color = "var(--rojo)"; msg.textContent = data.error; return; }
@@ -3931,7 +3931,7 @@ async function eliminarProductoUI(id, btn){
   } catch (err) {
     console.error("[eliminarProductoUI]", err);
     btn.dataset.armado = ""; btn.textContent = t("ficha.deleteBtn");
-    await ocAlert("Could not reach the server. The product was NOT deleted. Check your connection and try again.");
+    await ocAlert("No se pudo conectar con el servidor. El producto NO se eliminó. Revisa tu conexión e intenta de nuevo.");
     return;
   }
   if (!res.ok){ await ocAlert(data.error); return; }
@@ -4094,7 +4094,7 @@ async function solicitarTransferencia(origenId, destinoId, cantidad, btn){
   } catch (err) {
     console.error("[solicitarTransferencia]", err);
     btn.disabled = false;
-    await ocAlert("Could not reach the server. The transfer was NOT requested. Check your connection and try again.");
+    await ocAlert("No se pudo conectar con el servidor. El traslado NO se solicitó. Revisa tu conexión e intenta de nuevo.");
     return;
   }
   if (!res.ok){ await ocAlert(r.error); btn.disabled = false; return; }
@@ -4120,7 +4120,7 @@ async function venderUno(id){
       // vendio o no. El lock (_ventasEnCurso) ya se libera con el finally
       // exterior; aqui solo se avisa claro.
       console.error("[venderUno]", err);
-      await ocAlert("Could not reach the server. The sale was NOT recorded. Check your connection and try again.");
+      await ocAlert("No se pudo conectar con el servidor. La venta NO se registró. Revisa tu conexión e intenta de nuevo.");
       return;
     }
     const data = await res.json();
@@ -4175,7 +4175,7 @@ async function ajustar(id, delta){
     data = await res.json();
   } catch (err) {
     console.error("[ajustar]", err);
-    await ocAlert("Could not reach the server. The adjustment was NOT recorded. Check your connection and try again.");
+    await ocAlert("No se pudo conectar con el servidor. El ajuste NO se registró. Revisa tu conexión e intenta de nuevo.");
     return;
   }
   if (!res.ok){ await ocAlert(data.error); return; }
@@ -4219,7 +4219,7 @@ async function abrirEtiqueta(id){
     data = await res.json();
   } catch (err) {
     console.error("[abrirEtiqueta]", err);
-    await ocAlert("Could not reach the server. Check your connection and try again.");
+    await ocAlert("No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.");
     return;
   }
   const p = data.producto;
@@ -4234,10 +4234,10 @@ async function abrirEtiqueta(id){
     <div class="precio-grande">${fmtMoney(p.precio)}</div>
     ${p.perecible && p.fechaCaducidad ? `<div style="font-size:13px;font-weight:700;color:var(--rust);">Vence: ${p.fechaCaducidad}</div>` : ""}
     <div class="codigo">${p.barcode}</div>
-    <div class="barras" id="barrasClicable" style="cursor:pointer;position:relative;" title="Tap to print or save just the barcode">${data.barcodeSvg || ""}</div>
-    <div style="font-size:13px;color:var(--azul-medio,#2c4a68);margin-top:-6px;">👆 Tap the barcode to print or save it alone</div>
-    ${data.qrDataUrl ? `<img src="${data.qrDataUrl}" width="160" height="160" alt="Product QR code">
-    <div style="font-size:13px; color:var(--azul-medio);">Scan to see the full record</div>` : ""}
+    <div class="barras" id="barrasClicable" style="cursor:pointer;position:relative;" title="Toca para imprimir o guardar solo el código de barras">${data.barcodeSvg || ""}</div>
+    <div style="font-size:13px;color:var(--azul-medio,#2c4a68);margin-top:-6px;">👆 Toca el código de barras para imprimirlo o guardarlo solo</div>
+    ${data.qrDataUrl ? `<img src="${data.qrDataUrl}" width="160" height="160" alt="Código QR del producto">
+    <div style="font-size:13px; color:var(--azul-medio);">Escanea para ver el registro completo</div>` : ""}
   `;
   // Botón de impresión fuera de la etiqueta — no viaja al papel ni aparece en el preview
   const accionesEl = document.getElementById("oc-etiqueta-acciones");
@@ -4715,7 +4715,7 @@ async function reactivarCliente(clienteId, nombre) {
 }
 
 async function marcarComisionPagada(ubicacionId, promotorNombre, monto){
-  if (!(await ocConfirm("Confirm you have already paid the promoter what is owed this month?"))) return;
+  if (!(await ocConfirm("¿Confirmas que ya le pagaste al promotor lo que se le debe este mes?"))) return;
   // #19: capturamos el desglose ANTES de sellar (marcar-pagado deja pendientes en 0).
   const detalle = (window._ocLiqDet && window._ocLiqDet[ubicacionId]) || [];
   // try/catch (homologado de AMIGABLE, auditoria 2026-07-23): antes un fallo
@@ -4727,10 +4727,10 @@ async function marcarComisionPagada(ubicacionId, promotorNombre, monto){
     r = await res.json();
   } catch (err) {
     console.error("[marcarComisionPagada]", err);
-    await ocAlert("Could not reach the server. The payment was NOT recorded. Check your connection and try again.");
+    await ocAlert("No se pudo conectar con el servidor. El pago NO se registró. Revisa tu conexión e intenta de nuevo.");
     return;
   }
-  if (!res.ok) { await ocAlert(r.error || "Could not mark the payment."); return; }
+  if (!res.ok) { await ocAlert(r.error || "No se pudo marcar el pago."); return; }
   cargarComisiones();
   // Recibo para WhatsApp: solo se ofrece si hay nombre de promotora y monto > 0.
   if (promotorNombre && monto > 0) {
@@ -4818,7 +4818,7 @@ async function cargarGastosMensuales(){
   } catch (err) {
     console.error("[cargarGastosMensuales]", err);
     msg.style.color = "var(--rojo)";
-    msg.textContent = "Could not load expenses. Check your connection and try again.";
+    msg.textContent = "No se pudieron cargar los gastos. Revisa tu conexión e intenta de nuevo.";
     return;
   }
   input.value = data.gastosMensuales;
@@ -4956,10 +4956,10 @@ async function cargarDashboardInicial(intento){
     hero.className = "hero-semaforo tag-card amarillo";
     if (window.OC_DEMO) {
       document.getElementById("heroTitulo").textContent = "Cargando la demo…";
-      document.getElementById("heroSubtitulo").textContent = "If this doesn't change in a few seconds, reload the page.";
+      document.getElementById("heroSubtitulo").textContent = "Si esto no cambia en unos segundos, recarga la página.";
     } else {
-      document.getElementById("heroTitulo").textContent = "Could not connect to the server.";
-      document.getElementById("heroSubtitulo").textContent = "Verify that the backend (server.js) is running and reload the page.";
+      document.getElementById("heroTitulo").textContent = "No se pudo conectar con el servidor.";
+      document.getElementById("heroSubtitulo").textContent = "Verifica que el backend (server.js) esté corriendo y recarga la página.";
     }
   }
 }
