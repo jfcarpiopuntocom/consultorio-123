@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tablero · consultorio-123</title>
+
+<!-- iOS y el navegador interno de WhatsApp reinterpretan colores en modo
+     oscuro. Sin este bloque el texto se vuelve invisible. -->
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light">
+<meta name="theme-color" content="#F8F9FB">
+<meta name="robots" content="noindex,nofollow">
+
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="logo.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="consultorio-123">
+<meta property="og:title" content="Tablero">
+<meta property="og:description" content="Tu cartera de pacientes en una pantalla grande. Los datos se quedan en tus dispositivos.">
+<meta property="og:image" content="https://jfcarpiopuntocom.github.io/Consultorio-123/logo.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+<!-- Tabulator: tabla, busqueda y los exports en una sola libreria. SheetJS y
+     jsPDF van por debajo, no como codigo nuestro. El CDN aqui SI corresponde:
+     este archivo necesita conexion por definicion (pantalla de escritorio con
+     internet), al reves que la app, que arranca sin ella. Si un CDN no carga,
+     la tabla se sigue viendo en HTML plano (ver degradarSinTabulator()). -->
+<link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+<script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js" defer></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+
+<style>
+  :root{
+    color-scheme: light only;
+    forced-color-adjust: none;
+    --verde:#00A968;    --verde-dk:#007a4a;
+    --amber:#B45309;
+    --rojo:#B91C1C;
+    --brass:#5294AC;    --brass-deep:#3f7488;
+    --rust:#E86040;     --rust-deep:#C05000;
+    --ink:#0F1923;
+    --body-c:#2C3E50;
+    --canvas:#F8F9FB;
+    --card:#FFFFFF;
+    --hairline:#E8ECF2;
+    --font-display:'Space Grotesk',Inter,-apple-system,'Helvetica Neue',sans-serif;
+    --font-body:Inter,-apple-system,'Helvetica Neue',sans-serif;
+    --font-mono:'JetBrains Mono','Cascadia Code',Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0;padding:0;background:var(--canvas) !important;
+    color:var(--body-c) !important;-webkit-text-fill-color:var(--body-c) !important;
+    font-family:var(--font-body);font-size:16px;line-height:1.55;
+    -webkit-text-size-adjust:100%;
+  }
+  h1,h2,h3,p,li,span,strong,a,td,th,label,button,div{
+    color:var(--body-c) !important;-webkit-text-fill-color:var(--body-c) !important;
+  }
+  h1,h2,h3,strong{color:var(--ink) !important;-webkit-text-fill-color:var(--ink) !important;font-family:var(--font-display);}
+  @media (prefers-color-scheme: dark){
+    html,body{background:var(--canvas) !important;color:var(--body-c) !important;-webkit-text-fill-color:var(--body-c) !important;}
+    h1,h2,h3,strong{color:var(--ink) !important;-webkit-text-fill-color:var(--ink) !important;}
+    p,li,span,td,th,label,a,div{color:var(--body-c) !important;-webkit-text-fill-color:var(--body-c) !important;}
+    .card,.top{background:var(--card) !important;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
+  }
+
+  .wrap{width:100%;max-width:1500px;margin:0 auto;padding:0 clamp(12px,2.4vw,26px)}
+
+  /* ---- Puerta de PIN (mismo patron que panel.html/dashboard.html de
+     friendly-123: teclado emoji + digito, PIN nunca en claro en el fuente,
+     solo su verificacion contra el secreto cifrado de ESTE dispositivo). ---- */
+  #gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--canvas) !important;}
+  #gate .card{background:var(--card) !important;border:1px solid var(--hairline);border-radius:16px;padding:32px 26px;max-width:380px;width:100%;text-align:center;}
+  #gate h1{font-size:22px;margin:0 0 6px;}
+  #gate p{font-size:14px;margin:0 0 20px;}
+  #gate-msg{min-height:20px;font-size:14px;font-weight:700;color:var(--rojo) !important;-webkit-text-fill-color:var(--rojo) !important;margin-bottom:8px;}
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .pad-key{min-height:56px;border-radius:10px;border:2px solid var(--hairline);background:var(--canvas) !important;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;user-select:none;}
+  .pad-key .emoji{font-size:19px;line-height:1;}
+  .pad-key .digit{font-size:11px;color:var(--body-c) !important;-webkit-text-fill-color:var(--body-c) !important;margin-top:2px;font-family:var(--font-mono);}
+  .pad-key.vacio{visibility:hidden;}
+  .pad-key.borrar{font-size:20px;}
+  .pad-key:active{background:#E8ECF2 !important;}
+  .slots{display:flex;gap:10px;justify-content:center;margin:18px 0 20px;}
+  .slot{width:16px;height:16px;border-radius:50%;border:2px solid var(--hairline);}
+  .slot.lleno{background:var(--brass) !important;border-color:var(--brass);}
+
+  /* ---- Tablero real ---- */
+  #panel{display:none;}
+  #panel.visible{display:block;}
+  header.top{padding:16px 0;border-bottom:1px solid var(--hairline);background:var(--card) !important;position:sticky;top:0;z-index:5;}
+  header.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:18px;}
+  .brand .sello{width:32px;height:32px;border-radius:8px;background:var(--brass);color:#fff !important;-webkit-text-fill-color:#fff !important;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;}
+  .top-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:8px;border:1.5px solid var(--hairline);background:var(--card) !important;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font-body);}
+  .btn:hover{border-color:var(--brass);}
+  .btn.primary{background:var(--brass) !important;border-color:var(--brass);color:#fff !important;-webkit-text-fill-color:#fff !important;}
+  .btn.danger{border-color:var(--rojo);color:var(--rojo) !important;-webkit-text-fill-color:var(--rojo) !important;}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:20px 0;}
+  .stat{background:var(--card) !important;border:1px solid var(--hairline);border-radius:12px;padding:16px 18px;}
+  .stat .num{font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--ink) !important;-webkit-text-fill-color:var(--ink) !important;}
+  .stat .lbl{font-size:13px;margin-top:2px;}
+  .stat.deben .num{color:var(--rojo) !important;-webkit-text-fill-color:var(--rojo) !important;}
+  .stat.credito .num{color:var(--verde) !important;-webkit-text-fill-color:var(--verde) !important;}
+
+  .tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+  .search{flex:1;min-width:220px;padding:10px 12px;border-radius:8px;border:1.5px solid var(--hairline);font-size:14px;font-family:var(--font-body);background:var(--card) !important;color:var(--ink) !important;-webkit-text-fill-color:var(--ink) !important;}
+
+  #tabla-pacientes{margin-bottom:40px;}
+  .tabulator{font-family:var(--font-body) !important;border:1px solid var(--hairline) !important;border-radius:12px !important;overflow:hidden;}
+  .tabulator .tabulator-header{background:var(--card) !important;border-bottom:2px solid var(--hairline) !important;}
+  .tabulator .tabulator-col{background:var(--card) !important;}
+  .tabulator .tabulator-col-title{color:var(--ink) !important;-webkit-text-fill-color:var(--ink) !important;font-weight:700;font-size:13px;}
+  .tabulator-row{background:var(--card) !important;}
+  .tabulator-row.tabulator-row-even{background:#FBFCFD !important;}
+  .tabulator-row:hover{background:#F0F5F7 !important;cursor:pointer;}
+  .tabulator-cell{color:var(--body-c) !important;-webkit-text-fill-color:var(--body-c) !important;font-size:14px;}
+  .saldo-debe{color:var(--rojo) !important;-webkit-text-fill-color:var(--rojo) !important;font-weight:700;font-family:var(--font-mono);}
+  .saldo-credito{color:var(--verde) !important;-webkit-text-fill-color:var(--verde) !important;font-weight:700;font-family:var(--font-mono);}
+  .saldo-cero{color:var(--body-c) !important;-webkit-text-fill-color:var(--body-c) !important;font-family:var(--font-mono);}
+
+  .plano-aviso{background:var(--card) !important;border:1px solid var(--hairline);border-radius:12px;padding:14px 16px;font-size:14px;margin-bottom:16px;display:none;}
+  .plano-aviso.visible{display:block;}
+  table.plano{width:100%;border-collapse:collapse;background:var(--card) !important;border:1px solid var(--hairline);border-radius:12px;overflow:hidden;}
+  table.plano th,table.plano td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--hairline);font-size:14px;}
+  table.plano th{background:#F0F5F7 !important;font-size:13px;}
+
+  /* ---- Modal de detalle: historial de abonos/cargos de un paciente ---- */
+  #detalle-overlay{display:none;position:fixed;inset:0;z-index:20;background:#0F1923CC;align-items:center;justify-content:center;padding:20px;}
+  #detalle-overlay.visible{display:flex;}
+  #detalle-modal{background:var(--card) !important;border-radius:14px;max-width:520px;width:100%;max-height:82vh;overflow-y:auto;padding:24px 22px;}
+  #detalle-modal h2{font-size:19px;margin:0 0 4px;}
+  #detalle-modal .saldo-grande{font-family:var(--font-mono);font-size:28px;font-weight:700;margin:8px 0 18px;}
+  .mov-fila{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--hairline);font-size:14px;}
+  .mov-fila .monto{font-family:var(--font-mono);font-weight:700;white-space:nowrap;}
+  .mov-fila .monto.cargo{color:var(--rojo) !important;-webkit-text-fill-color:var(--rojo) !important;}
+  .mov-fila .monto.abono{color:var(--verde) !important;-webkit-text-fill-color:var(--verde) !important;}
+  .mov-fila .info{color:var(--body-c) !important;-webkit-text-fill-color:var(--body-c) !important;}
+  .mov-fila .fecha{font-size:12px;color:#6b7280 !important;-webkit-text-fill-color:#6b7280 !important;}
+  #detalle-cerrar{width:100%;margin-top:18px;min-height:44px;border-radius:9px;border:1.5px solid var(--hairline);background:var(--canvas) !important;font-weight:700;cursor:pointer;}
+
+  .vacio{text-align:center;padding:60px 20px;color:#6b7280 !important;-webkit-text-fill-color:#6b7280 !important;}
+
+  footer{padding:24px 0;text-align:center;font-size:13px;color:#6b7280 !important;-webkit-text-fill-color:#6b7280 !important;}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="card">
+    <h1>Tablero</h1>
+    <p>PIN de dueño o admin — vista de solo lectura de tu cartera de pacientes, en pantalla grande.</p>
+    <p id="gate-msg"></p>
+    <div class="pad" id="gate-pad"></div>
+    <div class="slots" id="gate-slots"></div>
+  </div>
+</div>
+
+<div id="panel">
+  <header class="top">
+    <div class="wrap">
+      <div class="brand"><div class="sello">c</div>consultorio-123 · Tablero</div>
+      <div class="top-actions">
+        <button class="btn" id="btn-actualizar">↻ Actualizar</button>
+        <button class="btn" id="btn-excel">⬇ Excel</button>
+        <button class="btn" id="btn-pdf">⬇ PDF</button>
+        <button class="btn" id="btn-csv">⬇ CSV</button>
+        <button class="btn danger" id="btn-salir">Cerrar</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap" style="padding-top:20px;">
+    <div class="stats" id="stats"></div>
+
+    <div class="tools">
+      <input class="search" id="buscador" placeholder="Buscar paciente, código o teléfono…">
+      <span id="conteo" style="font-size:13px;color:#6b7280;"></span>
+    </div>
+
+    <div id="tabla-pacientes"></div>
+    <div class="plano-aviso" id="plano-aviso">El buscador/orden de columnas no cargó (sin conexión al CDN de Tabulator). Los datos de abajo son los mismos, en tabla simple.</div>
+    <div id="tabla-plano"></div>
+
+    <div class="vacio" id="vacio" style="display:none;">No hay pacientes registrados todavía.</div>
+  </div>
+
+  <footer>consultorio-123 — datos leídos de este dispositivo, nunca de un servidor.</footer>
+</div>
+
+<div id="detalle-overlay">
+  <div id="detalle-modal">
+    <h2 id="detalle-nombre"></h2>
+    <p style="font-size:13px;margin:0;">Código <span id="detalle-codigo" style="font-family:var(--font-mono);"></span> · <span id="detalle-tel"></span></p>
+    <div class="saldo-grande" id="detalle-saldo"></div>
+    <div id="detalle-movs"></div>
+    <p id="detalle-vacio" style="display:none;text-align:center;color:#6b7280;padding:20px 0;">Sin movimientos de cartera todavía.</p>
+    <button id="detalle-cerrar">Cerrar</button>
+  </div>
+</div>
+
+<!-- Mismas fuentes de identidad que la app: PIN se verifica contra el
+     secreto cifrado de ESTE dispositivo (crypto-store.js), y el saldo se
+     deriva reproduciendo los "hechos" de cartera.js -- nunca un campo
+     guardado aparte que pueda desincronizarse. Cero servidor, cero relay. -->
+<script src="./aislamiento.js"></script>
+<script src="./crypto-store.js"></script>
+<script src="./event-bus.js"></script>
+<script src="./hechos.js"></script>
+<script src="./cartera.js"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ======================================================================
+     PUERTA DE PIN (mismo patron que panel.html: teclado con emojis
+     barajados, el PIN real nunca sale del navegador del dueño). Solo
+     dueño/admin -- un encargado no ve la cartera completa en pantalla
+     grande, mismo guard de privacidad que ya aplica dentro de la app
+     (ver vistaCarteraSegunRol en cartera.js).
+     ====================================================================== */
+  var PAD_EMOJIS = ["🩺","🦷","💊","🧬","🩹","🔬","🧪","📋","🗓️","💉","🌡️","🧴","🩸","⚕️","🧫","🫀","🦴","👨‍⚕️","👩‍⚕️","🏥","🧠","👁️","🦻","🫁","🧯","🔍","📊","🗂️","🔐"];
+  var PIN_LEN = 3;
+
+  function barajar(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function montarTeclado(padEl, slotsEl, onComplete) {
+    var entrada = [];
+    var pool = barajar(PAD_EMOJIS);
+    padEl.innerHTML = "";
+    for (var d = 0; d <= 9; d++) {
+      if (d === 0) { var vacio = document.createElement("div"); vacio.className = "pad-key vacio"; padEl.appendChild(vacio); }
+      (function (d) {
+        var key = document.createElement("div");
+        key.className = "pad-key";
+        key.innerHTML = '<span class="emoji">' + pool[d] + '</span><span class="digit">' + d + '</span>';
+        key.addEventListener("click", function () {
+          if (entrada.length >= PIN_LEN) return;
+          entrada.push(String(d));
+          actualizarSlots(slotsEl, entrada.length);
+          if (entrada.length === PIN_LEN) onComplete(entrada.join(""), resetEntrada);
+        });
+        padEl.appendChild(key);
+      })(d);
+      if (d === 0) {
+        var borrar = document.createElement("div");
+        borrar.className = "pad-key borrar";
+        borrar.textContent = "⌫";
+        borrar.addEventListener("click", function () {
+          if (!entrada.length) return;
+          entrada.pop();
+          actualizarSlots(slotsEl, entrada.length);
+        });
+        padEl.appendChild(borrar);
+      }
+    }
+    function actualizarSlots(slotsEl, n) {
+      var slots = slotsEl.querySelectorAll(".slot");
+      slots.forEach(function (s, i) {
+        if (i < n) { s.classList.add("lleno"); } else { s.classList.remove("lleno"); }
+      });
+    }
+    function resetEntrada() { entrada = []; actualizarSlots(slotsEl, 0); }
+    return resetEntrada;
+  }
+
+  function pintarSlots(slotsEl) {
+    slotsEl.innerHTML = "";
+    for (var i = 0; i < PIN_LEN; i++) {
+      var s = document.createElement("div");
+      s.className = "slot";
+      slotsEl.appendChild(s);
+    }
+  }
+
+  async function pinLocalOk(pin) {
+    try {
+      for (var i = 0; i < 20 && !window.OCSecure; i++) { await new Promise(function (r) { setTimeout(r, 100); }); }
+      if (!window.OCSecure || !window.OCSecure.verificarOwnerOEmpleado) return null;
+      if (window.OCSecure.segundosBloqueo) {
+        var esp = Number(window.OCSecure.segundosBloqueo("login")) || 0;
+        if (esp > 0) return { bloqueado: esp };
+      }
+      var rol = await window.OCSecure.verificarOwnerOEmpleado(pin);
+      return rol === "dueno" || rol === "admin";
+    } catch (_) { return null; }
+  }
+
+  async function initGate() {
+    var padEl = document.getElementById("gate-pad");
+    var slotsEl = document.getElementById("gate-slots");
+    var msgEl = document.getElementById("gate-msg");
+    pintarSlots(slotsEl);
+    if (sessionStorage.getItem("c123_tablero_auth") === "1") { mostrarPanel(); return; }
+    var reset = montarTeclado(padEl, slotsEl, async function (pin, resetFn) {
+      var r = await pinLocalOk(pin);
+      if (r === true) {
+        sessionStorage.setItem("c123_tablero_auth", "1");
+        mostrarPanel();
+      } else if (r && r.bloqueado) {
+        msgEl.textContent = "Demasiados intentos. Espera " + r.bloqueado + "s.";
+        resetFn();
+      } else {
+        msgEl.textContent = "PIN incorrecto o solo dueño/admin puede ver el tablero.";
+        setTimeout(function () { msgEl.textContent = ""; }, 1800);
+        resetFn();
+      }
+    });
+  }
+
+  function mostrarPanel() {
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("panel").classList.add("visible");
+    document.getElementById("btn-salir").addEventListener("click", function () {
+      sessionStorage.removeItem("c123_tablero_auth");
+      location.reload();
+    });
+    cargarTodo();
+  }
+
+  /* ======================================================================
+     LECTURA LOCAL-FIRST: mismo doble buffer A/B que usa la app misma
+     (mock-backend.js), leido directo -- cero servidor, cero relay. Si el
+     formato no calza, se degrada a "sin datos" en vez de romperse.
+     ====================================================================== */
+  var K_ESTADO = "c123_estado_v2";
+  function leerEstadoLocal() {
+    try {
+      var ptr = localStorage.getItem(K_ESTADO + "_ptr") || "A";
+      var orden = [ptr, ptr === "A" ? "B" : "A"];
+      for (var i = 0; i < orden.length; i++) {
+        var raw = localStorage.getItem(K_ESTADO + "_" + orden[i]);
+        if (!raw) continue;
+        var e = JSON.parse(raw);
+        if (e && Array.isArray(e.clientes)) return e;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function money(n) { return "$" + (Number(n) || 0).toFixed(2); }
+  function fecha(ts) { try { return new Date(ts).toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" }); } catch (_) { return ""; } }
+
+  var _tabla = null;
+  var _filas = [];
+
+  async function cargarTodo() {
+    var e = leerEstadoLocal();
+    var clientes = (e && e.clientes) ? e.clientes.filter(function (c) { return !c.despedido; }) : [];
+    document.getElementById("vacio").style.display = clientes.length ? "none" : "block";
+
+    var pendientes = clientes.map(function (c) {
+      var prom = (window.AMG && window.AMG.Cartera && window.AMG.Cartera.saldoDeCliente)
+        ? window.AMG.Cartera.saldoDeCliente(c.id)
+        : Promise.resolve({ saldo: 0, movimientos: [] });
+      return prom.then(function (info) {
+        return {
+          id: c.id, codigo: c.codigo || "", nombre: c.nombre || "", telefono: c.telefono || "",
+          saldo: info.saldo || 0, movimientos: info.movimientos || [],
+          ultimaActividad: info.movimientos && info.movimientos.length ? info.movimientos[info.movimientos.length - 1].fecha : 0,
+        };
+      });
+    });
+
+    _filas = await Promise.all(pendientes);
+    pintarStats(_filas);
+    pintarTabla(_filas);
+  }
+
+  function pintarStats(filas) {
+    var deben = filas.filter(function (f) { return f.saldo < 0; });
+    var conCredito = filas.filter(function (f) { return f.saldo > 0; });
+    var totalDeuda = deben.reduce(function (a, f) { return a + Math.abs(f.saldo); }, 0);
+    var totalCredito = conCredito.reduce(function (a, f) { return a + f.saldo; }, 0);
+    document.getElementById("stats").innerHTML =
+      '<div class="stat"><div class="num">' + filas.length + '</div><div class="lbl">Pacientes activos</div></div>' +
+      '<div class="stat deben"><div class="num">' + money(totalDeuda) + '</div><div class="lbl">' + deben.length + ' paciente(s) deben</div></div>' +
+      '<div class="stat credito"><div class="num">' + money(totalCredito) + '</div><div class="lbl">' + conCredito.length + ' con crédito a favor</div></div>';
+    document.getElementById("conteo").textContent = filas.length + " paciente(s)";
+  }
+
+  function claseSaldo(s) { return s < 0 ? "saldo-debe" : (s > 0 ? "saldo-credito" : "saldo-cero"); }
+
+  function pintarTabla(filas) {
+    if (window.Tabulator) {
+      pintarTabulator(filas);
+    } else {
+      // Sin CDN: degradar a tabla HTML plana, cero funciones perdidas de fondo,
+      // solo sin busqueda instantanea ni exports con un clic.
+      document.getElementById("plano-aviso").classList.add("visible");
+      pintarPlano(filas);
+    }
+  }
+
+  function pintarTabulator(filas) {
+    var el = document.getElementById("tabla-pacientes");
+    el.innerHTML = "";
+    _tabla = new Tabulator(el, {
+      data: filas,
+      layout: "fitColumns",
+      height: "60vh",
+      placeholder: "No hay pacientes que coincidan con la búsqueda.",
+      columns: [
+        { title: "Código", field: "codigo", width: 100, headerSort: true },
+        { title: "Paciente", field: "nombre", widthGrow: 2 },
+        { title: "Teléfono", field: "telefono", width: 140 },
+        { title: "Saldo", field: "saldo", width: 130, hozAlign: "right",
+          formatter: function (cell) {
+            var v = cell.getValue();
+            var span = document.createElement("span");
+            span.className = claseSaldo(v);
+            span.textContent = (v < 0 ? "Debe " : (v > 0 ? "A favor " : "")) + money(Math.abs(v));
+            return span;
+          },
+          sorter: "number" },
+        { title: "Último movimiento", field: "ultimaActividad", width: 160,
+          formatter: function (cell) { var v = cell.getValue(); return v ? fecha(v) : "—"; },
+          sorter: "number" },
+      ],
+      rowClick: function (e, row) { abrirDetalle(row.getData()); },
+    });
+    document.getElementById("buscador").addEventListener("input", function (e) {
+      var q = e.target.value.trim();
+      if (!q) { _tabla.clearFilter(); return; }
+      _tabla.setFilter([[
+        { field: "nombre", type: "like", value: q },
+        { field: "codigo", type: "like", value: q },
+        { field: "telefono", type: "like", value: q },
+      ]], "or");
+    });
+  }
+
+  function pintarPlano(filas) {
+    var el = document.getElementById("tabla-plano");
+    var filtro = "";
+    function render() {
+      var vistas = filas.filter(function (f) {
+        if (!filtro) return true;
+        var q = filtro.toLowerCase();
+        return (f.nombre || "").toLowerCase().indexOf(q) !== -1 || (f.codigo || "").toLowerCase().indexOf(q) !== -1 || (f.telefono || "").toLowerCase().indexOf(q) !== -1;
+      });
+      var filas_html = vistas.map(function (f) {
+        return '<tr data-id="' + f.id + '"><td>' + escHtml(f.codigo) + '</td><td>' + escHtml(f.nombre) + '</td><td>' + escHtml(f.telefono) +
+          '</td><td class="' + claseSaldo(f.saldo) + '">' + (f.saldo < 0 ? "Debe " : (f.saldo > 0 ? "A favor " : "")) + money(Math.abs(f.saldo)) + '</td>' +
+          '<td>' + (f.ultimaActividad ? fecha(f.ultimaActividad) : "—") + '</td></tr>';
+      }).join("");
+      el.innerHTML = '<table class="plano"><thead><tr><th>Código</th><th>Paciente</th><th>Teléfono</th><th>Saldo</th><th>Último movimiento</th></tr></thead><tbody>' + filas_html + '</tbody></table>';
+      el.querySelectorAll("tr[data-id]").forEach(function (tr) {
+        tr.style.cursor = "pointer";
+        tr.addEventListener("click", function () {
+          var f = filas.find(function (x) { return x.id === tr.dataset.id; });
+          if (f) abrirDetalle(f);
+        });
+      });
+    }
+    document.getElementById("buscador").addEventListener("input", function (e) { filtro = e.target.value.trim(); render(); });
+    render();
+  }
+
+  function escHtml(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  function abrirDetalle(f) {
+    document.getElementById("detalle-nombre").textContent = f.nombre;
+    document.getElementById("detalle-codigo").textContent = f.codigo;
+    document.getElementById("detalle-tel").textContent = f.telefono || "sin teléfono";
+    var saldoEl = document.getElementById("detalle-saldo");
+    saldoEl.className = "saldo-grande " + claseSaldo(f.saldo);
+    saldoEl.textContent = f.saldo < 0 ? "Debe " + money(Math.abs(f.saldo)) : (f.saldo > 0 ? "A favor " + money(f.saldo) : "Saldo en cero");
+    var movsEl = document.getElementById("detalle-movs");
+    var vacioEl = document.getElementById("detalle-vacio");
+    if (!f.movimientos.length) {
+      movsEl.innerHTML = "";
+      vacioEl.style.display = "block";
+    } else {
+      vacioEl.style.display = "none";
+      movsEl.innerHTML = f.movimientos.slice().reverse().map(function (m) {
+        return '<div class="mov-fila"><div class="info">' + (m.tipo === "cargo" ? "Fiado" : "Abono") +
+          (m.motivo ? " — " + escHtml(m.motivo) : "") + '<div class="fecha">' + fecha(m.fecha) + (m.quien ? " · " + escHtml(m.quien) : "") + '</div></div>' +
+          '<div class="monto ' + m.tipo + '">' + (m.tipo === "cargo" ? "−" : "+") + money(m.monto) + '</div></div>';
+      }).join("");
+    }
+    document.getElementById("detalle-overlay").classList.add("visible");
+  }
+  document.getElementById("detalle-cerrar").addEventListener("click", function () {
+    document.getElementById("detalle-overlay").classList.remove("visible");
+  });
+  document.getElementById("detalle-overlay").addEventListener("click", function (e) {
+    if (e.target.id === "detalle-overlay") e.currentTarget.classList.remove("visible");
+  });
+
+  document.getElementById("btn-actualizar").addEventListener("click", cargarTodo);
+
+  function filasParaExport() {
+    return _filas.map(function (f) {
+      return {
+        Código: f.codigo, Paciente: f.nombre, Teléfono: f.telefono,
+        Saldo: f.saldo, Estado: f.saldo < 0 ? "Debe" : (f.saldo > 0 ? "A favor" : "En cero"),
+        "Último movimiento": f.ultimaActividad ? fecha(f.ultimaActividad) : "",
+      };
+    });
+  }
+
+  document.getElementById("btn-excel").addEventListener("click", function () {
+    if (!window.XLSX) { alert("El generador de Excel no cargó (sin conexión al CDN)."); return; }
+    var ws = XLSX.utils.json_to_sheet(filasParaExport());
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Cartera");
+    XLSX.writeFile(wb, "cartera-consultorio-123-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+  });
+
+  document.getElementById("btn-csv").addEventListener("click", function () {
+    var filas = filasParaExport();
+    if (!filas.length) return;
+    var cab = Object.keys(filas[0]);
+    var csv = cab.join(",") + "\n" + filas.map(function (f) { return cab.map(function (c) { return '"' + String(f[c]).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
+    var blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "cartera-consultorio-123-" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  document.getElementById("btn-pdf").addEventListener("click", function () {
+    if (!window.jspdf) { alert("El generador de PDF no cargó (sin conexión al CDN)."); return; }
+    var doc = new window.jspdf.jsPDF({ orientation: "landscape" });
+    doc.setFontSize(14);
+    doc.text("Cartera de pacientes — consultorio-123", 14, 16);
+    doc.setFontSize(9);
+    doc.text(new Date().toLocaleString("es"), 14, 22);
+    var filas = filasParaExport();
+    doc.autoTable({
+      startY: 28,
+      head: [Object.keys(filas[0] || { Código: "", Paciente: "", Teléfono: "", Saldo: "", Estado: "", "Último movimiento": "" })],
+      body: filas.map(function (f) { return Object.values(f); }),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [82, 148, 172] },
+    });
+    doc.save("cartera-consultorio-123-" + new Date().toISOString().slice(0, 10) + ".pdf");
+  });
+
+  initGate();
+})();
+</script>
+
+</body>
+</html>
