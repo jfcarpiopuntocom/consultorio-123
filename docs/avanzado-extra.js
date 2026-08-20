@@ -1265,8 +1265,16 @@
             const angosto = window.matchMedia && window.matchMedia("(max-width:720px)").matches;
             if (angosto) {
               fila.style.flexDirection = "column";
-              rNav.style.cssText = "flex:0 0 auto;width:100%;position:sticky;top:0;max-height:none;overflow:visible;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:2px solid var(--azul-suave,#dde5ec);padding:6px 0;margin:0 0 12px 0;background:var(--blanco-calido,#F8F9FB);";
-              rNav.querySelectorAll("[data-riel-go]").forEach((b) => { b.style.width = "auto"; b.style.borderLeft = "none"; b.style.padding = "8px 10px"; });
+              /* DOS BUGS que hacian "retazos encima de retazos" en el telefono.
+                 Portado de friendly-123/amigable-123 (23ce907, arreglado ahi
+                 el 2026-08-16, aqui el 2026-08-19 tras el mismo reporte de JFC):
+                 1. Faltaba display:flex. cssText REEMPLAZA todo el estilo, y el
+                    modo ancho si lo pone: al pasar a angosto el nav perdia el
+                    flex y los chips se desbordaban unos sobre otros.
+                 2. position:sticky con overflow:visible dejaba el nav FLOTANDO
+                    sobre el contenido al hacer scroll. En angosto va estatico. */
+              rNav.style.cssText = "display:flex;flex:0 0 auto;width:100%;box-sizing:border-box;position:static;top:auto;max-height:34vh;overflow-y:auto;-webkit-overflow-scrolling:touch;flex-direction:row;flex-wrap:wrap;gap:6px;align-content:flex-start;border-right:none;border-bottom:2px solid var(--azul-suave,#dde5ec);padding:8px 0;margin:0 0 14px 0;background:var(--blanco-calido,#F8F9FB);";
+              rNav.querySelectorAll("[data-riel-go]").forEach((b) => { b.style.width = "auto"; b.style.flex = "0 0 auto"; b.style.borderLeft = "none"; b.style.margin = "0"; b.style.padding = "9px 12px"; b.style.whiteSpace = "nowrap"; });
             } else {
               fila.style.flexDirection = "row";
               rNav.style.cssText = "flex:0 0 148px;width:148px;position:sticky;top:8px;align-self:flex-start;padding:0 10px 0 0;margin:0 14px 0 0;border-right:2px solid var(--azul-suave,#dde5ec);display:flex;flex-direction:column;max-height:calc(100vh - 24px);overflow-y:auto;background:var(--blanco-calido,#F8F9FB);z-index:3;box-sizing:border-box;";
@@ -1274,7 +1282,17 @@
             }
           } catch (_) {}
         }
-        resp(); try { window.addEventListener("resize", resp); } catch (_) {}
+        /* GUARDS: el layout se recalcula en cada evento que puede cambiarlo.
+           Antes se calculaba solo al arrancar: girar el telefono lo dejaba con
+           las medidas viejas. */
+        resp();
+        try { window.addEventListener("resize", resp); } catch (_) {}
+        try { window.addEventListener("orientationchange", resp); } catch (_) {}
+        try {
+          const mq = window.matchMedia && window.matchMedia("(max-width:720px)");
+          if (mq && mq.addEventListener) mq.addEventListener("change", resp);
+          else if (mq && mq.addListener) mq.addListener(resp);
+        } catch (_) {}
       } catch (_) { /* si el riel falla, los paneles ya armados arriba siguen visibles tal cual estaban - cero riesgo */ }
     })();
 

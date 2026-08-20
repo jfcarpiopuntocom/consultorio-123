@@ -1298,13 +1298,16 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"></circle><path d="M2.8 20c0-3.4 2.8-5.6 6.2-5.6s6.2 2.2 6.2 5.6"></path><circle cx="17" cy="9" r="2.6"></circle><path d="M15.4 14.9c2.9 0 5.8 1.8 5.8 5.1"></path></svg>
     <span data-i18n="nav.customers">Customers</span>
   </button>
+  <!-- FUSIONADOS EN UN SOLO BOTON (JFC 2026-08-19: "menos botones" — antes
+       habia dos entradas de nav distintas para la MISMA vista contabilidad,
+       una que aterrizaba en la pestana Ingresos y otra en Resultados. Ya hay
+       pestanas internas dentro de la vista (Ingresos, Insumos, Cuentas por
+       Cobrar, Estado de Resultados — ver nucleo-ui.js), asi que la segunda
+       entrada de nav era pura redundancia: cero funcionalidad se pierde al
+       quitarla, Resultados se sigue alcanzando con un toque desde adentro. -->
   <button data-vista="contabilidad" data-nucleo-tab="ingresos">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><line x1="8" y1="12" x2="16" y2="12"></line><line x1="8" y1="16" x2="13" y2="16"></line></svg>
     <span>Contabilidad</span>
-  </button>
-  <button data-vista="contabilidad" data-nucleo-tab="resultados">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"></path><path d="M6 20V11"></path><path d="M11 20V5"></path><path d="M16 20v-6"></path></svg>
-    <span data-i18n="nav.resultados">Estado de resultados</span>
   </button>
   <button data-vista="escanear">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"></path><path d="M16 4h3a1 1 0 0 1 1 1v3"></path><path d="M20 16v3a1 1 0 0 1-1 1h-3"></path><path d="M8 20H5a1 1 0 0 1-1-1v-3"></path><line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="2.4 2.4"></line></svg>
