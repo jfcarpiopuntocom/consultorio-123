@@ -20,7 +20,7 @@
 (function(){
   try{
     if(!("serviceWorker" in navigator))return;
-    var K="c123_sw_nuke_v1";
+    var K="f123_sw_nuke_v1";
     if(localStorage.getItem(K))return;
     // Marcar ANTES de hacer nada — si el proceso revienta, no vuelve a disparar.
     localStorage.setItem(K,"1");
@@ -64,7 +64,6 @@
      OC_PB_URL). Por defecto todo corre local: mock-backend.js en la demo
      estática, o server.js real en el servidor local del negocio. -->
 <script src="./pocketbase-client.js"></script>
-<script src="./estado-idb.js"></script>
 <script src="./mock-backend.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -1394,10 +1393,10 @@
     <h3 class="seccion" data-i18n="hoy.alertsHeading">Today's alerts</h3>
     <ul class="lista-alertas" id="listaAlertas"></ul>
     <!-- Para impulsar hoy: productos estrella (el dueño los marca en Inventario).
-         Visible para TODOS, sobre todo para el encargado. Debajo de Alertas. -->
+         Visible para TODOS, sobre todo para el empleado. Debajo de Alertas. -->
     <div id="estrellaHoy"></div>
     <!-- Mood/flavor del día (12 posibles), SOLO dueño (clase fin-dueno la oculta
-         al encargado en cargarHoy). Va al fondo, debajo de todo. -->
+         al empleado en cargarHoy). Va al fondo, debajo de todo. -->
     <div id="moodHoy" class="fin-dueno"></div>
   </section>
 
@@ -1637,7 +1636,7 @@
 
   <!-- VISTA: COMISIONES (solo dueño) -->
   <!-- VISTA: CLIENTES (JFC 2026-07-07) — codigo unico + estaciones RFM.
-       El encargado ve la lista y puede registrar clientes; los montos y la
+       El empleado ve la lista y puede registrar clientes; los montos y la
        matriz de estaciones son SOLO del dueno (cargarClientes aplica el rol). -->
   <section id="vista-clientes" class="vista">
     <h3 class="seccion" style="margin-top:0;" data-i18n="cust.heading">Your customers</h3>
@@ -1661,8 +1660,8 @@
     <div id="matrizClientes" style="margin-top:26px;"></div>
 
     <!-- Importar CSV de clientes (JFC 2026-07-07): SOLO dueno, al fondo fondo.
-         cargarClientes() lo muestra/oculta segun rol. El encargado JAMAS lo ve:
-         para el encargado solo existe el alta manual de arriba. -->
+         cargarClientes() lo muestra/oculta segun rol. El empleado JAMAS lo ve:
+         para el empleado solo existe el alta manual de arriba. -->
     <div id="cliImportarBloque" style="display:none;margin-top:34px;padding-top:20px;border-top:2px solid var(--linea,#D7E0E8);">
       <h3 class="seccion" style="margin-top:0;" data-i18n="cust.importHeading">Import your customer list from a file</h3>
       <p style="font-size:16px;color:var(--ink-soft);margin-top:0;" data-i18n-html="cust.importIntro">If you already have your customers in Excel or on your phone, save the file as <strong>CSV</strong> with two columns, <strong>name</strong> and <strong>phone</strong>, and upload it here. Each one gets their unique code automatically; duplicates (same name) are skipped.</p>
@@ -2244,7 +2243,7 @@ function tarjetaCliente(c, esDueno){
   const dato = esDueno
     ? `<div style="font-size:15px;color:#2C3E50;margin-top:3px;">${c.frecuencia} purchase(s) in 90 days · ${fmtMoney(c.monto)}${c.recencia != null ? ` · last ${c.recencia} day(s) ago` : " · no purchases yet"}</div>`
     : "";
-  // Controles de evaluación: visibles a dueño y encargados (no en demo si no hay sesión).
+  // Controles de evaluación: visibles a dueño y empleados (no en demo si no hay sesión).
   const _EV_TXT = {
     en: { trato:"Manner", confiabilidad:"Reliability", dificil:"Difficult", agradable:"Pleasant", neutro:"Neutral", precaucion:"Caution", confiable:"Reliable" },
     es: { trato:"Modales / Trato Personal", confiabilidad:"Confiabilidad", dificil:"Difícil", agradable:"Agradable", neutro:"Neutral", precaucion:"Precaución", confiable:"Confiable" }
@@ -2275,7 +2274,7 @@ function tarjetaCliente(c, esDueno){
     return actual >= 1 ? actual.toFixed(1) : null;
   };
   // Campo hora del incidente — auto-rellena con la hora actual; va en el historial
-  // para que el encargado pueda conciliar con cámaras/audios si hay un alegato.
+  // para que el empleado pueda conciliar con cámaras/audios si hay un alegato.
   const ahoraHora = new Date().toTimeString().slice(0,5);
   const hayNegativo = nivelEv(ev.trato) === -1 || nivelEv(ev.confiabilidad) === -1;
   const campoHora = puedeEvaluar ? `
@@ -2376,7 +2375,7 @@ async function abonarCliente(clienteId, nombre) {
 }
 async function cargarClientes(){
   // dueño Y admin ven todo ("plenamente visibles", JFC 2026-07-29) — solo
-  // encargado/contador quedan en modo restringido mas abajo.
+  // empleado/contador quedan en modo restringido mas abajo.
   const rolAhora = window.OCAuth && window.OCAuth.rolActual ? window.OCAuth.rolActual() : "";
   const esDueno = rolAhora === "dueno" || rolAhora === "admin";
   let grupos;
@@ -2484,7 +2483,7 @@ async function cargarClientes(){
       mc.innerHTML = (typeof htmlComportamiento === "string" ? htmlComportamiento : "") + htmlEstaciones;
   }
   poblarSelectClientes(grupos);
-  // Importar CSV: solo el dueno lo ve (regla JFC). El encargado se queda con el
+  // Importar CSV: solo el dueno lo ve (regla JFC). El empleado se queda con el
   // alta manual de arriba.
   const importBloque = document.getElementById("cliImportarBloque");
   if (importBloque) {
@@ -2547,7 +2546,7 @@ function parsearCSV(texto){
   return filas;
 }
 // Importacion de clientes por CSV — SOLO dueno (el bloque ni se muestra al
-// encargado). Toda la validacion pesada ocurre tambien en el mock; aqui se
+// empleado). Toda la validacion pesada ocurre tambien en el mock; aqui se
 // filtra lo obvio para dar feedback rapido y no mandar basura.
 function inicializarImportCSV(){
   const inp = document.getElementById("cliCsvFile");
@@ -2677,7 +2676,7 @@ if (elLogoHeader) elLogoHeader.addEventListener("click", () => {
       const d = await (await fetch(`${API}/instancia/nombre`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre: nuevo }) })).json();
       if (d && d.ok) {
         span.textContent = d.nombreNegocio || nuevo;
-        try { const o = JSON.parse(localStorage.getItem("c123_owned") || "null"); if (o) { o.nombreNegocio = d.nombreNegocio || nuevo; localStorage.setItem("c123_owned", JSON.stringify(o)); } } catch (_) {}
+        try { const o = JSON.parse(localStorage.getItem("f123_owned") || "null"); if (o) { o.nombreNegocio = d.nombreNegocio || nuevo; localStorage.setItem("f123_owned", JSON.stringify(o)); } } catch (_) {}
       }
     } catch (_) {}
   });
@@ -2738,12 +2737,28 @@ document.querySelectorAll("nav button").forEach(btn => {
 // Detecta la 2ª por BroadcastChannel y la tapa con un aviso (con escape para el
 // caso legítimo de una pestaña zombie). NO borrar sin reemplazo equivalente.
 (function guardiaDoblePestana() {
-  if (typeof BroadcastChannel === "undefined") return; // navegador viejo: sin guardia, igual que antes
   var esES = true;
   try { esES = !window.OCI18n || window.OCI18n.getLang() !== "en"; } catch (_) {}
+
+  /* CANDADO REAL ENTRE PESTANAS (portado de friendly-123, 2026-08-19).
+     El apreton de manos por BroadcastChannel es una carrera; navigator.locks
+     es un mutex de verdad. El BroadcastChannel se queda de RESPALDO para
+     Safari < 15.4. */
+  function taparPestana() { if (!document.getElementById("oc-doble-tab")) _pintarAvisoDoble(); }
+  var _hayLocks = false;
+  try { _hayLocks = !!(navigator.locks && navigator.locks.request); } catch (_) {}
+  if (_hayLocks) {
+    navigator.locks.request("consultorio-123-sesion-unica", { ifAvailable: true }, function (lock) {
+      if (!lock) { taparPestana(); return Promise.resolve(); }
+      return new Promise(function () {});
+    }).catch(function () {});
+  }
+
+  if (typeof BroadcastChannel === "undefined") return; // navegador viejo: sin guardia, igual que antes
   var canal = new BroadcastChannel("consultorio-123-sesion-unica");
   var soyPrincipal = true;
   canal.onmessage = function (e) {
+    if (_hayLocks) return; // el candado ya decidio; este respaldo no vuelve a opinar
     if (e.data === "hola" && soyPrincipal) canal.postMessage("ocupado");
     if (e.data === "ocupado" && !document.getElementById("oc-doble-tab")) {
       soyPrincipal = false;
@@ -2804,7 +2819,7 @@ async function cargarHoy(){
   const tKey = { verde: "hoy.titulo.verde", amarillo: "hoy.titulo.amarillo", rojo: "hoy.titulo.rojo" }[data.semaforoGeneral];
   document.getElementById("heroTitulo").textContent = tKey ? t(tKey) : t("hoy.titulo.default");
   // Plata del negocio (ganancia/entra/sale/inventario): SOLO dueño. El titular
-  // tampoco le revela la ganancia al encargado — solo el conteo de ventas.
+  // tampoco le revela la ganancia al empleado — solo el conteo de ventas.
   const esDuenoHoy = window.OCAuth && window.OCAuth.rolActual() === "dueno";
   document.getElementById("heroSubtitulo").textContent = esDuenoHoy
     ? tf("hoy.subOwner", { monto: fmtMoney(data.resumenDia.gananciaHoy), n: data.resumenDia.ventasCount })
@@ -2839,7 +2854,7 @@ async function cargarHoy(){
     ).join("");
   }
 
-  // Para impulsar hoy: productos estrella de la percha actual (encargado los ve).
+  // Para impulsar hoy: productos estrella de la percha actual (empleado los ve).
   try {
     const prods = await fetch(`${API}/productos?ubicacionId=${ubicacionActual}`).then(r => r.json());
     const estrellas = (Array.isArray(prods) ? prods : []).filter(p => p.estrella);
@@ -2854,7 +2869,7 @@ async function cargarHoy(){
   } catch (_) { /* sin estrellas: el bloque queda vacío */ }
 
   // Mood/flavor del día, SOLO dueño (moodHoy tiene clase fin-dueno, ya oculta al
-  // encargado arriba). Estable por día del año.
+  // empleado arriba). Estable por día del año.
   const mood = document.getElementById("moodHoy");
   if (mood && esDuenoHoy) {
     const ahora = new Date();
@@ -3171,7 +3186,7 @@ async function duplicarComoVariante(id) {
 }
 
 async function cargarInventario(){
-  // El "+" de alta libre es del dueno; el encargado ni lo ve (dos capas).
+  // El "+" de alta libre es del dueno; el empleado ni lo ve (dos capas).
   const btnAlta = document.getElementById("btnAltaProducto");
   if (btnAlta) btnAlta.style.display = (window.OCAuth && window.OCAuth.rolActual() === "dueno") ? "" : "none";
   let url = `${API}/productos?ubicacionId=${ubicacionActual}`;
@@ -3269,7 +3284,7 @@ async function cargarInventario(){
     });
   });
 
-  // Estrella: dueño marca/desmarca productos para que el encargado los promueva
+  // Estrella: dueño marca/desmarca productos para que el empleado los promueva
   grid.querySelectorAll("[data-estrella-toggle]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const id = btn.dataset.estrellaToggle;
@@ -3296,7 +3311,7 @@ async function cargarInventario(){
   }
 }
 
-// Escapa HTML — el log muestra "motivo" tecleado por el encargado (via prompt),
+// Escapa HTML — el log muestra "motivo" tecleado por el empleado (via prompt),
 // nunca debe insertarse crudo en innerHTML (riesgo de XSS almacenado).
 function escHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3305,7 +3320,7 @@ function escHtml(s){
 // ============================================================================
 // MOTIVOS ESTANDARIZADOS DEL AJUSTE +/- (idea Omar 2026-07-12)
 // Reemplaza el prompt() de open-text por un dropdown de opciones fijas: labels
-// consistentes en el log del dueño en vez de texto libre que cada encargado
+// consistentes en el log del dueño en vez de texto libre que cada empleado
 // teclea distinto. "Otro…" revela un campo de texto para el caso no previsto.
 // Para cambiar/agregar opciones: editar MOTIVOS_AJUSTE. No borrar "Otro".
 // ============================================================================
@@ -3360,7 +3375,7 @@ function pedirMotivoAjuste(delta){
   });
 }
 
-// Log de movimientos recientes — el dueño vigila ajustes del encargado
+// Log de movimientos recientes — el dueño vigila ajustes del empleado
 async function cargarLogAjustes(){
   // Microcirugia 5 (2026-07-08): fetch sin guard dejaba el log de ajustes en
   // blanco sin ningun aviso si /actividad fallaba.
@@ -3382,7 +3397,7 @@ async function cargarLogAjustes(){
     const extra = m.tipo === 'ajuste' ? ` (${m.detalle.delta > 0 ? '+' : ''}${m.detalle.delta}) — ${escHtml(m.detalle.motivo)}` : m.tipo === 'venta' ? ` × ${m.detalle.cantidad} = $${m.detalle.total}` : m.tipo === 'estrella' ? ` ${escHtml(m.detalle.accion)}` : '';
     // Atribución multi-usuario (2026-07-08): mostrar QUIÉN hizo el movimiento.
     // El dato ya viajaba en cada movimiento (mov() lo guarda); antes no se pintaba.
-    // "Sistema" (dueño por PIN clásico, sin encargado nombrado) no se muestra.
+    // "Sistema" (dueño por PIN clásico, sin empleado nombrado) no se muestra.
     const quien = (m.usuarioNombre && m.usuarioNombre !== 'Sistema')
       ? ` <span style="font-size:13px;font-weight:700;color:var(--azul-medio,#2c4a68);">· ${escHtml(m.usuarioNombre)}</span>` : '';
     return `<div style="padding:6px 0;border-bottom:1px solid var(--linea,#e0d6c0);font-size:13px;color:var(--ink);"><span>${icono}</span> <strong>${detalle}</strong>${extra}${quien} <span style="color:var(--ink-soft);margin-left:8px;">${fecha}</span></div>`;
@@ -3529,7 +3544,7 @@ async function cargarPerchas(){
     const res = await fetch(`${API}/ubicaciones/${sel.dataset.perchaMover}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sucursalId }) });
     if (res.ok) cargarPerchas();
   }));
-  // Asignar asociado/a a la percha (alimenta el panel de fotos y comisiones)
+  // Asignar promotor/a a la percha (alimenta el panel de fotos y comisiones)
   grid.querySelectorAll('[data-percha-promotor]').forEach(sel => sel.addEventListener('change', async () => {
     const promotoraId = sel.value || null;
     const res = await fetch(`${API}/ubicaciones/${sel.dataset.perchaPromotor}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ promotoraId }) });
@@ -3744,15 +3759,6 @@ function mostrarFormNuevoProducto(codigoEscaneado){
   document.getElementById("np-perecible").addEventListener("change", (e) => {
     document.getElementById("np-fecha-wrap").style.display = e.target.checked ? "block" : "none";
   });
-  try { if (window.OCCategorias) window.OCCategorias.enganchar(document.getElementById("np-categoria")); } catch (_) {}
-  /* Nada tecleado se pierde: back del navegador, cierre, o el telefono mandando
-     la app al fondo. Ver borradores.js. */
-  try {
-    if (window.OCBorradores) {
-      const _c = document.getElementById("np-nombre");
-      if (_c) window.OCBorradores.enganchar(_c.closest(".ficha-producto"), "alta-producto", { msgId: "np-msg" });
-    }
-  } catch (_) {}
 }
 
 async function crearProductoNuevo(codigoEscaneado){
@@ -3791,7 +3797,7 @@ async function crearProductoNuevo(codigoEscaneado){
 // ============================================================================
 // EDICION LIBRE DE LA FICHA (solo dueno). Todo editable: nombre, foto, precio,
 // proveedor, categoria y el CODIGO INTERNO — que NO cambia al renombrar: solo
-// cambia si el dueno lo digita de nuevo en su campo propio. El encargado NUNCA
+// cambia si el dueno lo digita de nuevo en su campo propio. El empleado NUNCA
 // ve estos botones (dos capas de management).
 // ============================================================================
 async function mostrarFormEditarProducto(id){
@@ -4009,15 +4015,6 @@ async function abrirAltaProducto(){
   document.getElementById("np-tipo-proveedor").addEventListener("change", (e) => {
     document.getElementById("np-comision-wrap").style.display = e.target.value === "consignacion" ? "block" : "none";
   });
-  try { if (window.OCCategorias) window.OCCategorias.enganchar(document.getElementById("np-categoria")); } catch (_) {}
-  /* Nada tecleado se pierde: back del navegador, cierre, o el telefono mandando
-     la app al fondo. Ver borradores.js. */
-  try {
-    if (window.OCBorradores) {
-      const _c = document.getElementById("np-nombre");
-      if (_c) window.OCBorradores.enganchar(_c.closest(".ficha-producto"), "alta-producto", { msgId: "np-msg" });
-    }
-  } catch (_) {}
   modal.classList.add("activo");
 }
 
@@ -4050,7 +4047,7 @@ function pintarFicha(p){
         <button onclick="ajustar('${p.id}', -1)">-1 stock</button>
         <button class="etiqueta" onclick="abrirEtiqueta('${p.id}')">${t("ficha.viewLabel")}</button>
       </div>
-      <!-- "Mostrar al cliente": visible para cualquier rol autenticado (encargado o dueño) —
+      <!-- "Mostrar al cliente": visible para cualquier rol autenticado (empleado o dueño) —
            ambos están detrás del mostrador y pueden girar el teléfono hacia el cliente. -->
       <div class="acciones-rapidas" style="margin-top:8px;">
         <button onclick="abrirVistaCliente('${p.id}')" style="background:var(--azul-oscuro,#1c3049);color:#fff;border-color:var(--azul-oscuro,#1c3049);">${t("customer.showBtn")}</button>
@@ -4428,7 +4425,7 @@ async function cargarActividad(){
   }).join("");
 }
 
-// --- VISTA COMISIONES (reparto de comisiones a asociados/as) ---
+// --- VISTA COMISIONES (reparto de comisiones a promotores/as) ---
 async function cargarComisiones(){
   // Microcirugia 11 (2026-07-08): Promise.all sin guard dejaba Comisiones en blanco.
   const cont = document.getElementById("listaComisiones");
@@ -4450,7 +4447,7 @@ async function cargarComisiones(){
     return;
   }
 
-  // Rec 04 + 09: ranking de asociados/as con su mejor SKU y alerta de dormido.
+  // Rec 04 + 09: ranking de promotores/as con su mejor SKU y alerta de dormido.
   const rankHtml = (Array.isArray(ranking) && ranking.length) ? `
     <h3 class="seccion" style="font-size:15px;margin-top:0;">${t("comm.rankingHeading")}</h3>
     <div style="margin-bottom:20px;">${ranking.map((r, i) => {
@@ -4618,7 +4615,7 @@ function ofrecerResumenSemanalSiToca(){
   if (!window.OCAuth || window.OCAuth.rolActual() !== "dueno") return;
   if (window.OCAuth.esDemo && window.OCAuth.esDemo()) return;
   let ultimo = 0;
-  try { ultimo = Number(localStorage.getItem("c123_resumen_semanal_ofrecido") || 0); } catch (_) {}
+  try { ultimo = Number(localStorage.getItem("f123_resumen_semanal_ofrecido") || 0); } catch (_) {}
   if (Date.now() - ultimo < 7 * 86400000) return;
   // (2026-07-17) el sello de 'ya ofrecido' se guarda al RESPONDER, no al pintar —
   // si el toast falla, la oferta no se quema por 7 dias.
@@ -4630,18 +4627,18 @@ function ofrecerResumenSemanalSiToca(){
       <button id="oc-resumen-sem-no" style="min-height:44px;padding:0 14px;border:2px solid #5294AC;border-radius:7px;background:transparent;color:#F8F9FB !important;-webkit-text-fill-color:#F8F9FB !important;cursor:pointer;">${t("weekly.nudgeNotNow")}</button>
     </div>`;
   document.body.appendChild(toast);
-  toast.querySelector("#oc-resumen-sem-si").addEventListener("click", () => { try { localStorage.setItem("c123_resumen_semanal_ofrecido", String(Date.now())); } catch (_) {} enviarResumenSemanalWhatsApp(); toast.remove(); });
-  toast.querySelector("#oc-resumen-sem-no").addEventListener("click", () => { try { localStorage.setItem("c123_resumen_semanal_ofrecido", String(Date.now())); } catch (_) {} toast.remove(); });
+  toast.querySelector("#oc-resumen-sem-si").addEventListener("click", () => { try { localStorage.setItem("f123_resumen_semanal_ofrecido", String(Date.now())); } catch (_) {} enviarResumenSemanalWhatsApp(); toast.remove(); });
+  toast.querySelector("#oc-resumen-sem-no").addEventListener("click", () => { try { localStorage.setItem("f123_resumen_semanal_ofrecido", String(Date.now())); } catch (_) {} toast.remove(); });
 }
 window.addEventListener("oc-login", () => setTimeout(ofrecerResumenSemanalSiToca, 1200));
 
 // MEJORA 3 — Recibo instantáneo al pagar comisión.
 // Después de marcar como pagado, la app arma un mini-recibo en WhatsApp listo
-// para enviarle a la asociada/socio. Un toque cierra el ciclo sin salir de la app.
+// para enviarle a la promotora/socio. Un toque cierra el ciclo sin salir de la app.
 // ============================================================================
 // EVALUACIÓN DE CLIENTES (2026-07-08)
 // El negocio evalúa en 2 ejes: Trato y Confiabilidad (-1/0/+1).
-// Dueño y encargados pueden evaluar; la atribución va en el historial.
+// Dueño y empleados pueden evaluar; la atribución va en el historial.
 // ============================================================================
 // EVALUACIÓN DE CLIENTES (JFC 2026-08-06, portado de amigable-123) — escala
 // 1-5: estrella=confiabilidad, corazon=trato. Tap acumulativo: tocar el mismo
@@ -4741,7 +4738,7 @@ async function marcarComisionPagada(ubicacionId, promotorNombre, monto){
   }
   if (!res.ok) { await ocAlert(r.error || "Could not mark the payment."); return; }
   cargarComisiones();
-  // Recibo para WhatsApp: solo se ofrece si hay nombre de asociado/a y monto > 0.
+  // Recibo para WhatsApp: solo se ofrece si hay nombre de promotora y monto > 0.
   if (promotorNombre && monto > 0) {
     const neg = (function(){ try { const s = document.getElementById("oc-negocio-nombre"); return s ? s.textContent.trim() : ""; } catch(_){ return ""; } })();
     const mes = new Date().toLocaleDateString("es", { month: "long", year: "numeric" });
@@ -4752,7 +4749,7 @@ async function marcarComisionPagada(ubicacionId, promotorNombre, monto){
     );
     const recibo = [
       `*Commission payment confirmed*`,
-      `Asociado/a: ${promotorNombre}`,
+      `Promotor/a: ${promotorNombre}`,
       `Monto: ${fmtMoney(monto)}`,
       `Mes: ${mes}`,
       neg ? `Negocio: ${neg}` : "",
@@ -4797,11 +4794,11 @@ function inicializarSelectorTimezone(){
   const zonas = TIMEZONES_COMUNES.includes(detectada) ? TIMEZONES_COMUNES : [detectada, ...TIMEZONES_COMUNES];
   sel.innerHTML = `<option value="">${t("adv.timezoneAuto")} — ${detectada}</option>` +
     zonas.map(z => `<option value="${z}">${z}</option>`).join("");
-  sel.value = localStorage.getItem("c123_timezone") || "";
+  sel.value = localStorage.getItem("f123_timezone") || "";
   sel.addEventListener("change", () => {
     const msg = document.getElementById("msgTimezone");
-    if (sel.value) localStorage.setItem("c123_timezone", sel.value);
-    else localStorage.removeItem("c123_timezone");
+    if (sel.value) localStorage.setItem("f123_timezone", sel.value);
+    else localStorage.removeItem("f123_timezone");
     msg.style.color = "var(--verde)";
     msg.textContent = t("adv.timezoneSaved");
     cargarAvanzado();
@@ -5001,7 +4998,6 @@ setTimeout(() => {
      percha en IndexedDB en vez de localStorage. -->
 <script src="./idb-fotos.js"></script>
 <script src="./idb-archivo.js"></script>
-<script src="./borradores.js"></script>
 <script src="./vista-perchas.js"></script>
 <script src="./welcome-ui.js"></script>
 <script src="./tutorial-ui.js"></script>
@@ -5065,10 +5061,10 @@ if ("serviceWorker" in navigator) {
 (async function () {
   try {
     const r = await fetch("./version.json?ts=" + Date.now(), { cache: "no-store" });
-    if (!r.ok) { try { const eb = JSON.parse(localStorage.getItem("c123_errores") || "[]"); eb.push({ ts: Date.now(), tipo: "version-check", msg: "version.json " + r.status }); if (eb.length > 50) eb.splice(0, eb.length - 50); localStorage.setItem("c123_errores", JSON.stringify(eb)); } catch (_) {} return; }
+    if (!r.ok) { try { const eb = JSON.parse(localStorage.getItem("f123_errores") || "[]"); eb.push({ ts: Date.now(), tipo: "version-check", msg: "version.json " + r.status }); if (eb.length > 50) eb.splice(0, eb.length - 50); localStorage.setItem("f123_errores", JSON.stringify(eb)); } catch (_) {} return; }
     const v = String(((await r.json()) || {}).version || "");
     if (!v) return;
-    const K = "c123_version_vista";
+    const K = "f123_version_vista";
     const prev = localStorage.getItem(K);
     if (prev === v) return;
     localStorage.setItem(K, v);
@@ -5100,12 +5096,12 @@ window.addEventListener("oc-datos-importados", async () => {
 // Aviso discreto una sola vez por sesion; jamas bloquea nada.
 (function cajaNegraErrores() {
   let avisado = false;
-  window.addEventListener("unhandledrejection", (e) => { try { const lista = JSON.parse(localStorage.getItem("c123_errores") || "[]"); lista.push({ fecha: new Date().toISOString(), msg: String((e.reason && e.reason.message) || e.reason).slice(0, 300), src: "promise", linea: 0 }); localStorage.setItem("c123_errores", JSON.stringify(lista.slice(-10))); } catch (_) {} }); // (2026-07-17) promesas rechazadas tambien van a la caja negra
+  window.addEventListener("unhandledrejection", (e) => { try { const lista = JSON.parse(localStorage.getItem("f123_errores") || "[]"); lista.push({ fecha: new Date().toISOString(), msg: String((e.reason && e.reason.message) || e.reason).slice(0, 300), src: "promise", linea: 0 }); localStorage.setItem("f123_errores", JSON.stringify(lista.slice(-10))); } catch (_) {} }); // (2026-07-17) promesas rechazadas tambien van a la caja negra
   window.addEventListener("error", (e) => {
     try {
-      const lista = JSON.parse(localStorage.getItem("c123_errores") || "[]");
+      const lista = JSON.parse(localStorage.getItem("f123_errores") || "[]");
       lista.push({ fecha: new Date().toISOString(), msg: String(e.message || ""), src: String(e.filename || "").split("/").pop() + ":" + (e.lineno || 0) });
-      localStorage.setItem("c123_errores", JSON.stringify(lista.slice(-20)));
+      localStorage.setItem("f123_errores", JSON.stringify(lista.slice(-20)));
     } catch (_) {}
     if (avisado) return;
     avisado = true;
@@ -5140,25 +5136,11 @@ window.dialogosBloqueados = function () {
   } catch (_) { return true; }
 };
 
-(function guardiaDobleCaja() {
-  if (typeof BroadcastChannel === "undefined") return; // navegador viejo: sin guardia, igual que antes
-  const canal = new BroadcastChannel("amigable-caja-unica");
-  let soyPrincipal = true;
-  canal.onmessage = (e) => {
-    if (e.data === "hola" && soyPrincipal) canal.postMessage("ocupado");
-    if (e.data === "ocupado" && !document.getElementById("oc-doble-tab")) {
-      soyPrincipal = false;
-      const d = document.createElement("div");
-      d.id = "oc-doble-tab";
-      d.style.cssText = "position:fixed;inset:0;z-index:10003;background:#0F1923;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;";
-      d.innerHTML = '<p style="color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:18px;font-weight:700;max-width:420px;">A consultorio-123 session is already open in another tab. To avoid data conflicts, use only one at a time.</p>' +
-        '<button id="oc-doble-usar" style="min-height:48px;padding:12px 22px;border-radius:8px;border:2px solid #5294AC;background:transparent;color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:16px;font-weight:700;cursor:pointer;">Use here anyway</button>';
-      document.body.appendChild(d);
-      document.getElementById("oc-doble-usar").addEventListener("click", () => { soyPrincipal = true; d.remove(); });
-    }
-  };
-  canal.postMessage("hola");
-})();
+/* GUARDIA DE DOBLE PESTANA — BORRADA DE AQUI (portado de amigable-123/
+   friendly-123, 2026-08-19). Habia DOS guardias haciendo lo mismo, y esta
+   escuchaba "amigable-caja-unica" — el canal de la app HERMANA. Abrir
+   amigable-123 en otra pestana disparaba el bloqueo de consultorio-123.
+   Queda UNA sola, mas arriba (guardiaDoblePestana), sobre Web Locks. */
 
 </script>
 
@@ -5209,16 +5191,6 @@ function _ocModalMostrar(mensaje, botonesConfig) {
   });
 }
 // Reemplazo de confirm(): resuelve true (aceptar) / false (cancelar).
-/* BUG HALLADO EN LA CAZA (2026-08-18): el rescate desde IndexedDB existia pero
-   NADIE lo escuchaba en este repo, asi que recuperaba el estado en memoria y la
-   pantalla seguia mostrando lo viejo. En un consultorio eso son abonos y pagos
-   que el medico no ve. */
-window.addEventListener("oc-estado-rescatado", function () {
-  ["cargarHoy", "cargarInventario", "cargarPacientes", "cargarClientes",
-   "cargarUbicaciones", "cargarComisiones"].forEach(function (fn) {
-    try { if (typeof window[fn] === "function") window[fn](); } catch (_) {}
-  });
-});
 function ocConfirm(mensaje, opts) {
   opts = opts || {};
   return _ocModalMostrar(mensaje, [
@@ -5267,7 +5239,7 @@ function ocPrompt(mensaje, valorInicial) {
      FEATURE: "Mostrar al cliente" — vista de mostrador fullscreen.
      Muestra solo nombre, foto y precio al cliente. Sin stock exacto,
      sin costo, sin proveedor, sin botones internos.
-     El encargado entra con el botón 👁 en la ficha y sale con el botón
+     El empleado entra con el botón 👁 en la ficha y sale con el botón
      "← Volver a mi vista" o con el auto-retorno de 60s por inactividad.
      ===================================================================== -->
 <div id="oc-customer-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--azul-oscuro,#1c3049);color:#fff;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;touch-action:none;">
@@ -5299,7 +5271,7 @@ let _occoProduct = null;    // producto actualmente en pantalla
 const _occoProductCache = new Map(); // id → product object, actualizado por pintarFicha()
 
 // Abre el overlay con los datos del producto p.
-// Llamado desde pintarFicha() cuando el encargado toca "👁 Mostrar al cliente".
+// Llamado desde pintarFicha() cuando el empleado toca "👁 Mostrar al cliente".
 function abrirVistaCliente(idOrObj) {
   const p = typeof idOrObj === "string" ? _occoProductCache.get(idOrObj) : idOrObj;
   if (!p) return; // producto no en caché aún — no debería ocurrir
@@ -5343,7 +5315,7 @@ function abrirVistaCliente(idOrObj) {
   // Arrancar countdown de 60s
   _iniciarCountdown();
 
-  // Cualquier toque reinicia el countdown (el encargado sigue mirando junto al cliente)
+  // Cualquier toque reinicia el countdown (el empleado sigue mirando junto al cliente)
   ol.addEventListener("touchstart", _resetCountdown, { passive: true });
   ol.addEventListener("click", _resetCountdown);
 }

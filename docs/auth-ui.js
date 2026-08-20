@@ -23,7 +23,7 @@
 // se ingresa por dígito (lo pidió explícitamente: "agrega dígitos").
 //
 // SEGURIDAD DE LOS PINS (crypto-store.js, cargar ANTES que este archivo):
-//   Los 3 PINs (dueño, encargado(s), subclave contable) ya NO viven en texto
+//   Los 3 PINs (dueño, empleado(s), subclave contable) ya NO viven en texto
 //   plano en localStorage. Se validan contra hashes PBKDF2 vía window.OCSecure
 //   — ver crypto-store.js para el detalle. Este archivo solo orquesta la UI y
 //   llama a OCSecure para verificar/guardar; nunca compara strings de PIN
@@ -85,7 +85,7 @@
     try {
       var ultimo = 0;
       // backup-scheduler.js deja la marca del ultimo respaldo hecho.
-      ["c123_backup_last_v1", "c123_backup_last_v", "c123_backup_last_v1"].forEach(function (k) {
+      ["c123_backup_last_v1", "c123_backup_last_v", "f123_backup_last_v1"].forEach(function (k) {
         var v = parseInt(localStorage.getItem(k) || "0", 10);
         if (v > ultimo) ultimo = v;
       });
@@ -101,8 +101,21 @@
     return out;
   }
 
+  /* CORTACIRCUITOS (portado de friendly-123, 2026-08-19; patron de cockatiel
+     escrito a mano). Sin esto, con el nodo caido cada llamada espera 8s de
+     timeout. Tras 5 fallos seguidos se pausa 5 min; un exito lo cierra. */
+  var _cbFallos = 0, _cbAbiertoHasta = 0;
+  var CB_TOPE = 5, CB_PAUSA_MS = 5 * 60 * 1000;
+  function _cbBloqueado() { return Date.now() < _cbAbiertoHasta; }
+  function _cbFallo() {
+    _cbFallos++;
+    if (_cbFallos >= CB_TOPE) { _cbAbiertoHasta = Date.now() + CB_PAUSA_MS; _cbFallos = 0; try { console.warn("[heartbeat] pausa 5 min"); } catch (_) {} }
+  }
+  function _cbExito() { _cbFallos = 0; _cbAbiertoHasta = 0; }
+
   async function enviarHeartbeat(datos) {
     try {
+      if (_cbBloqueado()) return;
       var url = (localStorage.getItem("c123_cf_worker_url") || "").trim() || OC_WORKER_URL;
       if (!url) return;
       var trim = function (v, n) { if (v == null) return v; var s = String(v); return s.length > n ? s.slice(0, n) : s; };
@@ -111,6 +124,7 @@
         instanceId: trim(datos.instanceId, 100),
         licenseCode: trim(datos.licenseCode, 40),
         email: trim(datos.email, 160),
+        whatsapp: trim(datos.whatsapp, 20),
         nombre: trim(datos.nombre, 120),
         apellido: trim(datos.apellido, 120),
         cedula: trim(datos.cedula, 40),
@@ -141,6 +155,7 @@
           body: JSON.stringify(payload),
           signal: ctrl.signal,
         });
+        if (res && res.ok) { _cbExito(); } else { _cbFallo(); }
         if (res && res.ok) {
           /* Se limpian SOLO si el Worker confirmo: con wifi caido los errores
              se quedan y viajan en el proximo heartbeat. */
@@ -151,13 +166,16 @@
           // respalde con sus propias manos.
           try { if (r && r.avisoRespaldo) mostrarAvisoRespaldoRemoto(r.avisoRespaldo); } catch (_) {}
           if (r && typeof r.estado === "string" && /^[a-z]{2,20}$/.test(r.estado)) { // whitelist 2026-07-17: una respuesta corrupta del worker no puede escribir estados basura
-            var owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
+            var owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
             owned.licenseEstado = r.estado;
             owned.licenseEstadoAt = Date.now();
-            localStorage.setItem("c123_owned", JSON.stringify(owned));
+            /* RESCATE DE LICENCIA (portado de friendly-123). Solo rellena un
+               hueco: nunca pisa un codigo que el dispositivo ya tiene. */
+            try { var _lr = r.licenseCode; if (!owned.licenseCode && typeof _lr === "string" && /^C123-[0-9A-Z*~$=-]{8,34}$/.test(_lr)) owned.licenseCode = _lr; } catch (_) {}
+            localStorage.setItem("f123_owned", JSON.stringify(owned));
           }
         }
-      } finally { clearTimeout(t); }
+      } catch (eRed) { _cbFallo(); throw eRed; } finally { clearTimeout(t); }
     } catch (_) { /* never block UI */ }
   }
 
@@ -203,7 +221,7 @@
   // puede redundar la apropiacion en el mismo dispositivo.
   const ACTIVATION_PIN = "7895"; // activacion de consultorio-123 (JFC 2026-08-05)
   function dispositivoApropiado() {
-    try { return !!(JSON.parse(localStorage.getItem("c123_owned") || "null") || {}).instanceId; }
+    try { return !!(JSON.parse(localStorage.getItem("f123_owned") || "null") || {}).instanceId; }
     catch (_) { return false; }
   }
   // Codigo de sala para "sincro-equipos" (homologado de AMIGABLE, 2026-07-23).
@@ -535,7 +553,7 @@
     // redundar) — cae al flujo normal y solo entra si es el PIN de dueno.
     if (code === ACTIVATION_PIN && !dispositivoApropiado()) { registrarExito(); return iniciarActivacion(); }
     // Bloqueo anti fuerza bruta de crypto-store (capa de datos): si está
-    // activo, verificarOwner/Encargado devuelven false AUNQUE el PIN sea
+    // activo, verificarOwner/Empleado devuelven false AUNQUE el PIN sea
     // correcto. Sin este chequeo previo, la UI diría "Clave incorrecta" a un
     // dueño con la clave buena — mensaje falso y desesperante. Se avisa
     // honesto, con segundos, y NO se registra otro fallo encima.
@@ -549,7 +567,7 @@
     // defecto, crypto-store.js) ahora TAMBIEN funciona directo en el candado
     // principal, sin pasar por dueno -> Avanzado -> "Ver capa contable".
     // Reusa verificarAcct tal cual (no se duplica la verificacion). Va DESPUES
-    // de owner/encargado a proposito: si el dueno usara 357 como su propio PIN,
+    // de owner/empleado a proposito: si el dueno usara 357 como su propio PIN,
     // verificarOwner ya lo habria resuelto arriba — sin ambiguedad.
     if (await window.OCSecure.verificarAcct(code)) { registrarExito(); return entrar("contador"); }
     // El acceso demo (456) SOLO existe en la copia pública de demostración.
@@ -558,10 +576,10 @@
     // Fix de seguridad 2026-07-08.
     if (code === DEMO_PIN && !dispositivoApropiado()) { registrarExito(); return entrar("demo"); }
     // Multi-usuario (2026-07-07): si el PIN no coincidio con dueno/empleado-gen/demo,
-    // pregunta al backend si es un encargado nombrado por el dueno en Avanzado.
+    // pregunta al backend si es un empleado nombrado por el dueno en Avanzado.
     const uNombrado = await verificarUsuarioNombrado(code);
     // Los admins nombrados entran como "admin" (acceso nivel dueño con restricciones);
-    // los encargados nombrados siguen entrando como "empleado".
+    // los empleados nombrados siguen entrando como "empleado".
     if (uNombrado) { window.OCCurrentUser = uNombrado; registrarExito(); return entrar(uNombrado.rol === "admin" ? "admin" : "empleado"); }
     registrarFallo();
     const restante = msRestantesBloqueo();
@@ -622,7 +640,7 @@
       setTimeout(cerrar, 10000);
     } catch (_) {}
   }
-  // Consulta al backend si el PIN corresponde a un encargado nombrado.
+  // Consulta al backend si el PIN corresponde a un empleado nombrado.
   // Retorna { id, nombre, rol } o null. Si la red o el endpoint fallan,
   // retorna null silenciosamente (no bloquea el flujo normal).
   async function verificarUsuarioNombrado(pin) {
@@ -661,7 +679,7 @@
       + "#oc-act label.op strong{font-size:15px;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;}"
       + "#oc-act label.op span{display:block;font-size:14px;color:#2C3E50 !important;-webkit-text-fill-color:#2C3E50 !important;margin-top:2px;}"
       + "#oc-act .lbl{display:block;font-size:14px;font-weight:700;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;margin:14px 0 6px;}"
-      + "#oc-act input[type=email]{width:100%;box-sizing:border-box;padding:11px 12px;border:2px solid #5294AC;border-radius:8px;font-size:16px;font-family:var(--font-mono,monospace);color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;background:#FFFFFF;}"
+      + "#oc-act input[type=email],#oc-act input[type=tel]{width:100%;box-sizing:border-box;padding:11px 12px;border:2px solid #5294AC;border-radius:8px;font-size:16px;font-family:var(--font-mono,monospace);color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;background:#FFFFFF;}"
       + "#oc-act .primario{width:100%;min-height:48px;margin-top:16px;padding:14px;border-radius:9px;border:2px solid #E86040;background:#E86040;color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;font-size:16px;font-weight:700;cursor:pointer;}"
       + "#oc-act .secundario{width:100%;min-height:44px;margin-top:10px;padding:11px;border-radius:9px;border:2px solid #5294AC;background:transparent;color:#2E6278 !important;-webkit-text-fill-color:#2E6278 !important;font-size:15px;font-weight:700;cursor:pointer;}"
       + "#oc-act .msg{font-size:14px;font-weight:700;margin:10px 0 0;color:#B0183E !important;-webkit-text-fill-color:#B0183E !important;}"
@@ -682,6 +700,11 @@
       +     '<label class="op"><input type="radio" name="oc-act-datos" value="conservar"><strong>' + window.t("auth.act.keepTitle") + '</strong><span>' + window.t("auth.act.keepDesc") + '</span></label>'
       +     '<label class="lbl" for="oc-act-email">' + window.t("auth.act.emailLabel") + '</label>'
       +     '<input id="oc-act-email" type="email" inputmode="email" autocomplete="email" placeholder="' + window.t("auth.act.emailPlaceholder") + '">'
+      /* TELEFONO OBLIGATORIO (portado de friendly-123, JFC 2026-08-19, regla
+         para TODAS sus apps: "Telf es mas importante que ID incluso"). Sin
+         depender de CDN alguno: validacion a mano, 7-15 digitos. */
+      +     '<label class="lbl" for="oc-act-tel">' + window.t("auth.act.phoneLabel") + '</label>'
+      +     '<input id="oc-act-tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="' + window.t("auth.act.phonePlaceholder") + '">'
       +     '<button id="oc-act-confirmar" class="primario">' + window.t("auth.act.confirmBtn") + '</button>'
       +     '<button id="oc-act-cancelar" class="secundario">' + window.t("auth.act.cancelBtn") + '</button>'
       +     '<p id="oc-act-msg" class="msg"></p>'
@@ -705,6 +728,9 @@
     wrap.querySelector("#oc-act-confirmar").addEventListener("click", async function () {
       var email = (emailIn.value || "").trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setMsg(window.t("auth.act.invalidEmail")); emailIn.focus(); return; }
+      var telIn = wrap.querySelector("#oc-act-tel");
+      var telDigitos = ((telIn && telIn.value) || "").replace(/\D/g, "");
+      if (telDigitos.length < 7 || telDigitos.length > 15) { setMsg(window.t("auth.act.invalidPhone")); if (telIn) telIn.focus(); return; }
       var vaciar = (wrap.querySelector('input[name="oc-act-datos"]:checked') || {}).value !== "conservar";
       var btn = wrap.querySelector("#oc-act-confirmar");
       btn.disabled = true; setMsg(window.t("auth.act.activating"), true);
@@ -729,17 +755,23 @@
       }
       try { window.OCSecure.actualizarCorreo(email); } catch (_) {}
       if (vaciar) {
-        // #5 (JFC 2026-08-06): antes solo borraba "c123_foto_percha_", pero las
+        // #5 (JFC 2026-08-06): antes solo borraba "f123_foto_percha_", pero las
         // fotos se guardan bajo "vp_foto_percha_" (vista-perchas), asi que al
         // "empezar vacio" las fotos demo sobrevivian. Ahora limpia ambos prefijos.
-        try { var rm = []; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && (k.indexOf("c123_foto_percha_") === 0 || k.indexOf("vp_foto_percha_") === 0)) rm.push(k); } rm.forEach(function (kk) { localStorage.removeItem(kk); }); } catch (_) {}
+        try { var rm = []; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && (k.indexOf("f123_foto_percha_") === 0 || k.indexOf("vp_foto_percha_") === 0)) rm.push(k); } rm.forEach(function (kk) { localStorage.removeItem(kk); }); } catch (_) {}
       }
       // Sincro-equipos (homologado de AMIGABLE, 2026-07-23): generar el codigo
       // de sala y activar sync en el mismo instante — sin pantalla extra. Sync
       // queda encendido 24/7 desde ahora, no es un "modo evento".
       var syncCode = generarCodigoSync();
       try { if (window.OCSyncControl) window.OCSyncControl.activar(syncCode); } catch (_) {}
-      try { localStorage.setItem("c123_owned", JSON.stringify({ instanceId: idInstancia, email: email, activatedAt: Date.now(), syncCode: syncCode })); } catch (_) {}
+      try { if (window.OCSecure && window.OCSecure.actualizarWhatsapp) window.OCSecure.actualizarWhatsapp(telDigitos); } catch (_) {}
+      /* BUG DE RAIZ (portado de friendly-123, 2026-08-19): aqui se guardaba
+         SOLO syncCode, nunca licenseCode, asi que NINGUNA instancia llegaba a
+         registrar su licencia. Se guardan los dos: hoy valen lo mismo, en
+         campos separados para poder rotar la sala sin tocar la licencia. */
+      var licenseCode = syncCode;
+      try { localStorage.setItem("f123_owned", JSON.stringify({ instanceId: idInstancia, email: email, whatsapp: telDigitos, activatedAt: Date.now(), syncCode: syncCode, licenseCode: licenseCode })); } catch (_) {}
       // NO marcar f123_bienvenida_v3 aqui — el wizard debe mostrarse de verdad
       // tras el primer login post-activacion (ver welcome-ui.js). Bug anterior:
       // se marcaba "vista" en este punto sin que el usuario la viera nunca.
@@ -750,8 +782,8 @@
       // LEE el resultado y lo recuerda, para poder avisar si quedo denegado.
       try { if (window.OCStorageDurable) window.OCStorageDurable.verificarYSolicitar(); } catch (_) {}
       // Ping: record new activation in license panel
-      var ow2 = {}; try { ow2 = JSON.parse(localStorage.getItem("c123_owned") || "null") || {}; } catch (_) {}
-      enviarHeartbeat({ instanceId: idInstancia, licenseCode: ow2.licenseCode || "", email: email, activatedAt: ow2.activatedAt, accion: "register" });
+      var ow2 = {}; try { ow2 = JSON.parse(localStorage.getItem("f123_owned") || "null") || {}; } catch (_) {}
+      enviarHeartbeat({ instanceId: idInstancia, licenseCode: ow2.licenseCode || "", email: email, whatsapp: telDigitos, activatedAt: ow2.activatedAt, accion: "register" });
       var seguro = email.replace(/[&<>"']/g, "");
       // BUG FIJADO (JFC 2026-08-06): decia "tu PIN es 789" pero el PIN que se
       // fija de verdad (fijarOwnerPin de arriba) es ACTIVATION_PIN = 7895 — el
@@ -799,7 +831,7 @@
     const esDemo = nuevoRol === "demo";
     if (!esDemo) {
       try {
-        var owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
+        var owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
         if (owned.licenseEstado === "bloqueada") {
           var _esESb = true; try { _esESb = !window.OCI18n || window.OCI18n.getLang() !== "en"; } catch (_) {}
           error(_esESb ? "Este dispositivo está bloqueado. Contacta al administrador de consultorio-123." : "This instance is blocked. Contact the consultorio-123 administrator.");
@@ -824,13 +856,13 @@
     window.scrollTo(0, 0);
     montarLogout();
     reiniciarInactividad();
-    // Encargados y admins aterrizan en Hoy (vista operativa del turno).
+    // Empleados y admins aterrizan en Hoy (vista operativa del turno).
     if (rol === "empleado" || rol === "admin") { const n = document.querySelector('nav button[data-vista="hoy"]'); if (n) n.click(); }
 
         // Ping: heartbeat on each login
         try {
-          var ow3 = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
-          if (ow3.instanceId) enviarHeartbeat({ instanceId: ow3.instanceId, licenseCode: ow3.licenseCode || "", email: ow3.email || "", accion: "login" });
+          var ow3 = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
+          if (ow3.instanceId) enviarHeartbeat({ instanceId: ow3.instanceId, licenseCode: ow3.licenseCode || "", email: ow3.email || "", whatsapp: ow3.whatsapp || "", accion: "login" });
         } catch (_) {}
             window.dispatchEvent(new CustomEvent("oc-login", { detail: { rol, demo: esDemo } }));
     // El rol contador aterriza directo en su vista propia (creada al vuelo
@@ -843,7 +875,7 @@
   // ---------------------------------------------------------------------------
   // TIMEOUT DE INACTIVIDAD (tronco 1, JFC 2026-06-30): 30 min sin ningún click
   // ni tecla en toda la página cierran la sesión solos. Crítico porque el POS
-  // corre en una tablet compartida de percha — el encargado del turno
+  // corre en una tablet compartida de percha — el empleado del turno
   // siguiente no debe encontrarse la sesión del dueño abierta con acceso a
   // liquidaciones y claves. Se reinicia con CUALQUIER click o keydown en el
   // documento (no solo dentro de la app), mientras haya alguien logueado.
@@ -866,7 +898,7 @@
     clearTimeout(temporizadorInactividad);
     rol = null;
     demoSesion = false;
-    window.OCCurrentUser = null; // borrar sesion de encargado nombrado
+    window.OCCurrentUser = null; // borrar sesion de empleado nombrado
     document.body.classList.remove("rol-empleado", "rol-dueno", "rol-demo", "rol-contador", "rol-admin");
     nuevoTeclado();
     gate.style.display = "flex";
@@ -875,7 +907,7 @@
     $("oc-msg").textContent = mensaje || "";
     const b = document.getElementById("oc-logout");
     if (b) b.remove();
-    // Fix 2026-07-08: el chip con el nombre del encargado quedaba pegado tras
+    // Fix 2026-07-08: el chip con el nombre del empleado quedaba pegado tras
     // salir y en la sesión siguiente mostraba al operador equivocado. Se retira.
     const chipViejo = document.getElementById("oc-user-chip");
     if (chipViejo) chipViejo.remove();
@@ -904,7 +936,7 @@
   // Sin modales, sin pasos: solo el mensaje en pantalla.
   // ---------------------------------------------------------------------------
   // Unirme a mi equipo (homologado de AMIGABLE, 2026-07-23): flujo liviano
-  // para dispositivos de encargados/admins — solo pide el codigo de sala del
+  // para dispositivos de empleados/admins — solo pide el codigo de sala del
   // negocio, no activa modo dueno ni toca f123_owned. Una vez, para siempre.
   /* =====================================================================
      BLINDAJE DE MODALES .oc-subgate  (homologado de AMIGABLE, 2026-07-28)
@@ -1106,7 +1138,7 @@
     msgEl.textContent = window.t("auth.gate.sending");
     // Bug fix (2026-07-21): pasar instanceId para que el Worker pueda validar
     // la instancia en KV (anti-abuso leve en /recover-pin).
-    var _f123owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
+    var _f123owned = JSON.parse(localStorage.getItem("f123_owned") || "null") || {};
     const resultado = window.OCEmailRecovery
       ? await window.OCEmailRecovery.enviarCodigo(email, pin, _f123owned.instanceId || "")
       : { enviado: false, codigo: pin };
@@ -1134,7 +1166,7 @@
     const b = document.createElement("button");
     b.id = "oc-logout"; b.textContent = window.t("auth.gate.logout");
     b.addEventListener("click", () => cerrarSesion());
-    // Si hay un encargado nombrado activo, mostrar su nombre junto al boton Salir
+    // Si hay un empleado nombrado activo, mostrar su nombre junto al boton Salir
     // para que siempre sea claro quien esta operando el sistema.
     if (window.OCCurrentUser && window.OCCurrentUser.nombre) {
       const chip = document.createElement("span");

@@ -115,7 +115,19 @@ async function handleCheckin(req, env) {
   const existente = existenteRaw ? JSON.parse(existenteRaw) : {};
 
   // Determine product
-  const producto = body.producto === "amigable" ? "amigable-123" : "friendly-123";
+  /* QUE APP ES (portado de friendly-123/amigable-123, 2026-08-19). Antes se
+     comparaba contra un valor que ninguna app manda. Ahora manda el PREFIJO
+     DE LA LICENCIA: C123- para consultorio-123. */
+  const _lic = String(body.licenseCode || existente.licenseCode || "").toUpperCase();
+  const _prod = String(body.producto || "").toLowerCase();
+  let producto;
+  if (_lic.startsWith("AMG-")) producto = "amigable-123";
+  else if (_lic.startsWith("F123-")) producto = "friendly-123";
+  else if (_lic.startsWith("C123-")) producto = "consultorio-123";
+  else if (_prod.indexOf("amigable") === 0) producto = "amigable-123";
+  else if (_prod.indexOf("friendly") === 0) producto = "friendly-123";
+  else if (_prod.indexOf("consultorio") === 0) producto = "consultorio-123";
+  else producto = existente.producto || "consultorio-123";
 
   const registro = {
     instanceId,
@@ -146,7 +158,11 @@ async function handleCheckin(req, env) {
     lastAccion: body.accion || "checkin",
   };
   await guardarConHistorial(env, instanceId, registro);
-  return json({ ok: true, estado: registro.estado });
+  /* RESCATE DE LICENCIA (portado de friendly-123, ver RESCATE-LICENCIAS.md
+     alla). Devuelve el licenseCode que este nodo conoce; el dispositivo lo
+     adopta SOLO si le falta el suyo. Seguro: hace falta el instanceId, un
+     uuid que solo tiene ese dispositivo. */
+  return json({ ok: true, estado: registro.estado, licenseCode: registro.licenseCode || "" });
 }
 
 // /recover-pin — envía el PIN del dueño a su correo vía Resend.
