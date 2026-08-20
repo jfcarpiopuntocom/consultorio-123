@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v35"; // bumped 2026-08-20: welcome-ui.js reescrito (era copia de AMIGABLE, ingles, sin licencia); quitada bifurcacion 789 no pedida
+const CACHE = "c123-shell-v36"; // bumped 2026-08-20: vista-perchas.js dormante (retail, no aplica a consultorio; archivo intacto, solo dejo de cargar)
 const SHELL = [
   "./",
   "./index.html",
@@ -38,7 +38,6 @@ const SHELL = [
   "./help-ui.js",
   "./idb-fotos.js",
   "./idb-archivo.js",
-  "./vista-perchas.js",
   "./welcome-ui.js",
   "./tutorial-ui.js",
   /* FALTABAN 24 scripts (caza 2026-08-19, portado del mismo bug encontrado

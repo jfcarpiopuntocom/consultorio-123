@@ -1,3 +1,13 @@
+// DORMANTE en consultorio-123 (JFC 2026-08-20). NO BORRAR -- solo apagado.
+// Este archivo es de AMIGABLE (retail): "perchas" no existe en un
+// consultorio medico. Ya no carga (se quito su <script> de index.html y su
+// entrada del SHELL en sw.js) y la seccion #vista-perchas del HTML no tiene
+// ningun nav que la alcance. Para reactivar: restaurar la linea
+// <script src="./vista-perchas.js"></script> en index.html y su entrada en
+// sw.js SHELL. Se deja el codigo intacto abajo, tal cual estaba, por si
+// algun dia sirve de base para un panel equivalente (ej. salas/consultorios
+// fisicos) -- reordenar y reusar antes que reescribir de cero.
+//
 // COMPARTIDO: portado y mantenido identico entre apps hermanas a proposito.
 // vista-perchas.js — Panel de perchas tipo CARPETA con semáforo de META.
 // AMIGABLE (demo de Amigable: punto de venta y control de inventario)
