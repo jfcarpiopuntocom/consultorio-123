@@ -27,9 +27,44 @@ if [ "$sw_ver" != "$vj_ver" ]; then
   falta=1
 fi
 
+# G2 (JFC 2026-08-20, plan de guards): claves de localStorage/IndexedDB con
+# el prefijo de OTRA app hermana coladas por copy-paste sin adaptar.
+ajenas=$(grep -rnE '=\s*"(amigable|f123|amg)_[a-z_]+"' docs/*.js 2>/dev/null | grep -vE '_[0-9]{4}-[0-9]{2}-[0-9]{2}_' | grep -vi "VIEJA" | sort -u)
+if [ -n "$ajenas" ]; then
+  echo "CLAVES DE OTRA APP (G2): esta app es c123_*, pero aparecen literales ajenos:"
+  echo "$ajenas" | sed 's/^/  /'
+  falta=1
+fi
+
+# G4 (JFC 2026-08-20, plan de guards): todo boton data-vista/data-at-tab tiene
+# que tener su seccion/panel correspondiente.
+nav_vistas=$(grep -oE 'data-vista="[a-zA-Z0-9_-]+"' docs/index.html | grep -oE '"[a-zA-Z0-9_-]+"' | tr -d '"' | sort -u)
+secciones=$(grep -oE '<section id="vista-[a-zA-Z0-9_-]+"' docs/index.html | grep -oE 'vista-[a-zA-Z0-9_-]+' | sed 's/^vista-//' | sort -u)
+huerfanos_nav=$(comm -23 <(echo "$nav_vistas") <(echo "$secciones"))
+huerfanas_seccion=$(comm -13 <(echo "$nav_vistas") <(echo "$secciones"))
+if [ -n "$huerfanos_nav" ]; then
+  echo "NAV SIN SECCION (G4): data-vista sin id=\"vista-*\" correspondiente:"
+  echo "$huerfanos_nav" | sed 's/^/  /'
+  falta=1
+fi
+if [ -n "$huerfanas_seccion" ]; then
+  echo "AVISO (G4): seccion(es) vista-* sin boton de nav que la alcance (puede ser a proposito, ej. tabs internos) — revisar a mano:"
+  echo "$huerfanas_seccion" | sed 's/^/  /'
+fi
+at_tabs=$(grep -oE 'data-at-tab="[a-zA-Z0-9_-]+"' docs/index.html | grep -oE '"[a-zA-Z0-9_-]+"' | tr -d '"' | sort -u)
+at_panels=$(grep -oE 'id="at-tabpanel-[a-zA-Z0-9_-]+"' docs/index.html | grep -oE 'at-tabpanel-[a-zA-Z0-9_-]+' | sed 's/^at-tabpanel-//' | sort -u)
+huerfanos_tab=$(comm -23 <(echo "$at_tabs") <(echo "$at_panels"))
+if [ -n "$huerfanos_tab" ]; then
+  echo "TAB SIN PANEL (G4): data-at-tab sin id=\"at-tabpanel-*\" correspondiente:"
+  echo "$huerfanos_tab" | sed 's/^/  /'
+  falta=1
+fi
+
 if [ "$falta" = "0" ]; then
   echo "OK — todos los scripts de index.html estan en el SHELL del service worker."
   echo "OK — sw.js y version.json coinciden en $sw_ver."
+  echo "OK — sin claves de otra app hermana (G2)."
+  echo "OK — todo data-vista/data-at-tab tiene su seccion/panel (G4)."
   grep -oE 'c123-shell-v[0-9]+' docs/sw.js | head -1 | sed 's/^/CACHE actual: /'
   echo "Recuerda: si cambiaste el shell, el CACHE tiene que subir de numero o el"
   echo "telefono del cliente se queda con la version vieja para siempre."
