@@ -988,7 +988,104 @@
       }
     } catch (_) {}
   }
-  window.OCSync = {
+  
+  /* ============================================================================
+     HUELLA DEL CATALOGO + MERGE ENTRE DISPOSITIVOS (portado de friendly-123/
+     amigable-123, 2026-08-19, a peticion de JFC: "que el sync EN SERIO
+     funcione"). Opera sobre lo que HOY existe en el estado (productos +
+     ubicaciones) sin rediseñar el modelo de datos: cuando este se renombre a
+     paciente/consultorio, esta misma logica sigue sirviendo sin cambios de
+     forma, solo de nombre de campo.
+
+     EL PROBLEMA QUE RESUELVE: aplicarOpRemota() solo aplica deltas de stock
+     sobre registros que YA existen en los dos lados. El catalogo nunca viaja
+     por si solo. Dos dispositivos podian estar conectados, hablando, y con
+     datos distintos para siempre.
+
+     DOS REGLAS DURAS: 1) SUMA, NUNCA BORRA. 2) NADA SE APLICA SIN QUE UNA
+     PERSONA LO CONFIRME EN PANTALLA. */
+  function _c123HuellaTexto() {
+    var u = ubicaciones.slice().sort(function (a, b) { return String(a.id).localeCompare(String(b.id)); })
+      .map(function (x) { return String(x.id) + "|" + String(x.nombre || ""); }).join(";");
+    var p = productos.slice().sort(function (a, b) { return String(a.id).localeCompare(String(b.id)); })
+      .map(function (x) { return String(x.id) + "|" + String(x.nombre || "") + "|" + (Number(x.precio) || 0) + "|" + (Number(x.costo) || 0); }).join(";");
+    return "U:" + u + "#P:" + p;
+  }
+  function _c123Fnv1a(txt) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < txt.length; i++) { h ^= txt.charCodeAt(i); h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0; }
+    return h >>> 0;
+  }
+  function huellaCatalogo() {
+    try {
+      var h = _c123Fnv1a(_c123HuellaTexto());
+      return { corta: "#" + h.toString(36).toUpperCase().slice(-4).padStart(4, "0"), completa: h.toString(36).toUpperCase(), productos: productos.length, perchas: ubicaciones.length };
+    } catch (_) { return null; }
+  }
+  var _C123_RANGO = { dueno: 3, admin: 2, empleado: 1, contador: 1 };
+  function _c123Rango(rol) { return _C123_RANGO[String(rol || "").toLowerCase()] || 0; }
+  function _c123RolLocal() { try { return (window.OCAuth && window.OCAuth.rolActual) ? window.OCAuth.rolActual() : ""; } catch (_) { return ""; } }
+
+  function compararCatalogo(remoto, rolRemoto) {
+    if (!remoto || !Array.isArray(remoto.ubicaciones) || !Array.isArray(remoto.productos)) return null;
+    var rl = _c123Rango(_c123RolLocal()), rr = _c123Rango(rolRemoto);
+    var out = { nuevasPerchas: [], nuevosProductos: [], conflictos: [], soloMios: 0, ganaElOtro: (rr > 0 && rl > 0 && rr > rl) };
+    var misU = new Map(ubicaciones.map(function (u) { return [String(u.id), u]; }));
+    var misP = new Map(productos.map(function (p) { return [String(p.id), p]; }));
+    remoto.ubicaciones.forEach(function (u) {
+      if (!u || !u.id) return;
+      var mia = misU.get(String(u.id));
+      if (!mia) { out.nuevasPerchas.push({ id: u.id, nombre: u.nombre || "" }); return; }
+      if (String(mia.nombre || "") !== String(u.nombre || "")) out.conflictos.push({ que: "percha", id: u.id, mio: mia.nombre, suyo: u.nombre });
+    });
+    remoto.productos.forEach(function (p) {
+      if (!p || !p.id) return;
+      var mio = misP.get(String(p.id));
+      if (!mio) { out.nuevosProductos.push({ id: p.id, nombre: p.nombre || "", precio: Number(p.precio) || 0 }); return; }
+      if (Number(mio.precio) !== Number(p.precio) || String(mio.nombre || "") !== String(p.nombre || "")) out.conflictos.push({ que: "producto", id: p.id, mio: { nombre: mio.nombre, precio: mio.precio }, suyo: { nombre: p.nombre, precio: p.precio } });
+    });
+    var idsRemotos = new Set(remoto.productos.map(function (x) { return String(x && x.id); }));
+    out.soloMios = productos.filter(function (x) { return !idsRemotos.has(String(x.id)); }).length;
+    return out;
+  }
+
+  function aplicarCatalogo(remoto, rolRemoto) {
+    var dif = compararCatalogo(remoto, rolRemoto);
+    if (!dif) return { ok: false, error: "El catalogo que llego no se puede leer." };
+    var manda = dif.ganaElOtro, agU = 0, agP = 0, act = 0;
+    remoto.ubicaciones.forEach(function (u) {
+      if (!u || !u.id) return;
+      var mia = ubicaciones.find(function (x) { return String(x.id) === String(u.id); });
+      if (!mia) { ubicaciones.push(Object.assign({}, u, { activa: u.activa !== false })); agU++; }
+      else if (manda && String(mia.nombre || "") !== String(u.nombre || "") && esTextoCorto(String(u.nombre || ""), 240)) { mia.nombre = u.nombre; act++; }
+    });
+    remoto.productos.forEach(function (p) {
+      if (!p || !p.id) return;
+      var mio = productos.find(function (x) { return String(x.id) === String(p.id); });
+      if (!mio) { productos.push(Object.assign({}, p, { stockActual: 0 })); agP++; }
+      else if (manda) {
+        if (esTextoCorto(String(p.nombre || ""), 240) && String(mio.nombre) !== String(p.nombre)) { mio.nombre = p.nombre; act++; }
+        if (Number.isFinite(Number(p.precio)) && Number(p.precio) >= 0 && Number(mio.precio) !== Number(p.precio)) { mio.precio = Number(p.precio); act++; }
+      }
+    });
+    ubicaciones.forEach(function (u) { if (!(u.id in gastosMensuales)) gastosMensuales[u.id] = 0; });
+    mov("merge-catalogo", { perchasAgregadas: agU, productosAgregados: agP, actualizados: act, desde: remoto.deviceNombre || "otro dispositivo" });
+    guardarEstadoLocal();
+    return { ok: true, agregadasU: agU, agregadosP: agP, actualizados: act, huella: huellaCatalogo() };
+  }
+
+window.OCSync = {
+    huella: huellaCatalogo,
+    compararCatalogo: compararCatalogo,
+    aplicarCatalogo: aplicarCatalogo,
+    catalogoPropio: function () {
+      return {
+        ubicaciones: ubicaciones.map(function (u) { return { id: u.id, nombre: u.nombre, tipo: u.tipo, activa: u.activa }; }),
+        productos: productos.map(function (p) { return { id: p.id, nombre: p.nombre, sku: p.sku, barcode: p.barcode, categoria: p.categoria, precio: p.precio, costo: p.costo, ubicacionId: p.ubicacionId }; }),
+        huella: huellaCatalogo(),
+      };
+    },
+
     // Llamado por sync-realtime.js al recibir un Op de otro dispositivo. Si
     // el resultado queda negativo, se deja ver (mov "alerta-descuadre") en
     // vez de esconderlo: eso es un sobrante real que ocurrio en el mundo

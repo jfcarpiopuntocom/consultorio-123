@@ -452,12 +452,100 @@
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
             <button id="oc-sync-compartir" class="ir" style="background:#25D366;border-color:#1da851;">${window.t("sync.panel.share")}</button>
             <button id="oc-sync-resincronizar">${window.t("sync.panel.resync")}</button>
+            <button id="oc-sync-mergear" class="ir" style="background:#2C3E50;border-color:#0F1923;color:#FFFFFF;">Juntar datos con mi equipo</button>
             <button id="oc-sync-rotar" style="border-color:#E86040;color:#E86040;">Cambiar el c&oacute;digo</button>
         <button id="oc-sync-desactivar" style="border-color:var(--rojo);color:var(--rojo);">${window.t("sync.panel.deactivate")}</button>
           </div>
         </div>
         <p id="oc-sync-msg" style="font-size:13px;margin-top:8px;font-weight:700;"></p>`;
       vista.appendChild(panel);
+
+      /* JUNTAR CATALOGOS (portado de friendly-123/amigable-123, 2026-08-19,
+         a pedido de JFC: "que el sync EN SERIO funcione"). Se pide, se junta
+         lo que llega, se enseña el conteo exacto, y recien ahi decide una
+         persona. SUMA, NUNCA BORRA. */
+      (function () {
+        const btnM = document.getElementById("oc-sync-mergear");
+        if (!btnM) return;
+        let piezas = null, temporizador = null;
+        function cerrarModal() { const m = document.getElementById("oc-merge-modal"); if (m) m.remove(); }
+        function pintarPrevio(cat, rolRemoto) {
+          const dif = window.OCSync.compararCatalogo(cat, rolRemoto);
+          cerrarModal();
+          const m = document.createElement("div");
+          m.id = "oc-merge-modal";
+          m.style.cssText = "position:fixed;inset:0;z-index:10006;background:#0F1923EE;display:flex;align-items:center;justify-content:center;padding:20px;";
+          if (!dif) {
+            m.innerHTML = '<div style="background:#FFF;border-radius:14px;padding:22px;max-width:420px;"><p style="font-size:16px;color:#0F1923;margin:0 0 14px;">Los datos que llegaron no se pudieron leer. No se cambio nada.</p><button type="button" id="oc-merge-x" style="width:100%;min-height:48px;border:none;border-radius:10px;background:#2C3E50;color:#FFF;font-size:16px;font-weight:700;cursor:pointer;">Cerrar</button></div>';
+          } else {
+            const nada = !dif.nuevasPerchas.length && !dif.nuevosProductos.length && !dif.conflictos.length;
+            m.innerHTML =
+              '<div style="background:#FFF;border-radius:14px;padding:24px 22px;max-width:470px;width:100%;text-align:left;max-height:86vh;overflow-y:auto;">' +
+              '<h3 style="font-size:20px;font-weight:800;margin:0 0 12px;color:#0F1923;">Juntar datos</h3>' +
+              (nada
+                ? '<p style="font-size:16px;line-height:1.5;color:#2C3E50;margin:0 0 16px;">No hay nada que juntar: este dispositivo ya tiene los mismos datos que tu equipo.</p>'
+                : '<p style="font-size:15px;line-height:1.55;color:#2C3E50;margin:0 0 14px;">Esto es exactamente lo que va a cambiar en ESTE dispositivo:</p>' +
+                  '<ul style="font-size:16px;line-height:1.7;color:#0F1923;margin:0 0 14px;padding-left:20px;">' +
+                  (dif.nuevasPerchas.length ? "<li><strong>+ " + dif.nuevasPerchas.length + "</strong> registro(s) nuevos de ubicacion</li>" : "") +
+                  (dif.nuevosProductos.length ? "<li><strong>+ " + dif.nuevosProductos.length + "</strong> registro(s) nuevos</li>" : "") +
+                  (dif.conflictos.length ? "<li><strong>" + dif.conflictos.length + "</strong> con dato distinto" + (dif.ganaElOtro ? " — gana el suyo (rol mas alto)" : " — se conserva el tuyo") + "</li>" : "") +
+                  '<li style="color:#1a6e3c;"><strong>No se va a borrar nada.</strong></li>' +
+                  "</ul>") +
+              '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+              (nada ? "" : '<button type="button" id="oc-merge-ok" style="flex:1;min-width:150px;min-height:48px;border:none;border-radius:10px;background:#E86040;color:#FFF;font-size:16px;font-weight:700;cursor:pointer;">Juntar ahora</button>') +
+              '<button type="button" id="oc-merge-x" style="flex:1;min-width:110px;min-height:48px;border:2px solid #2C3E50;border-radius:10px;background:transparent;color:#0F1923;font-size:16px;font-weight:700;cursor:pointer;">' + (nada ? "Cerrar" : "Cancelar") + "</button>" +
+              '</div><p id="oc-merge-msg" style="font-size:14px;font-weight:700;margin:12px 0 0;"></p></div>';
+          }
+          document.body.appendChild(m);
+          document.getElementById("oc-merge-x").addEventListener("click", cerrarModal);
+          const ok = document.getElementById("oc-merge-ok");
+          if (ok) ok.addEventListener("click", function () {
+            ok.disabled = true;
+            const r = window.OCSync.aplicarCatalogo(cat, rolRemoto);
+            const msg = document.getElementById("oc-merge-msg");
+            if (!r.ok) { msg.style.color = "var(--rojo,#a3392a)"; msg.textContent = r.error; ok.disabled = false; return; }
+            msg.style.color = "var(--sim-verde-dk,#1a6e3c)";
+            msg.textContent = "Listo: +" + r.agregadasU + " ubicacion(es), +" + r.agregadosP + " registro(s).";
+            setTimeout(function () { location.reload(); }, 2400);
+          });
+        }
+        btnM.addEventListener("click", function () {
+          const msg = document.getElementById("oc-sync-msg");
+          if (!window.OCSyncControl.pedirCatalogo || !window.OCSync || !window.OCSync.compararCatalogo) {
+            msg.style.color = "var(--rojo,#a3392a)"; msg.textContent = "Este dispositivo todavia no puede juntar datos."; return;
+          }
+          piezas = { ubicaciones: [], productos: [], rol: "", huella: "", esperados: 0, vistos: 0 };
+          msg.style.color = "var(--ink-soft)";
+          msg.textContent = "Pidiendole los datos a tu equipo...";
+          window.OCSyncControl.pedirCatalogo();
+          clearTimeout(temporizador);
+          temporizador = setTimeout(function () {
+            if (!piezas || !piezas.vistos) { msg.style.color = "var(--rojo,#a3392a)"; msg.textContent = "Ningun otro dispositivo contesto. Abre la app en el otro, con el mismo codigo, y vuelve a intentar."; }
+          }, 9000);
+        });
+        window.addEventListener("oc-catalogo-trozo", function (ev) {
+          try {
+            if (!piezas) return;
+            const pl = ev.detail && ev.detail.payload; if (!pl) return;
+            piezas.rol = pl.rol || piezas.rol;
+            piezas.huella = pl.huella || piezas.huella;
+            piezas.esperados = pl.deTotal || piezas.esperados;
+            if (Array.isArray(pl.filas)) {
+              if (pl.tabla === "ubicaciones") piezas.ubicaciones = piezas.ubicaciones.concat(pl.filas);
+              if (pl.tabla === "productos") piezas.productos = piezas.productos.concat(pl.filas);
+            }
+            piezas.vistos++;
+            if (piezas.esperados && piezas.vistos >= piezas.esperados) {
+              clearTimeout(temporizador);
+              const cat = { ubicaciones: piezas.ubicaciones, productos: piezas.productos, huella: piezas.huella };
+              const rol = piezas.rol; piezas = null;
+              document.getElementById("oc-sync-msg").textContent = "";
+              pintarPrevio(cat, rol);
+            }
+          } catch (_) {}
+        });
+      })();
+
 
       const pillTexto = (estado, n) => {
         if (estado === "conectado") return window.t("sync.panel.statusOn") + (n != null ? ` · ${n}` : "");

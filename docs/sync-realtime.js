@@ -59,6 +59,11 @@
   // el respaldo manual/WhatsApp como red de ultimo recurso (Fases 2 y 4).
   const LOG_KEY = "amigable_sync_log"; // ultimas ops vistas (propias + ajenas), para poder RE-enviarlas a un par que las perdio
   const LOG_TOPE = 500; // mismo tope que el dedup de mock-backend.js, mismo criterio
+  /* Portado de friendly-123/amigable-123, 2026-08-19: pedir/responder el
+     CATALOGO entre dispositivos del mismo equipo, para que "sincronizado"
+     signifique lo mismo en los dos. */
+  const TIPO_CATALOGO_PEDIDO = "__catalogo_pedido__";
+  const TIPO_CATALOGO_TROZO  = "__catalogo_trozo__";
   const TIPO_CATCHUP_PEDIDO = "__catchup_pedido__";
 
   function leerLog() {
@@ -234,6 +239,12 @@
         // contesto directo (el relay solo reenvia, no interviene) con lo que
         // yo tengo en mi log local que el todavia no vio. Nunca se aplica
         // como si fuera una Op real de negocio.
+        if (op && op.tipo === TIPO_CATALOGO_PEDIDO) { responderCatalogo(op); return; }
+        if (op && op.tipo === TIPO_CATALOGO_TROZO) {
+          if (op.para && op.para !== deviceId()) return;
+          try { window.dispatchEvent(new CustomEvent("oc-catalogo-trozo", { detail: op })); } catch (_) {}
+          return;
+        }
         if (op && op.tipo === TIPO_CATCHUP_PEDIDO) {
           responderCatchup(op);
           return;
@@ -281,6 +292,38 @@
   // Al reconectar, preguntar que me perdi. Mensaje ephemero (no de negocio):
   // no se guarda en el log ni en la cola de reintento — si falla, la proxima
   // conexion vuelve a preguntar, no hace falta insistir con este en concreto.
+  function _c123RolActual() {
+    try { return (window.OCAuth && window.OCAuth.rolActual) ? window.OCAuth.rolActual() : ""; } catch (_) { return ""; }
+  }
+  function _c123Trocear(tabla, filas, tope) {
+    tope = tope || 200;
+    var out = [];
+    filas = Array.isArray(filas) ? filas : [];
+    if (!filas.length) { out.push({ tabla: tabla, filas: [] }); return out; }
+    for (var i = 0; i < filas.length; i += tope) out.push({ tabla: tabla, filas: filas.slice(i, i + tope) });
+    return out;
+  }
+  async function pedirCatalogo() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    const op = { opId: uuidCorto(), deviceId: deviceId(), tipo: TIPO_CATALOGO_PEDIDO, payload: { rol: _c123RolActual() }, fecha: (new Date()).toISOString() };
+    try { ws.send(await cifrar(claveActual, op)); return true; } catch (_) { return false; }
+  }
+  async function responderCatalogo(pedido) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!window.OCSync || !window.OCSync.catalogoPropio) return;
+    await new Promise((r) => setTimeout(r, Math.random() * 400));
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    let cat; try { cat = window.OCSync.catalogoPropio(); } catch (_) { return; }
+    const trozos = [].concat(_c123Trocear("ubicaciones", cat.ubicaciones)).concat(_c123Trocear("productos", cat.productos));
+    for (let k = 0; k < trozos.length; k++) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const op = { opId: uuidCorto(), deviceId: deviceId(), tipo: TIPO_CATALOGO_TROZO, para: pedido.deviceId || null,
+        payload: Object.assign({ rol: _c123RolActual(), huella: cat.huella ? cat.huella.corta : "", k: k, deTotal: trozos.length }, trozos[k]),
+        fecha: (new Date()).toISOString() };
+      try { ws.send(await cifrar(claveActual, op)); } catch (_) { return; }
+    }
+  }
+
   async function pedirCatchup() {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     const pedido = {
@@ -392,6 +435,7 @@
     // Refuerzo: expone si llevamos varios intentos seguidos sin exito, para
     // que la UI pueda avisar ("revisa el código") en vez de reintentar mudo.
     problemaPersistente() { return intentosSeguidos >= 6; },
+    pedirCatalogo: pedirCatalogo,
     salaActiva() { const s = leerSala(); return s ? s.codigo : null; },
     onEstado(fn) { listenersEstado.push(fn); },
   };
