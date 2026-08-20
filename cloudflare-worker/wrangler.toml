@@ -1,14 +1,20 @@
-# IMPORTANTE (2026-07-28): este Worker DEBE tener nombre y KV propios.
-# Compartirlos con AMIGABLE hizo que un deploy sobrescribiera al otro:
-# mismo name = mismo Worker en Cloudflare. NO volver a poner
-# "amigable-licencias" aqui ni reusar la KV df0d18c7...
-name = "friendly123-licencias"
+# IMPORTANTE (JFC 2026-07-28, con incidente real 2026-08-19): este Worker
+# DEBE tener nombre y KV propios. Compartirlos con otra app hace que un
+# deploy sobrescriba al otro (mismo name = mismo Worker en Cloudflare) y
+# mezcla datos reales de clientes de las dos apps en la misma KV.
+#
+# INCIDENTE (2026-08-19): este archivo tenia name = "friendly123-licencias" y
+# la KV de friendly-123 (f1599c69c4174cc2b38dd125c18ee3df) — exactamente el
+# error que este mismo comentario advierte. Se detecto ANTES de desplegar:
+# nunca llego a pisar el worker de friendly-123 en produccion. Corregido con
+# nombre y KV propios de consultorio-123.
+name = "consultorio123-licencias"
 main = "worker.js"
 compatibility_date = "2026-07-10"
 preview_urls = false
 
 kv_namespaces = [
-  { binding = "LICENCIAS", id = "f1599c69c4174cc2b38dd125c18ee3df" }
+  { binding = "LICENCIAS", id = "cce886f038ad4401ae480855d30824c1" }
 ]
 
 [observability]
