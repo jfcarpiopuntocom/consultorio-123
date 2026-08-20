@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v27"; // bumped 2026-08-20: A2 reparador de estado + A4 autodiagnostico de version portados de friendly-123
+const CACHE = "c123-shell-v28"; // bumped 2026-08-20: R4 kill-switch remoto (feature-gate.js)
 const SHELL = [
   "./",
   "./index.html",
@@ -52,6 +52,7 @@ const SHELL = [
   "./logger.js",
   "./telemetry.js",
   "./identity-context.js",
+  "./feature-gate.js",
   "./audit-store.js",
   "./sync-queue.js",
   "./ui-actions.js",

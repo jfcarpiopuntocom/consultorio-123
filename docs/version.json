@@ -3,5 +3,6 @@
   "fecha": "2026-08-05",
   "changelog": "consultorio-123 convierte la gestión de tu consultorio en algo vivo: tus ingresos, inventario y cuentas por cobrar hablan en colores que se encienden solos cuando hace falta actuar. Funciona sin conexión, tus datos son tuyos, sin suscripciones ni anuncios. Tu consultorio, en color.",
   "requerida": false,
-  "shell": "c123-shell-v27"
+  "shell": "c123-shell-v28",
+  "apagar": []
 }
