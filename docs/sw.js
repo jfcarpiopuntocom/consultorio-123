@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v40"; // bumped 2026-08-20: emojis del teclado del tablero sin selector de variacion (el 8 salia gigante)
+const CACHE = "c123-shell-v41"; // bumped 2026-08-20: tips de aprovechamiento reales (Agenda, Cartera, Tablero...), fuera los de retail
 const SHELL = [
   "./",
   "./index.html",
