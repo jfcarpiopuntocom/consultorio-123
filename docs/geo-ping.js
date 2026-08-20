@@ -44,7 +44,11 @@
   var INTERVALO_MS = 15 * 60 * 1000; // 15 minutos
   var TIMEOUT_GPS_MS = 12000; // mas tiempo: alta precision tarda mas en cerrar el primer fix
   var TIMEOUT_IP_MS = 6000;
-  var CONSENT_KEY = "amg_geo_consentidos_v1"; // set de identidades que ya vieron el aviso
+  // FIX (JFC 2026-08-20, bug C4): mismo patron que C3 -- DB_NAME se corrigio
+  // pero esta clave se quedo compartida entre las 3 apps. Un consentimiento
+  // de geolocalizacion otorgado en una app hermana se leia como ya otorgado
+  // aca sin que el usuario lo haya aceptado en consultorio-123.
+  var CONSENT_KEY = "c123_geo_consentidos_v1"; // set de identidades que ya vieron el aviso
   var DB_NAME = "c123_geo_db"; // FIX (JFC 2026-08-20): era compartido literal con AMIGABLE/friendly-123
   var DB_VERSION = 1;
   var STORE = "pings";

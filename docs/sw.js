@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v47"; // bumped 2026-08-20: vista-perchas.js (bug C1/C2) desactivado de verdad -- ya no en index.html ni SHELL
+const CACHE = "c123-shell-v48"; // bumped 2026-08-20: SESSION_KEY/CONSENT_KEY (bugs C3/C4) ya no compartidos con AMIGABLE/friendly-123
 const SHELL = [
   "./",
   "./index.html",

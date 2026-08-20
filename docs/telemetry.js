@@ -38,7 +38,11 @@
   var DB_NAME = "c123_telemetry_db"; // FIX (JFC 2026-08-20): era compartido literal con AMIGABLE/friendly-123
   var DB_VERSION = 1;
   var STORE_NAME = "queue";
-  var SESSION_KEY = "amg_session_id_v1";
+  // FIX (JFC 2026-08-20, bug C3): DB_NAME se corrigio arriba pero esta clave
+  // se quedo compartida sin querer -- sessionStorage se comparte por ORIGEN
+  // (no por ruta) entre las 3 apps en GitHub Pages, asi que un usuario que
+  // navega entre ellas en la misma pestana arrastraba el mismo sessionId.
+  var SESSION_KEY = "c123_session_id_v1";
 
   // --- sessionId: uno por pestaña/sesión de navegador --------------------
   function getSessionId() {
