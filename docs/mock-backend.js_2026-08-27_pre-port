@@ -1050,7 +1050,7 @@
   function _marcarOpAplicada(opId) {
     const s = _cargarOpsAplicadas();
     s.add(opId);
-    if (s.size > 2000) { const arr = [...s]; s.clear(); arr.slice(-2000).forEach((x) => s.add(x)); }
+    if (s.size > 500) { const arr = [...s]; s.clear(); arr.slice(-500).forEach((x) => s.add(x)); }
     try { localStorage.setItem(OPS_APLICADAS_KEY, JSON.stringify([...s])); } catch (_) {}
   }
   function emitirOpStock(tipo, payload) {
@@ -1132,37 +1132,6 @@
     return out;
   }
 
-  /* Reloj lógico para el roster del equipo (portado de friendly-123, 2026-08-27).
-     Si sync-realtime no está cargado (tablero, pruebas), cae a un contador local
-     monótono + un deviceId estable: nunca lanza y nunca deja sin sellar. */
-  let _revLocalFallback = 0;
-  function _revNueva() {
-    let c = 0, d = "";
-    try {
-      if (window.OCSyncControl && typeof window.OCSyncControl.revTick === "function") {
-        c = Number(window.OCSyncControl.revTick()) || 0;
-        d = String(window.OCSyncControl.deviceIdActual() || "");
-      }
-    } catch (_) {}
-    if (!c) { c = (++_revLocalFallback); }
-    if (!d) { try { d = String(localStorage.getItem("c123_device_id") || ""); } catch (_) {} }
-    return { c: c, d: d };
-  }
-  /* ¿El rev A (remoto) le gana al rev B (local)? Gana el contador mayor; empate
-     de contador se rompe por deviceId (orden lexicográfico estable, determinista
-     en los dos aparatos). Un registro SIN rev (dato viejo, pre-upgrade) se trata
-     como rev {c:0}. Devuelve null si NINGUNO tiene rev, para que el llamador caiga
-     al reloj de pared (comportamiento idéntico a antes). */
-  function _revDomina(a, b) {
-    const tieneA = a && typeof a.c === "number";
-    const tieneB = b && typeof b.c === "number";
-    if (!tieneA && !tieneB) return null;
-    const ca = tieneA ? a.c : 0, cb = tieneB ? b.c : 0;
-    if (ca !== cb) return ca > cb;
-    const da = tieneA ? String(a.d || "") : "", db = tieneB ? String(b.d || "") : "";
-    return da > db;
-  }
-
   function aplicarCatalogo(remoto, rolRemoto) {
     var dif = compararCatalogo(remoto, rolRemoto);
     if (!dif) return { ok: false, error: "El catalogo que llego no se puede leer." };
@@ -1182,71 +1151,10 @@
         if (Number.isFinite(Number(p.precio)) && Number(p.precio) >= 0 && Number(mio.precio) !== Number(p.precio)) { mio.precio = Number(p.precio); act++; }
       }
     });
-    /* EL EQUIPO (portado de friendly-123, 2026-08-27). Misma regla dura que el
-       catálogo: SUMA, NUNCA BORRA. LWW-Element-Set con reloj LÓGICO + tombstones:
-       cada registro trae rev = { c: Lamport, d: deviceId }; la baja es un tombstone
-       (borrado:true). El ganador se decide por rev (causal, global); si NINGUNO de
-       los dos tiene rev (dato viejo pre-upgrade) se cae al reloj de pared. El PIN
-       duplicado se resuelve conservando el propio (gana el PIN de casa) y se avisa
-       con el evento oc-pin-colision. PIN de 4 dígitos (consultorio). */
-    let miembrosAgregados = 0, miembrosActualizados = 0, miembrosQuitados = 0;
-    if (Array.isArray(remoto.usuarios)) {
-      remoto.usuarios.forEach((u) => {
-        if (!u || !u.id) return;
-        const esTomb = !!u.borrado;
-        if (!esTomb) {
-          if (!u.nombre) return;
-          if (!/^\d{4}$/.test(String(u.pin || ""))) return; // PIN ilegible: no se importa a medias
-        }
-        const rolU = (u.rol === "admin" || u.rol === "empleado" || u.rol === "contador") ? u.rol : "empleado";
-        const mio = usuarios.find((x) => String(x.id) === String(u.id));
-        if (!mio) {
-          if (esTomb) {
-            usuarios.push({ id: u.id, nombre: String(u.nombre || "").slice(0, 60), pin: u.pin || "",
-                            rol: rolU, email: u.email || null, activo: false, borrado: true,
-                            creadoEn: u.creadoEn || new Date().toISOString(),
-                            actualizadoEn: u.actualizadoEn || null, rev: u.rev || null });
-            return;
-          }
-          if (usuarios.some((x) => !x.borrado && x.pin === u.pin)) {
-            try { window.dispatchEvent(new CustomEvent("oc-pin-colision", { detail: { nombre: u.nombre, pin: u.pin, id: u.id } })); } catch (_) {}
-            return;
-          }
-          usuarios.push({ id: u.id, nombre: String(u.nombre).slice(0, 60), pin: u.pin, rol: rolU,
-                          email: u.email || null, activo: u.activo !== false, borrado: false,
-                          creadoEn: u.creadoEn || new Date().toISOString(),
-                          actualizadoEn: u.actualizadoEn || null, rev: u.rev || null });
-          miembrosAgregados++;
-          return;
-        }
-        const dom = _revDomina(u.rev, mio.rev);
-        let ganaSuyo;
-        if (dom === null) {
-          const tMio = Date.parse(mio.actualizadoEn || mio.creadoEn || 0) || 0;
-          const tSuyo = Date.parse(u.actualizadoEn || u.creadoEn || 0) || 0;
-          ganaSuyo = tSuyo > tMio;
-        } else {
-          ganaSuyo = dom;
-        }
-        if (!ganaSuyo) return;
-        if (!esTomb && usuarios.some((x) => x.id !== mio.id && !x.borrado && x.pin === u.pin)) return;
-        const estabaVivo = !mio.borrado;
-        mio.nombre = String(u.nombre || mio.nombre).slice(0, 60);
-        if (u.pin) mio.pin = u.pin;
-        mio.rol = rolU;
-        mio.borrado = esTomb;
-        mio.activo = esTomb ? false : (u.activo !== false);
-        if (u.email !== undefined) mio.email = u.email || null;
-        mio.actualizadoEn = u.actualizadoEn || mio.actualizadoEn;
-        mio.rev = u.rev || mio.rev;
-        if (esTomb && estabaVivo) miembrosQuitados++;
-        else miembrosActualizados++;
-      });
-    }
     ubicaciones.forEach(function (u) { if (!(u.id in gastosMensuales)) gastosMensuales[u.id] = 0; });
-    mov("merge-catalogo", { perchasAgregadas: agU, productosAgregados: agP, actualizados: act, miembrosAgregados: miembrosAgregados, miembrosActualizados: miembrosActualizados, miembrosQuitados: miembrosQuitados, desde: remoto.deviceNombre || "otro dispositivo" });
+    mov("merge-catalogo", { perchasAgregadas: agU, productosAgregados: agP, actualizados: act, desde: remoto.deviceNombre || "otro dispositivo" });
     guardarEstadoLocal();
-    return { ok: true, agregadasU: agU, agregadosP: agP, actualizados: act, miembrosAgregados: miembrosAgregados, miembrosActualizados: miembrosActualizados, miembrosQuitados: miembrosQuitados, huella: huellaCatalogo() };
+    return { ok: true, agregadasU: agU, agregadosP: agP, actualizados: act, huella: huellaCatalogo() };
   }
 
 window.OCSync = {
@@ -1258,26 +1166,8 @@ window.OCSync = {
       return {
         ubicaciones: ubicaciones.map(function (u) { return { id: u.id, nombre: u.nombre, tipo: u.tipo, activa: u.activa }; }),
         productos: productos.map(function (p) { return { id: p.id, nombre: p.nombre, sku: p.sku, barcode: p.barcode, categoria: p.categoria, precio: p.precio, costo: p.costo, ubicacionId: p.ubicacionId }; }),
-        /* El equipo viaja con el catálogo (portado de friendly-123, 2026-08-27):
-           sin esto, un admin creado en la PC no podía entrar desde el celular.
-           Los clientes (pacientes) NO viajan: son datos médicos sensibles y se
-           conservan intactos en cada dispositivo. */
-        usuarios: usuarios.map(function (u) { return { id: u.id, nombre: u.nombre, pin: u.pin, rol: u.rol, email: u.email || null, activo: u.activo !== false, creadoEn: u.creadoEn, actualizadoEn: u.actualizadoEn || u.creadoEn || null, rev: u.rev || null, borrado: !!u.borrado }; }),
-        nombreNegocio: nombreNegocio,
         huella: huellaCatalogo(),
       };
-    },
-    /* Aplicar SOLO el equipo (roster) que llega remoto, sin tocar catálogo.
-       Lo usa el relay/panel cuando un miembro se une. Nunca borra ni degrada
-       por su cuenta: suma y aplica ediciones más recientes (portado de
-       friendly-123, 2026-08-27). */
-    aplicarEquipoRemoto: function (lista) {
-      if (!Array.isArray(lista) || !lista.length) return { ok: false };
-      const r = aplicarCatalogo({ ubicaciones: [], productos: [], usuarios: lista }, null);
-      if (r.ok && (r.miembrosAgregados || r.miembrosActualizados)) {
-        try { window.dispatchEvent(new CustomEvent("oc-equipo-sync", { detail: r })); } catch (_) {}
-      }
-      return r;
     },
 
     // Llamado por sync-realtime.js al recibir un Op de otro dispositivo. Si
@@ -2039,7 +1929,7 @@ window.OCSync = {
 
       // GET /api/usuarios — lista usuarios del equipo (sin PIN; id/nombre/rol/email/activo)
       if (path === "/api/usuarios" && (!opts || !opts.method || opts.method === "GET")) {
-        return J(usuarios.filter((u) => !u.borrado).map((u) => ({ id: u.id, nombre: u.nombre, rol: u.rol, email: u.email || null, activo: u.activo, creadoEn: u.creadoEn })));
+        return J(usuarios.map((u) => ({ id: u.id, nombre: u.nombre, rol: u.rol, email: u.email || null, activo: u.activo, creadoEn: u.creadoEn })));
       }
       // POST /api/usuarios — crear miembro del equipo (encargado o admin); desde Avanzado = solo dueno.
       // Los admins NO cuentan contra el limite de encargados del plan free — son co-responsables,
@@ -2050,14 +1940,13 @@ window.OCSync = {
         const email  = String(body.email  || "").trim().slice(0, 160) || null;
         const rolNuevo = (body.rol === "admin") ? "admin" : "empleado";
         if (!nombre)                     return J({ error: "El nombre es obligatorio." }, 400);
-        if (!/^\d{4}$/.test(pin))        return J({ error: "El PIN debe tener exactamente 4 digitos." }, 400);
+        if (!/^\d{3}$/.test(pin))        return J({ error: "El PIN debe tener exactamente 3 digitos." }, 400);
         // Limite free: 1 encargado (admins exentos — son co-duenos, no personal)
         const empleadosActuales = usuarios.filter((u) => u.rol === "empleado").length;
         if (rolNuevo === "empleado" && empleadosActuales >= 1 && (TIER_GRATIS_ACTIVO && (!instanceId || licenciaLimitada())))
           return J({ error: "The free plan includes 1 employee. Activate this device (PIN 789) for unlimited employees.", codigo: "LIMITE_EMPLEADOS" }, 403);
         if (usuarios.some((u) => u.pin === pin)) return J({ error: "Ese PIN ya lo usa otro miembro del equipo. Elige uno diferente." }, 400);
-        const _ahoraU = new Date().toISOString();
-        const nuevo = { id: uuid("u"), nombre, pin, rol: rolNuevo, email, activo: true, creadoEn: _ahoraU, actualizadoEn: _ahoraU, rev: _revNueva() };
+        const nuevo = { id: uuid("u"), nombre, pin, rol: rolNuevo, email, activo: true, creadoEn: new Date().toISOString() };
         usuarios.push(nuevo);
         mov("usuario-alta", { nombre, rol: rolNuevo });
         return J({ id: nuevo.id, nombre: nuevo.nombre, rol: nuevo.rol, email: nuevo.email, activo: nuevo.activo, creadoEn: nuevo.creadoEn });
@@ -2073,7 +1962,7 @@ window.OCSync = {
         if (body.email  !== undefined) u.email  = String(body.email || "").trim().slice(0, 160) || null;
         if (body.pin !== undefined) {
           const np = String(body.pin).trim();
-          if (!/^\d{4}$/.test(np)) return J({ error: "El nuevo PIN debe tener 4 digitos." }, 400);
+          if (!/^\d{3}$/.test(np)) return J({ error: "El nuevo PIN debe tener 3 digitos." }, 400);
           if (usuarios.some((x) => x.id !== uid2 && x.pin === np)) return J({ error: "Ese PIN ya lo usa otro miembro del equipo." }, 400);
           u.pin = np;
         }
@@ -2082,8 +1971,6 @@ window.OCSync = {
         // asi que promover a alguien puede liberar un cupo y degradarlo puede
         // volver a topar el limite en el proximo alta — eso ya lo valida el POST.
         if (body.rol !== undefined && (body.rol === "admin" || body.rol === "empleado")) u.rol = body.rol;
-        u.actualizadoEn = new Date().toISOString();
-        u.rev = _revNueva();
         mov("usuario-editar", { id: uid2, nombre: u.nombre, rol: u.rol });
         return J({ id: u.id, nombre: u.nombre, rol: u.rol, email: u.email || null, activo: u.activo, creadoEn: u.creadoEn });
       }
@@ -2092,16 +1979,10 @@ window.OCSync = {
       // definitivo, para cuando alguien deja el consultorio de verdad).
       if (/^\/api\/usuarios\/[^/]+$/.test(path) && opts && opts.method === "DELETE") {
         const uid3 = path.split("/").pop();
-        const u3 = usuarios.find((x) => x.id === uid3);
-        if (!u3) return J({ error: "Miembro no encontrado." }, 404);
-        /* Baja = TOMBSTONE (portado de friendly-123, 2026-08-27): no se borra el
-           registro, se marca borrado:true con rev nuevo, para que la baja viaje
-           por el sync y no la re-propaguen los otros aparatos. */
-        u3.borrado = true;
-        u3.activo = false;
-        u3.actualizadoEn = new Date().toISOString();
-        u3.rev = _revNueva();
-        mov("usuario-borrar", { nombre: u3.nombre, rol: u3.rol });
+        const i3 = usuarios.findIndex((x) => x.id === uid3);
+        if (i3 === -1) return J({ error: "Miembro no encontrado." }, 404);
+        const [borrado] = usuarios.splice(i3, 1);
+        mov("usuario-borrar", { nombre: borrado.nombre, rol: borrado.rol });
         return J({ ok: true });
       }
       // POST /api/usuarios/verificar — recibe { pin }, devuelve { id, nombre, rol } o 401

@@ -517,7 +517,7 @@
           if (!window.OCSyncControl.pedirCatalogo || !window.OCSync || !window.OCSync.compararCatalogo) {
             msg.style.color = "var(--rojo,#a3392a)"; msg.textContent = "Este dispositivo todavia no puede juntar datos."; return;
           }
-          piezas = { ubicaciones: [], productos: [], rol: "", huella: "", esperados: 0, vistos: 0 };
+          piezas = { ubicaciones: [], productos: [], usuarios: [], rol: "", huella: "", esperados: 0, vistos: 0 };
           msg.style.color = "var(--ink-soft)";
           msg.textContent = "Pidiendole los datos a tu equipo...";
           window.OCSyncControl.pedirCatalogo();
@@ -536,11 +536,12 @@
             if (Array.isArray(pl.filas)) {
               if (pl.tabla === "ubicaciones") piezas.ubicaciones = piezas.ubicaciones.concat(pl.filas);
               if (pl.tabla === "productos") piezas.productos = piezas.productos.concat(pl.filas);
+              if (pl.tabla === "usuarios") piezas.usuarios = piezas.usuarios.concat(pl.filas);
             }
             piezas.vistos++;
             if (piezas.esperados && piezas.vistos >= piezas.esperados) {
               clearTimeout(temporizador);
-              const cat = { ubicaciones: piezas.ubicaciones, productos: piezas.productos, huella: piezas.huella };
+              const cat = { ubicaciones: piezas.ubicaciones, productos: piezas.productos, usuarios: piezas.usuarios, huella: piezas.huella };
               const rol = piezas.rol; piezas = null;
               document.getElementById("oc-sync-msg").textContent = "";
               pintarPrevio(cat, rol);

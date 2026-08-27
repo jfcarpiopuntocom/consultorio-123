@@ -58,7 +58,7 @@
   // equipo apagado a la vez), la brecha no se puede cerrar sola — ahi sigue
   // el respaldo manual/WhatsApp como red de ultimo recurso (Fases 2 y 4).
   const LOG_KEY = "c123_sync_log"; // ultimas ops vistas (propias + ajenas), para poder RE-enviarlas a un par que las perdio
-  const LOG_TOPE = 1000; // mismo tope que el dedup de mock-backend.js, mismo criterio (M1: el log nunca pierde ops que la cola aún tiene)
+  const LOG_TOPE = 500; // mismo tope que el dedup de mock-backend.js, mismo criterio
   /* Portado de friendly-123/amigable-123, 2026-08-19: pedir/responder el
      CATALOGO entre dispositivos del mismo equipo, para que "sincronizado"
      signifique lo mismo en los dos. */
@@ -134,7 +134,7 @@
     catch (_) { return []; }
   }
   function guardarCola(cola) {
-    try { localStorage.setItem(COLA_KEY, JSON.stringify(cola.slice(-1000))); } catch (_) {}
+    try { localStorage.setItem(COLA_KEY, JSON.stringify(cola.slice(-200))); } catch (_) {}
   }
 
   function leerSala() {
@@ -326,11 +326,7 @@
     await new Promise((r) => setTimeout(r, Math.random() * 400));
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     let cat; try { cat = window.OCSync.catalogoPropio(); } catch (_) { return; }
-    /* El equipo viaja con el catálogo (portado de friendly-123, 2026-08-27):
-       sin esto, un admin creado en la PC no llegaba al celular. Los clientes
-       (pacientes) NO viajan: son datos médicos sensibles. */
-    const trozos = [].concat(_c123Trocear("ubicaciones", cat.ubicaciones)).concat(_c123Trocear("productos", cat.productos))
-      .concat(_c123Trocear("usuarios", cat.usuarios || []));
+    const trozos = [].concat(_c123Trocear("ubicaciones", cat.ubicaciones)).concat(_c123Trocear("productos", cat.productos));
     for (let k = 0; k < trozos.length; k++) {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       const op = { opId: uuidCorto(), deviceId: deviceId(), tipo: TIPO_CATALOGO_TROZO, para: pedido.deviceId || null,
@@ -460,11 +456,6 @@
       return { ok: true };
     },
     unirse(codigo) { return this.activar(codigo); },
-    /* Reloj lógico para el roster del equipo (portado de friendly-123, 2026-08-27):
-       revTick avanza el Lamport; deviceIdActual expone el id estable del aparato.
-       Los usa mock-backend.js para sellar cada edición de usuarios con rev. */
-    revTick() { return siguienteLamport(); },
-    deviceIdActual() { return deviceId(); },
     desactivar() {
       try { localStorage.removeItem(ROOM_KEY); } catch (_) {}
       cerrarWsExistente();

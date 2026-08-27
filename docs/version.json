@@ -1,8 +1,8 @@
 {
-  "version": "1.3.0",
-  "fecha": "2026-08-05",
-  "changelog": "consultorio-123 convierte la gestión de tu consultorio en algo vivo: tus ingresos, inventario y cuentas por cobrar hablan en colores que se encienden solos cuando hace falta actuar. Funciona sin conexión, tus datos son tuyos, sin suscripciones ni anuncios. Tu consultorio, en color.",
+  "version": "1.3.1",
+  "fecha": "2026-08-27",
+  "changelog": "v1.3.1 — Port de sync/team: failsafes de integridad (dedup 2000, cola 1000, log 1000) y el equipo viaja entre dispositivos (roster con reloj lógico + tombstones, PIN de 4 dígitos, colisión de PIN avisada).",
   "requerida": false,
-  "shell": "c123-shell-v48",
+  "shell": "c123-shell-v49",
   "apagar": []
 }
