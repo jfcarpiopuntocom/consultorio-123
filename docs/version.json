@@ -1,8 +1,8 @@
 {
-  "version": "1.3.3",
+  "version": "1.3.4",
   "fecha": "2026-09-08",
-  "changelog": "v1.3.3 — Fase 4: sync-watchdog.js portado de friendly (redundancia de sync). Funciona ya la verificacion de consistencia + auto-resync (Capability B); el snapshot local/entre pares (A/C) queda fail-safe no-op hasta la Fase 3 (checkpoint). Aditivo, no rompe nada. Sube shell a c123-shell-v51.",
+  "changelog": "v1.3.4 — Fase 3 (mitad cliente, sin tocar el worker): OCSync.estadoParaCheckpoint activa el snapshot local del watchdog (Capability A) — respaldo de redundancia en IndexedDB local, nunca por red, jamas sobreescribe. NO se agrega restore (aplicarCheckpoint) todavia: cero riesgo de pisar datos de pacientes. Sube shell a c123-shell-v52.",
   "requerida": false,
-  "shell": "c123-shell-v51",
+  "shell": "c123-shell-v52",
   "apagar": []
 }

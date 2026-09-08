@@ -1252,6 +1252,17 @@
 window.OCSync = {
     clientesActivos: function () { return clientes.filter(function (c) { return !c.despedido; }); },
     huella: huellaCatalogo,
+    /* estadoParaCheckpoint (JFC 2026-09-08, Fase 3 — MITAD CLIENTE, sin tocar el
+       worker). Activa la Capability A del sync-watchdog: un snapshot completo del
+       estado guardado SOLO en IndexedDB LOCAL (nunca por red — sync-realtime no
+       auto-sube checkpoints y enviarMensaje no existe aún), como respaldo de
+       redundancia si el relay cae. Reusa estadoActualExportable(), la
+       serialización que la app ya usa y confía para backup/import.
+       A PROPÓSITO NO se agrega aplicarCheckpoint todavía: sin él, ningún camino
+       de restauración puede pisar registros de pacientes reales (todos guardan
+       con if(!aplicarCheckpoint) return). El restore, con la regla delicada de
+       "dispositivo fresco", queda para la sesión dedicada de la Fase 3. */
+    estadoParaCheckpoint: function () { try { return estadoActualExportable(); } catch (_) { return null; } },
     compararCatalogo: compararCatalogo,
     aplicarCatalogo: aplicarCatalogo,
     catalogoPropio: function () {
