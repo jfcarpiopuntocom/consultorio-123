@@ -15,3 +15,13 @@ check-no-cloud.sh
 cloudflare-worker/.wrangler/
 _backups/
 data/
+
+# --- Material interno fuera del repo público (JFC 2026-09-08, anti-clonador/pirata) ---
+# Planes, prompts, diarios, estrategia, playbook: se quedan en disco y en los
+# snapshots, NO se publican. Se conservan README.md y PRIVACY.md (auditables) y
+# docs/ (la app). No destructivo (siguen en historia y disco).
+/*.md
+!README.md
+!PRIVACY.md
+_private/
+backups/
