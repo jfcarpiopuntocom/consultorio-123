@@ -1,6 +1,6 @@
 {
-  "version": "1.3.3",
-  "shell": "c123-shell-v51",
+  "version": "1.3.4",
+  "shell": "c123-shell-v52",
   "algoritmo": "sha256",
   "files": {
     "./index.html": "sha256-fc09cd7642267d975b909633ea829cd854e34640a8fc7f37831215080eca09fc",
@@ -11,7 +11,7 @@
     "./qrcode-local.js": "sha256-daf0a5865d24958c7945e2fa961acf6e1a0f005302b2b0821472a87721614942",
     "./favicon.png": "sha256-55f4fbeecf0da63a14f68b79716d4e1d6f7addc06f0a866c938816fdac09b09c",
     "./pocketbase-client.js": "sha256-f98874c6fea47127377961283cec0c31dcd143745e59b53e9c03325cf6bd19a4",
-    "./mock-backend.js": "sha256-298f3475bc1c2584dc3e08d2e7e058dd48ee76dd64f0c82b0e3e6b6a8631413c",
+    "./mock-backend.js": "sha256-aafff398891908f7b277b84719185cf65d20536d99337675ca239e7ded7f3bd3",
     "./device-identity.js": "sha256-0e91b6f513a7b1b1acd1d147c7290895b2500c04b45f7363baa4095d3e33f013",
     "./storage-durabilidad.js": "sha256-c5eb2cd608ce1b6d9c966cf8823df0153ca4b508cd66cf0fecb25f964be386e4",
     "./sync-realtime.js": "sha256-18e64c5f37de35b098431ffde21e1177e6bb2d5a3eb43f12062170ee587790e0",
