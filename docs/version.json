@@ -1,8 +1,8 @@
 {
-  "version": "1.3.2",
+  "version": "1.3.3",
   "fecha": "2026-09-08",
-  "changelog": "v1.3.2 — Bases del sistema de integridad de versión (portado de friendly-123, broad strokes para el proceso JFC): manifest de hashes + verificacion SRI fail-open en el service worker (nunca borra un archivo por hash: lo re-pide y si falla conserva el que hay). Sube shell a c123-shell-v50.",
+  "changelog": "v1.3.3 — Fase 4: sync-watchdog.js portado de friendly (redundancia de sync). Funciona ya la verificacion de consistencia + auto-resync (Capability B); el snapshot local/entre pares (A/C) queda fail-safe no-op hasta la Fase 3 (checkpoint). Aditivo, no rompe nada. Sube shell a c123-shell-v51.",
   "requerida": false,
-  "shell": "c123-shell-v50",
+  "shell": "c123-shell-v51",
   "apagar": []
 }

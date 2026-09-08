@@ -1,9 +1,9 @@
 {
-  "version": "1.3.2",
-  "shell": "c123-shell-v50",
+  "version": "1.3.3",
+  "shell": "c123-shell-v51",
   "algoritmo": "sha256",
   "files": {
-    "./index.html": "sha256-f597e6d3179ad3056cda9c161a33292c8bfc8a115ded25d7230ba8e5f0a37af3",
+    "./index.html": "sha256-fc09cd7642267d975b909633ea829cd854e34640a8fc7f37831215080eca09fc",
     "./aislamiento.js": "sha256-a8110b143b52311fb472d689e5ecc9cd1676b0dc656b8a10eabec2f25e21c422",
     "./404.html": "sha256-5e12b811b06fceb46b788f1a0787516564932dab89028ae67bebda8add307dfa",
     "./manual.html": "sha256-6744a5d9d4d90b118445c577d10f2a75c55bb082c650e42630f6ac2166c9a4dc",
@@ -15,6 +15,7 @@
     "./device-identity.js": "sha256-0e91b6f513a7b1b1acd1d147c7290895b2500c04b45f7363baa4095d3e33f013",
     "./storage-durabilidad.js": "sha256-c5eb2cd608ce1b6d9c966cf8823df0153ca4b508cd66cf0fecb25f964be386e4",
     "./sync-realtime.js": "sha256-18e64c5f37de35b098431ffde21e1177e6bb2d5a3eb43f12062170ee587790e0",
+    "./sync-watchdog.js": "sha256-9f57051b7a0b77a10d2b3eea5542bfd6429f3962cd4a9393df4698633c8a3ddc",
     "./lista-dinamica.js": "sha256-f4ccd08dc03c4208dedf5b141e85a9f8b6da50bef6bf33336ef2c0d7551b44d7",
     "./vendor/ufuzzy.min.js": "sha256-3eef8ba0ad55444c31f0e86f8375f25916515402cf2d4d7b5a2c01b4b67f2e19",
     "./vendor/minisearch.min.js": "sha256-8a05b42785db448f2c19e24a6a2107204c825565fe4f95aa69b79652baf26e82",
