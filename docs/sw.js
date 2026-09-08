@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v49"; // bumped 2026-08-27: port sync/team — failsafes (dedup 2000, cola 1000, LOG_TOPE 1000) + roster LWW con tombstones y PIN 4 dígitos
+const CACHE = "c123-shell-v50"; // bumped 2026-08-27: port sync/team — failsafes (dedup 2000, cola 1000, LOG_TOPE 1000) + roster LWW con tombstones y PIN 4 dígitos
 const SHELL = [
   "./",
   "./index.html",
@@ -91,7 +91,43 @@ self.addEventListener("install", (evento) => {
   evento.waitUntil(
     caches.open(CACHE).then((cache) => Promise.allSettled(
       SHELL.map((u) => cache.add(new Request(u, { cache: "reload" })).catch((e) => { try { console.warn("[SW] no se pudo precachear", u, e && e.message); } catch (_) {} }))
-    )).catch((e) => { try { console.warn("[SW] precache incompleto:", e && e.message); } catch (_) {} })
+    )).then(() => {
+      /* VERIFICACIÓN SRI FAIL-OPEN (portado de friendly-123, JFC 2026-09-08).
+         Tras precachear, se lee version-manifest.json y se verifica el SHA-256 de
+         cada archivo del shell. Si uno no cuadra NO se borra (eso dejaba a la
+         gente afuera con un manifest desincronizado): se re-pide a la red y se
+         reemplaza solo si la copia fresca cuadra; si la red falla o tampoco
+         cuadra, se conserva la copia servida. Peor caso: versión vieja pero
+         funcional. Base del sistema de integridad de versión — se afina en el
+         proceso JFC. */
+      try {
+        caches.open(CACHE).then((cache) => cache.match("./version-manifest.json").then((res) => {
+          if (!res) return;
+          res.json().then((man) => {
+            if (!man || !man.files) return;
+            Object.keys(man.files).forEach((rel) => {
+              const esperado = man.files[rel];
+              if (typeof esperado !== "string" || esperado.indexOf("sha256-") !== 0) return;
+              cache.match(rel).then((r) => {
+                if (!r) return;
+                r.text().then((txt) => crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt)).then((buf) => {
+                  const hex = Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+                  if (("sha256-" + hex) === esperado) return;
+                  fetch(new Request(rel, { cache: "reload" })).then((fresca) => {
+                    if (!fresca || !fresca.ok) return;
+                    fresca.clone().text().then((ftxt) => crypto.subtle.digest("SHA-256", new TextEncoder().encode(ftxt)).then((fbuf) => {
+                      const fhex = Array.from(new Uint8Array(fbuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+                      if (("sha256-" + fhex) === esperado) cache.put(rel, fresca);
+                      else { try { console.warn("[SW] manifest posiblemente desincronizado en", rel, "— se conserva la copia servida (fail-open)"); } catch (_) {} }
+                    }));
+                  }).catch(() => {});
+                }));
+              });
+            });
+          }).catch(() => {});
+        })).catch(() => {});
+      } catch (_) {}
+    }).catch((e) => { try { console.warn("[SW] precache incompleto:", e && e.message); } catch (_) {} })
   );
   self.skipWaiting();
 });

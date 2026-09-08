@@ -60,9 +60,36 @@ if [ -n "$huerfanos_tab" ]; then
   falta=1
 fi
 
+# VERIFICACION DE HASHES REALES (portado de friendly-123, JFC 2026-09-08): un
+# cambio a un archivo del shell SIN regenerar version-manifest.json haria que el
+# service worker lo rechazara en los aparatos. Se recomputa el SHA-256 real de
+# cada archivo del manifest y se compara; si uno no cuadra, la compuerta FALLA.
+if [ -f docs/version-manifest.json ]; then
+  desfasados=$(node -e '
+    const fs=require("fs"), crypto=require("crypto"), path=require("path");
+    const man=JSON.parse(fs.readFileSync("docs/version-manifest.json","utf8"));
+    const files=(man&&man.files)||{}; let bad=[];
+    for(const rel of Object.keys(files)){
+      const esp=files[rel];
+      if(typeof esp!=="string"||esp.indexOf("sha256-")!==0) continue;
+      const p=path.join("docs", rel.replace(/^\.\//,""));
+      if(!fs.existsSync(p)){ bad.push(rel+" (falta el archivo)"); continue; }
+      const real="sha256-"+crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex");
+      if(real!==esp) bad.push(rel);
+    }
+    if(bad.length) console.log(bad.join("\n"));
+  ' 2>/dev/null)
+  if [ -n "$desfasados" ]; then
+    echo "MANIFEST DESINCRONIZADO (hashes reales) — corre: node scripts/gen-manifest.js"
+    echo "$desfasados" | sed 's/^/  /'
+    falta=1
+  fi
+fi
+
 if [ "$falta" = "0" ]; then
   echo "OK — todos los scripts de index.html estan en el SHELL del service worker."
   echo "OK — sw.js y version.json coinciden en $sw_ver."
+  echo "OK — hashes reales del shell cuadran con version-manifest.json."
   echo "OK — sin claves de otra app hermana (G2)."
   echo "OK — todo data-vista/data-at-tab tiene su seccion/panel (G4)."
   grep -oE 'c123-shell-v[0-9]+' docs/sw.js | head -1 | sed 's/^/CACHE actual: /'
