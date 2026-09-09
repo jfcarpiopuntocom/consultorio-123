@@ -1,8 +1,8 @@
 {
   "version": "1.3.4",
   "fecha": "2026-09-09",
-  "changelog": "Badge 'beta version' en la pagina del PIN (consultorio esta en beta; se declara ahi, legible: ambar fuerte, no gris). POLITICA DE VERSION (JFC 2026-09-09): la version real se controla por el entero del shell (c123-shell-vNN); 'version' no se mueve salvo un salto mayor deliberado. Sube shell a c123-shell-v56.",
+  "changelog": "Badge 'beta version' en la pagina del PIN (consultorio esta en beta; se declara ahi, legible: ambar fuerte, no gris). POLITICA DE VERSION (JFC 2026-09-09): la version real se controla por el entero del shell (c123-shell-vNN); 'version' no se mueve salvo un salto mayor deliberado. Sube shell a c123-shell-v57.",
   "requerida": false,
-  "shell": "c123-shell-v56",
+  "shell": "c123-shell-v57",
   "apagar": []
 }
