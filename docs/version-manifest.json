@@ -1,6 +1,6 @@
 {
   "version": "1.3.4",
-  "shell": "c123-shell-v52",
+  "shell": "c123-shell-v53",
   "algoritmo": "sha256",
   "files": {
     "./index.html": "sha256-fc09cd7642267d975b909633ea829cd854e34640a8fc7f37831215080eca09fc",
@@ -22,7 +22,7 @@
     "./i18n.js": "sha256-61430dad1719991a27c16a17f40bca4c489781893a335d718427195e8e8b431a",
     "./crypto-store.js": "sha256-cb733e0caef0d168fddd28ee9be675e62bff59c2fdda93be060668c4e63b931a",
     "./email-recovery.js": "sha256-0e1acdad795c1cf385ec3ac4ae6fffe417fb8a23493b663dab292590f294047a",
-    "./auth-ui.js": "sha256-c5b70eb5dc7b2db7c3f2fd3275b123067ca39c8d2b037392e3b3db810656951e",
+    "./auth-ui.js": "sha256-d01174531aa2d16515db0d551832900197c4cdb2e54d6f041d86ff3d2b53fd99",
     "./backup-scheduler.js": "sha256-83eb132ae945cf7aecb29567b477713d357a95a294adcfc22ce56edfe28ddedb",
     "./avanzado-extra.js": "sha256-7f8f3aeeb37b3a84240f585e5d62b915d6a65f9328f46e021bc5f632ff5afbd8",
     "./geo-ping.js": "sha256-c6faeb39a2dd8067b913e67eaef70d533a3ceb733486f9a665c677d50c4431d4",

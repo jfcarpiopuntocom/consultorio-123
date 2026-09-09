@@ -497,6 +497,13 @@ try {
         <h2 style="display:none;">consultorio-123</h2>
       </div>
       <p id="oc-gate-tagline" style="margin:6px 0 10px;font-size:13px;color:var(--ink-soft,#5d5340) !important;-webkit-text-fill-color:var(--ink-soft,#5d5340) !important;text-align:center;font-family:var(--font-mono,monospace);letter-spacing:.05em;">${window.t("auth.gate.tagline")}</p>
+      <!-- ETAPA BETA en el PIN (JFC 2026-09-09): consultorio esta en beta; se
+           declara aqui, legible (ambar fuerte, no gris), para que quede claro a
+           quien entra. La version real se controla por el entero del shell
+           (c123-shell-vNN). Quitar/cambiar solo cuando JFC declare la 1.0. -->
+      <div id="oc-gate-beta" style="margin:0 0 8px;text-align:center;">
+        <span style="display:inline-block;padding:3px 12px;border-radius:999px;background:#FFF3D6;border:1px solid #E8A020;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8A5A00 !important;-webkit-text-fill-color:#8A5A00 !important;">beta version</span>
+      </div>
       <div class="sub">${window.t("auth.gate.subtitle")}</div>
       <div class="oc-slots" id="oc-slots"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>
       <div class="oc-pad" id="oc-pad"></div>
