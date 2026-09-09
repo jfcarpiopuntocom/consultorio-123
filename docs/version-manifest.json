@@ -1,9 +1,9 @@
 {
   "version": "1.3.4",
-  "shell": "c123-shell-v55",
+  "shell": "c123-shell-v56",
   "algoritmo": "sha256",
   "files": {
-    "./index.html": "sha256-879f557b174127ee87ad83b7550b7569945ac2057c7ab91bd9863f0d9f9a183a",
+    "./index.html": "sha256-77147ccabf80a6a69a878b23cc969a6cf95e96879983f0d74a96bc39ca06f1e8",
     "./aislamiento.js": "sha256-a8110b143b52311fb472d689e5ecc9cd1676b0dc656b8a10eabec2f25e21c422",
     "./404.html": "sha256-5e12b811b06fceb46b788f1a0787516564932dab89028ae67bebda8add307dfa",
     "./manual.html": "sha256-6744a5d9d4d90b118445c577d10f2a75c55bb082c650e42630f6ac2166c9a4dc",
