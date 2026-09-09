@@ -9,7 +9,7 @@
 // (fonts.googleapis.com / fonts.gstatic.com) tras la primera visita, así la
 // tipografía sobrevive sin conexión. Los font stacks del CSS ya traen
 // fallbacks del sistema por si nunca llegaron a cachearse.
-const CACHE = "c123-shell-v52"; // bumped 2026-08-27: port sync/team — failsafes (dedup 2000, cola 1000, LOG_TOPE 1000) + roster LWW con tombstones y PIN 4 dígitos
+const CACHE = "c123-shell-v55"; // bumped 2026-09-09: badge "beta version" en la pagina del PIN; la version real se controla por el entero del shell (c123-shell-vNN) // bumped 2026-08-27: port sync/team — failsafes (dedup 2000, cola 1000, LOG_TOPE 1000) + roster LWW con tombstones y PIN 4 dígitos
 const SHELL = [
   "./",
   "./index.html",
