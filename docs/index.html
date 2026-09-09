@@ -5134,6 +5134,17 @@ setTimeout(() => {
 // Falla en silencio en navegadores sin soporte — nunca bloquea la carga.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => { navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).catch(() => {}); });
+  /* SPLASH DE ACTUALIZACION (JFC 2026-09-09, P1): aviso limpio y legible en vez de recargar en blanco tras una version nueva. No toca el flujo de PIN. */
+  function _c123RecargaAviso(){
+    try{
+      var d=document.createElement("div");
+      d.setAttribute("style","position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#0F1923;padding:24px;text-align:center;font-family:system-ui,-apple-system,Segoe UI,sans-serif;");
+      var t=document.createElement("div"); t.textContent="Actualizando a la ultima version\u2026"; t.setAttribute("style","font-size:18px;font-weight:700;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;");
+      var u=document.createElement("div"); u.textContent="Un momento, no cierres la app."; u.setAttribute("style","font-size:14px;color:#E8ECF2;-webkit-text-fill-color:#E8ECF2;");
+      d.appendChild(t); d.appendChild(u); document.body.appendChild(d);
+    }catch(_){}
+    setTimeout(function(){location.reload();},180);
+  }
 }
 // CONTROL DE VERSION FORZADO (JFC 2026-07-17, "no podemos andar sirviendo
 // versiones viejas"): en CADA carga se pide version.json fresco (el SW nunca
@@ -5156,7 +5167,7 @@ if ("serviceWorker" in navigator) {
     // version vieja nunca guardaron esta clave — tambien necesitan la purga.
     try { const regs = await navigator.serviceWorker.getRegistrations(); for (const g of regs) { try { await g.update(); } catch (_) {} } } catch (_) {}
     try { const cs = await caches.keys(); for (const c of cs) { try { await caches.delete(c); } catch (_) {} } } catch (_) {}
-    location.reload();
+    _c123RecargaAviso();
   } catch (_) {}
 })();
 
