@@ -126,7 +126,7 @@
   // /api/respaldo/exportar (intercepted by mock-backend, local).
   async function construirArchivoRespaldo() {
     const res = await fetch("/api/respaldo/exportar");
-    if (res.status === 403) throw new Error("This device is not activated. Log in with PIN 789 to activate it, then come back to back up.");
+    if (res.status === 403) throw new Error("This device is not activated. Log in with PIN 7895 to activate it, then come back to back up.");
     if (!res.ok) throw new Error("Could not read business data.");
     const datos = await res.json();
     const paquete = {
@@ -460,8 +460,8 @@
       const owned = JSON.parse(localStorage.getItem("c123_owned") || "null") || {};
       if (!owned.instanceId) {
         mount.innerHTML = `<div style="border:2px solid #E86040;border-radius:12px;padding:14px 16px;background:#FFF3EE;margin-top:16px;">
-          <p style="margin:0;font-size:15px;font-weight:700;color:#C05000;">To activate automatic backup, first activate this device.</p>
-          <p style="margin:8px 0 0;font-size:14px;color:#2C3E50;">At the login screen enter PIN <strong>789</strong>. Once activated, come back here to set your email and frequency.</p>
+          <p style="margin:0;font-size:15px;font-weight:700;color:#C05000;">Para activar el respaldo automático, primero activa este dispositivo.</p>
+          <p style="margin:8px 0 0;font-size:14px;color:#2C3E50;">En la pantalla del PIN ingresa <strong>7895</strong>. Ya activado, vuelve aquí para poner tu correo y la frecuencia.</p>
         </div>`;
         return;
       }

@@ -4478,7 +4478,7 @@ async function cargarActividad(){
     return;
   }
   if (items.length === 0){
-    cont.innerHTML = `<p>No activity recorded yet in this session.</p>`;
+    cont.innerHTML = `<p>Aún no hay actividad registrada en esta sesión.</p>`;
     return;
   }
   // Fix 2026-07-08: antes se inyectaba JSON.stringify(it.detalle) SIN escapar —
@@ -4911,7 +4911,7 @@ async function cargarGastosMensuales(){
   if (ubicacionActual === "todas"){
     input.disabled = true;
     btn.disabled = true;
-    msg.textContent = `This total covers ${fmtMoney(data.gastosMensuales)} across all your locations. Pick one below to edit.`;
+    msg.textContent = `Este total cubre ${fmtMoney(data.gastosMensuales)} en todas tus ubicaciones. Elige una abajo para editar.`;
     // Antes esto solo mostraba un mensaje y el dueño tenía que acordarse de
     // subir hasta el selector del header — muchos pensaban que la caja
     // estaba rota. Ahora el selector vive aquí mismo, al lado del problema.
