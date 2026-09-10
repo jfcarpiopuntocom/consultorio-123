@@ -1,8 +1,8 @@
 {
   "version": "1.3.4",
-  "fecha": "2026-09-09",
-  "changelog": "Badge 'beta version' en la pagina del PIN (consultorio esta en beta; se declara ahi, legible: ambar fuerte, no gris). POLITICA DE VERSION (JFC 2026-09-09): la version real se controla por el entero del shell (c123-shell-vNN); 'version' no se mueve salvo un salto mayor deliberado. Sube shell a c123-shell-v57.",
+  "fecha": "2026-09-10",
+  "changelog": "Arreglo del panel privado del dueno (Avanzado): estaba contaminado por las apps hermanas. Ahora los PIN son de 4 digitos (validacion \\d{4} + maxlength 4, antes 3 por herencia), la activacion dice 7895 (antes 789), se traduce al espanol lo que estaba en ingles (respaldo, actividad, gastos por ubicacion) y se corrige la fuga de marca 'AMIGABLE-123' -> 'consultorio-123'. Sube shell a c123-shell-v58.",
   "requerida": false,
-  "shell": "c123-shell-v57",
+  "shell": "c123-shell-v58",
   "apagar": []
 }

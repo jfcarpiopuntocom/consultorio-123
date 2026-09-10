@@ -410,11 +410,11 @@
       <p style="font-size:14px;color:var(--ink-soft);margin-top:18px;">${window.t("auth.act.whatsappLabel")} — ${window.t("auth.act.whatsappHint")}</p>
       <div id="oc-whatsapp-row"></div>
       <div id="oc-clave-block" style="margin-top:18px;">
-        <p style="font-size:14px;color:var(--ink-soft);">PINs (3 dígitos). Por seguridad, los códigos actuales NO se muestran aquí (se guardan cifrados) — ingresa unos NUEVOS solo si quieres cambiarlos.</p>
+        <p style="font-size:14px;color:var(--ink-soft);">PINs (4 dígitos). Por seguridad, los códigos actuales NO se muestran aquí (se guardan cifrados) — ingresa unos NUEVOS solo si quieres cambiarlos.</p>
         <div style="display:flex;flex-direction:column;gap:8px;max-width:340px;">
-          <label style="font-size:13px;">Dueño <input id="oc-c-owner" maxlength="3" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
-          <label style="font-size:13px;">Encargado <input id="oc-c-emp" maxlength="3" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
-          <label style="font-size:13px;">Contable <input id="oc-c-acct" maxlength="3" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
+          <label style="font-size:13px;">Dueño <input id="oc-c-owner" maxlength="4" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
+          <label style="font-size:13px;">Encargado <input id="oc-c-emp" maxlength="4" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
+          <label style="font-size:13px;">Contable <input id="oc-c-acct" maxlength="4" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
         </div>
         <button id="oc-save-codes" class="ir" style="margin-top:12px;background:var(--azul-medio);color:var(--blanco-calido);border-color:var(--azul-oscuro);">Guardar nuevos PINs</button>
         <p id="oc-codes-msg" style="font-size:14px;margin-top:8px;"></p>
@@ -646,7 +646,7 @@
     equipoPanel.innerHTML = `
       <h3 class="seccion" style="margin-top:0;">Equipo</h3>
       <p style="font-size:14px;color:var(--ink-soft);margin-top:0;">
-        Cada miembro tiene su propio PIN de 3 dígitos. Sus ventas, ajustes y movimientos
+        Cada miembro tiene su propio PIN de 4 dígitos. Sus ventas, ajustes y movimientos
         quedan registrados con su nombre en el historial. El PIN del dueño no aparece aquí.
       </p>
       <div id="oc-emp-lista" style="margin-bottom:18px;"></div>
@@ -665,11 +665,11 @@
               style="display:block;width:100%;margin-top:4px;padding:8px;border:2px solid var(--azul-medio);
                      border-radius:5px;font-size:14px;box-sizing:border-box;">
           </label>
-          <label style="font-size:13px;">PIN (3 dígitos)<!-- Microcirugia 7 (2026-07-08): aviso de colisión. El mock no puede verificar contra el PIN del dueño/contador (esos hashes viven en crypto-store). Si colisionan, el miembro queda bloqueado silenciosamente. -->
+          <label style="font-size:13px;">PIN (4 dígitos)<!-- Microcirugia 7 (2026-07-08): aviso de colisión. El mock no puede verificar contra el PIN del dueño/contador (esos hashes viven en crypto-store). Si colisionan, el miembro queda bloqueado silenciosamente. -->
             <span style="display:block;font-size:13px;color:var(--rojo,#a3392a);margin-top:3px;font-weight:400;">
               No uses el mismo PIN del dueño, encargado general ni contador.
             </span>
-            <input id="oc-emp-pin" maxlength="3" inputmode="numeric" placeholder="•••"
+            <input id="oc-emp-pin" maxlength="4" inputmode="numeric" placeholder="•••"
               style="display:block;width:100%;margin-top:4px;padding:8px;border:2px solid var(--azul-medio);
                      border-radius:5px;font-size:14px;text-align:center;font-family:var(--font-mono);
                      box-sizing:border-box;letter-spacing:.2em;">
@@ -811,7 +811,7 @@
             <td colspan="4" style="padding:10px 12px;">
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <span style="font-size:13px;font-weight:700;">Nuevo PIN para ${escHtml(u.nombre)}:</span>
-                <input data-pin-input="${escHtml(u.id)}" maxlength="3" inputmode="numeric" placeholder="•••"
+                <input data-pin-input="${escHtml(u.id)}" maxlength="4" inputmode="numeric" placeholder="•••"
                   style="width:80px;padding:7px 10px;border:2px solid var(--azul-medio);border-radius:5px;
                          font-size:14px;text-align:center;font-family:var(--font-mono);letter-spacing:.15em;">
                 <button data-guardar-pin="${escHtml(u.id)}"
@@ -874,7 +874,7 @@
           const msg = tbody.querySelector(`[data-pin-msg="${id}"]`);
           const pin = (inp ? inp.value : "").trim();
           msg.style.color = "var(--rojo,#a3392a)";
-          if (!/^\d{3}$/.test(pin)) { msg.textContent = window.t("team.pinMustBe3Digits"); return; }
+          if (!/^\d{4}$/.test(pin)) { msg.textContent = window.t("team.pinMustBe3Digits"); return; }
           try {
             const r = await fetch("/api/usuarios/" + id, {
               method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -916,7 +916,7 @@
       const msgEl = document.getElementById("oc-emp-msg");
       msgEl.style.color = "var(--rojo,#a3392a)";
       if (!nombre) { msgEl.textContent = "El nombre es obligatorio."; return; }
-      if (!/^\d{3}$/.test(pin)) { msgEl.textContent = window.t("team.pinMustBeExactly3Digits"); return; }
+      if (!/^\d{4}$/.test(pin)) { msgEl.textContent = window.t("team.pinMustBeExactly3Digits"); return; }
       try {
         const r = await fetch("/api/usuarios", {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -1316,7 +1316,7 @@
       if (window.OCAuth.esDemo && window.OCAuth.esDemo()) return; // demo: sin cambio de claves
       const o = $("oc-c-owner").value.trim(), e = $("oc-c-emp").value.trim(), a = $("oc-c-acct").value.trim();
       const valido = (s) => /^[0-9]{3}$/.test(s);
-      if (![o, e, a].every(valido)) { msg("oc-codes-msg", "Cada PIN debe tener 3 dígitos (0-9).", "var(--rojo)"); return; }
+      if (![o, e, a].every(valido)) { msg("oc-codes-msg", "Cada PIN debe tener 4 dígitos (0-9).", "var(--rojo)"); return; }
       const correoActual = window.OCSecure.leerCorreo();
       if (!correoActual) { msg("oc-codes-msg", "Antes de cambiar los PINs, registra tu correo de recuperación arriba (si olvidas el nuevo PIN, sin correo no hay forma de recuperarlo).", "var(--rojo)"); return; }
       await window.OCSecure.guardarSecreto(o, [e], a, correoActual);
@@ -1367,25 +1367,25 @@
     // /api/respaldo/exportar) COMO el estado de acceso cifrado
     // (localStorage["oc_secure"]: hashes de PIN + correo) — sin esto último,
     // restaurar en otra tablet dejaría al dueño sin sus propias claves.
-    // Free-tier (JFC 2026-07-15): sin dispositivo activado (PIN 789) el
+    // Free-tier (JFC 2026-07-15): sin dispositivo activado (PIN 7895) el
     // export queda bloqueado — la proteccion REAL vive en el servidor
     // (server.js / mock-backend.js), esto es solo cortesia visual.
     fetch(`${API}/instancia`).then((r) => r.json()).then(({ apropiada }) => {
       if (!apropiada) {
         const b = $("oc-exportar");
-        if (b) { b.disabled = true; b.title = "Activa este dispositivo (PIN 789) para exportar respaldos."; b.style.opacity = "0.5"; b.style.cursor = "not-allowed"; }
+        if (b) { b.disabled = true; b.title = "Activa este dispositivo (PIN 7895) para exportar respaldos."; b.style.opacity = "0.5"; b.style.cursor = "not-allowed"; }
         const p = $("oc-respaldo-free");
-        if (p) { p.style.display = "block"; p.style.color = "var(--rojo,#a3392a)"; p.textContent = "Activa este dispositivo (PIN 789) para habilitar la exportación de respaldos."; }
+        if (p) { p.style.display = "block"; p.style.color = "var(--rojo,#a3392a)"; p.textContent = "Activa este dispositivo (PIN 7895) para habilitar la exportación de respaldos."; }
       }
     }).catch(() => {});
 
     $("oc-exportar").addEventListener("click", async () => {
       try {
         const { apropiada } = await (await fetch(`${API}/instancia`)).json();
-        if (!apropiada) { msg("oc-respaldo-msg", "Activa este dispositivo (PIN 789) para exportar.", "var(--rojo)"); return; }
+        if (!apropiada) { msg("oc-respaldo-msg", "Activa este dispositivo (PIN 7895) para exportar.", "var(--rojo)"); return; }
         const respExp = await fetch(`${API}/respaldo/exportar`);
         const datos = await respExp.json();
-        if (!respExp.ok) { msg("oc-respaldo-msg", datos.error || "Activa este dispositivo (PIN 789) para exportar.", "var(--rojo)"); return; }
+        if (!respExp.ok) { msg("oc-respaldo-msg", datos.error || "Activa este dispositivo (PIN 7895) para exportar.", "var(--rojo)"); return; }
         // Fase 2 (2026-08-04): el respaldo debe incluir el historial archivado
         // en IndexedDB (movido ahi cuando localStorage se llenaba), no solo la
         // ventana caliente — un respaldo incompleto no es un respaldo.
@@ -1859,7 +1859,7 @@
 
     const btnActivar = $("oc-syncdev-activar");
     if (btnActivar) btnActivar.addEventListener("click", async () => {
-      const pin = prompt("PIN de dueño (3 dígitos) para activar la sincronización en este dispositivo:");
+      const pin = prompt("PIN de dueño (4 dígitos) para activar la sincronización en este dispositivo:");
       if (pin === null) return;
       const ok = await OCSync.activar(pin.trim());
       msg("oc-syncdev-msg", ok ? "Sincronización activada en este dispositivo." : "PIN incorrecto.", ok ? "var(--verde)" : "var(--rojo)");
