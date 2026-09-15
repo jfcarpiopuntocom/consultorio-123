@@ -1,8 +1,8 @@
 {
   "version": "1.3.4",
   "fecha": "2026-09-15",
-  "changelog": "Mover una copia por WhatsApp: ahora hay Export Y Import. Exportas una copia (sin PIN ni claves) y la mandas; el boton Importar la trae de vuelta con confirmacion. Sube shell a c123-shell-v62.",
+  "changelog": "Menu principal: se arregla el arranque 'caido' (a veces salia con mucho espacio antes de los botones). Advanced: TODOS los items con icono y los nombres largos caben bien hasta en 320px. Sube shell a c123-shell-v63.",
   "requerida": false,
-  "shell": "c123-shell-v62",
+  "shell": "c123-shell-v63",
   "apagar": []
 }
