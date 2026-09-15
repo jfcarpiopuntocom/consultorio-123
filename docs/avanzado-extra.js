@@ -410,11 +410,11 @@
       <p style="font-size:14px;color:var(--ink-soft);margin-top:18px;">${window.t("auth.act.whatsappLabel")} — ${window.t("auth.act.whatsappHint")}</p>
       <div id="oc-whatsapp-row"></div>
       <div id="oc-clave-block" style="margin-top:18px;">
-        <p style="font-size:14px;color:var(--ink-soft);">PINs (3 dígitos). Por seguridad, los códigos actuales NO se muestran aquí (se guardan cifrados) — ingresa unos NUEVOS solo si quieres cambiarlos.</p>
+        <p style="font-size:14px;color:var(--ink-soft);">PINs (4 dígitos). Por seguridad, los códigos actuales NO se muestran aquí (se guardan cifrados) — ingresa unos NUEVOS solo si quieres cambiarlos.</p>
         <div style="display:flex;flex-direction:column;gap:8px;max-width:340px;">
-          <label style="font-size:13px;">Dueño <input id="oc-c-owner" maxlength="3" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
-          <label style="font-size:13px;">Encargado <input id="oc-c-emp" maxlength="3" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
-          <label style="font-size:13px;">Contable <input id="oc-c-acct" maxlength="3" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
+          <label style="font-size:13px;">Dueño <input id="oc-c-owner" maxlength="4" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
+          <label style="font-size:13px;">Encargado <input id="oc-c-emp" maxlength="4" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
+          <label style="font-size:13px;">Contable <input id="oc-c-acct" maxlength="4" inputmode="numeric" placeholder="•••" style="margin-left:8px;width:90px;text-align:center;font-family:var(--font-mono);padding:8px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
         </div>
         <button id="oc-save-codes" class="ir" style="margin-top:12px;background:var(--azul-medio);color:var(--blanco-calido);border-color:var(--azul-oscuro);">Guardar nuevos PINs</button>
         <p id="oc-codes-msg" style="font-size:14px;margin-top:8px;"></p>
@@ -454,14 +454,29 @@
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
             <button id="oc-sync-compartir" class="ir" style="background:#25D366;border-color:#1da851;">${window.t("sync.panel.share")}</button>
-            <button id="oc-sync-resincronizar">${window.t("sync.panel.resync")}</button>
-            <button id="oc-sync-mergear" class="ir" style="background:#2C3E50;border-color:#0F1923;color:#FFFFFF;">Juntar datos con mi equipo</button>
-            <button id="oc-sync-rotar" style="border-color:#E86040;color:#E86040;">Cambiar el c&oacute;digo</button>
+            <!-- BOTONES DE SYNC PODADOS (JFC 2026-09-15, homologado de friendly-123):
+                 se BORRARON Resincronizar, Juntar datos y Cambiar el código —
+                 aturdían y casi nadie los usaba. Quedan Compartir y Desactivar.
+                 Los handlers siguen guardados (if(!el) return). NO re-agregar sin
+                 pedido explícito de JFC. -->
         <button id="oc-sync-desactivar" style="border-color:var(--rojo);color:var(--rojo);">${window.t("sync.panel.deactivate")}</button>
           </div>
         </div>
         <p id="oc-sync-msg" style="font-size:13px;margin-top:8px;font-weight:700;"></p>`;
       vista.appendChild(panel);
+
+      /* EXPORT — FORMA B (JFC 2026-09-15, homologado de friendly-123). Placeholder:
+         "pon el botón y un (soon) y ya". Forma A = sync, Forma B = exportar una
+         copia, Forma C (tal vez) = Loyverse. Aún no está pulido: botón
+         deshabilitado con "(soon)". NO conectar a nada hasta que JFC lo pida. */
+      try {
+        panel.insertAdjacentHTML("beforeend",
+          '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--azul-suave,#dde5ec);">' +
+          '<h4 style="margin:0 0 6px;font-size:15px;color:#1a1a1a;">Exportar una copia</h4>' +
+          '<p style="font-size:14px;color:#1a1a1a;margin:0 0 8px;">Otra forma de mover tus datos: exportar una copia limpia para guardarla o entregarla. Muy pronto.</p>' +
+          '<button class="ir" id="btnExportarCopia" disabled style="opacity:0.55;cursor:not-allowed;">Exportar una copia (soon)</button>' +
+          '</div>');
+      } catch (_) {}
 
       /* JUNTAR CATALOGOS (portado de friendly-123/amigable-123, 2026-08-19,
          a pedido de JFC: "que el sync EN SERIO funcione"). Se pide, se junta
@@ -646,7 +661,7 @@
     equipoPanel.innerHTML = `
       <h3 class="seccion" style="margin-top:0;">Equipo</h3>
       <p style="font-size:14px;color:var(--ink-soft);margin-top:0;">
-        Cada miembro tiene su propio PIN de 3 dígitos. Sus ventas, ajustes y movimientos
+        Cada miembro tiene su propio PIN de 4 dígitos. Sus ventas, ajustes y movimientos
         quedan registrados con su nombre en el historial. El PIN del dueño no aparece aquí.
       </p>
       <div id="oc-emp-lista" style="margin-bottom:18px;"></div>
@@ -665,11 +680,11 @@
               style="display:block;width:100%;margin-top:4px;padding:8px;border:2px solid var(--azul-medio);
                      border-radius:5px;font-size:14px;box-sizing:border-box;">
           </label>
-          <label style="font-size:13px;">PIN (3 dígitos)<!-- Microcirugia 7 (2026-07-08): aviso de colisión. El mock no puede verificar contra el PIN del dueño/contador (esos hashes viven en crypto-store). Si colisionan, el miembro queda bloqueado silenciosamente. -->
+          <label style="font-size:13px;">PIN (4 dígitos)<!-- Microcirugia 7 (2026-07-08): aviso de colisión. El mock no puede verificar contra el PIN del dueño/contador (esos hashes viven en crypto-store). Si colisionan, el miembro queda bloqueado silenciosamente. -->
             <span style="display:block;font-size:13px;color:var(--rojo,#a3392a);margin-top:3px;font-weight:400;">
               No uses el mismo PIN del dueño, encargado general ni contador.
             </span>
-            <input id="oc-emp-pin" maxlength="3" inputmode="numeric" placeholder="•••"
+            <input id="oc-emp-pin" maxlength="4" inputmode="numeric" placeholder="•••"
               style="display:block;width:100%;margin-top:4px;padding:8px;border:2px solid var(--azul-medio);
                      border-radius:5px;font-size:14px;text-align:center;font-family:var(--font-mono);
                      box-sizing:border-box;letter-spacing:.2em;">
@@ -811,7 +826,7 @@
             <td colspan="4" style="padding:10px 12px;">
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <span style="font-size:13px;font-weight:700;">Nuevo PIN para ${escHtml(u.nombre)}:</span>
-                <input data-pin-input="${escHtml(u.id)}" maxlength="3" inputmode="numeric" placeholder="•••"
+                <input data-pin-input="${escHtml(u.id)}" maxlength="4" inputmode="numeric" placeholder="•••"
                   style="width:80px;padding:7px 10px;border:2px solid var(--azul-medio);border-radius:5px;
                          font-size:14px;text-align:center;font-family:var(--font-mono);letter-spacing:.15em;">
                 <button data-guardar-pin="${escHtml(u.id)}"
@@ -874,7 +889,7 @@
           const msg = tbody.querySelector(`[data-pin-msg="${id}"]`);
           const pin = (inp ? inp.value : "").trim();
           msg.style.color = "var(--rojo,#a3392a)";
-          if (!/^\d{3}$/.test(pin)) { msg.textContent = window.t("team.pinMustBe3Digits"); return; }
+          if (!/^\d{4}$/.test(pin)) { msg.textContent = window.t("team.pinMustBe3Digits"); return; }
           try {
             const r = await fetch("/api/usuarios/" + id, {
               method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -916,7 +931,7 @@
       const msgEl = document.getElementById("oc-emp-msg");
       msgEl.style.color = "var(--rojo,#a3392a)";
       if (!nombre) { msgEl.textContent = "El nombre es obligatorio."; return; }
-      if (!/^\d{3}$/.test(pin)) { msgEl.textContent = window.t("team.pinMustBeExactly3Digits"); return; }
+      if (!/^\d{4}$/.test(pin)) { msgEl.textContent = window.t("team.pinMustBeExactly3Digits"); return; }
       try {
         const r = await fetch("/api/usuarios", {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -1182,6 +1197,26 @@
           "Sincronizar entre dispositivos": "Paquete cifrado para otro dispositivo, sin necesitar internet.",
           "Dónde ha estado el equipo": "Ubicaciones registradas mientras hay una sesión abierta.",
         };
+        /* ICONOS DEL RIEL DE AVANZADO (JFC 2026-09-15, homologado de friendly-123).
+           Un glifo por sección que SIGNIFICA lo que es. Sin emojis (regla dura de
+           JFC): glifos Unicode monocromos de presentación de TEXTO, que no se
+           vuelven emoji a color en iOS/Android/Safari. Claves = títulos en español. */
+        const ICONS = {
+          "Capa contable": "Σ",
+          "Actividad reciente": "↺",
+          "Zona horaria": "◷",
+          "Gastos mensuales": "⊟",
+          "Acceso y recuperación": "◈",
+          "Sincronizar tu equipo": "⇄",
+          "Equipo": "⧉",
+          "Log de actividad": "≡",
+          "Control antifraude": "⊘",
+          "Traslados entre sucursales": "⇅",
+          "Sincronización remota (opcional)": "⊚",
+          "Sincronizar entre dispositivos": "⊞",
+          "Dónde ha estado el equipo": "⌖",
+          "Primeros Pasos": "➊", "First Steps": "➊",
+        };
         function esComo(t) { t = (t || "").trim(); return /^¿?Cómo funciona/i.test(t) || /^How does it work/i.test(t); }
         function tituloDe(n) {
           if (!n || n.nodeType !== 1) return null;
@@ -1229,7 +1264,7 @@
           const id = idDe(n, idx++); hint(n, t); secciones.push({ id, label: t });
         });
         rNav.innerHTML = secciones.map((s) =>
-          `<button type="button" data-riel-go="${s.id}" style="display:block;width:100%;text-align:left;background:none;border:none;border-left:3px solid transparent;padding:9px 8px;margin:0;font-size:13px;font-weight:700;cursor:pointer;line-height:1.3;color:var(--ink-soft,#5d5340) !important;-webkit-text-fill-color:var(--ink-soft,#5d5340) !important;">${s.label}</button>`
+          `<button type="button" data-riel-go="${s.id}" style="display:block;width:100%;text-align:left;background:none;border:none;border-left:3px solid transparent;padding:9px 8px;margin:0;font-size:13px;font-weight:700;cursor:pointer;line-height:1.3;color:var(--ink-soft,#5d5340) !important;-webkit-text-fill-color:var(--ink-soft,#5d5340) !important;">${ICONS[s.label] ? `<span aria-hidden="true" style="display:inline-block;width:1.3em;color:var(--azul-medio,#2c4a68);-webkit-text-fill-color:var(--azul-medio,#2c4a68);">${ICONS[s.label]}</span>` : ""}${s.label}</button>`
         ).join("");
         fila.appendChild(rNav); fila.appendChild(contR); vista.appendChild(fila);
 
@@ -1316,7 +1351,7 @@
       if (window.OCAuth.esDemo && window.OCAuth.esDemo()) return; // demo: sin cambio de claves
       const o = $("oc-c-owner").value.trim(), e = $("oc-c-emp").value.trim(), a = $("oc-c-acct").value.trim();
       const valido = (s) => /^[0-9]{3}$/.test(s);
-      if (![o, e, a].every(valido)) { msg("oc-codes-msg", "Cada PIN debe tener 3 dígitos (0-9).", "var(--rojo)"); return; }
+      if (![o, e, a].every(valido)) { msg("oc-codes-msg", "Cada PIN debe tener 4 dígitos (0-9).", "var(--rojo)"); return; }
       const correoActual = window.OCSecure.leerCorreo();
       if (!correoActual) { msg("oc-codes-msg", "Antes de cambiar los PINs, registra tu correo de recuperación arriba (si olvidas el nuevo PIN, sin correo no hay forma de recuperarlo).", "var(--rojo)"); return; }
       await window.OCSecure.guardarSecreto(o, [e], a, correoActual);
@@ -1367,25 +1402,25 @@
     // /api/respaldo/exportar) COMO el estado de acceso cifrado
     // (localStorage["oc_secure"]: hashes de PIN + correo) — sin esto último,
     // restaurar en otra tablet dejaría al dueño sin sus propias claves.
-    // Free-tier (JFC 2026-07-15): sin dispositivo activado (PIN 789) el
+    // Free-tier (JFC 2026-07-15): sin dispositivo activado (PIN 7895) el
     // export queda bloqueado — la proteccion REAL vive en el servidor
     // (server.js / mock-backend.js), esto es solo cortesia visual.
     fetch(`${API}/instancia`).then((r) => r.json()).then(({ apropiada }) => {
       if (!apropiada) {
         const b = $("oc-exportar");
-        if (b) { b.disabled = true; b.title = "Activa este dispositivo (PIN 789) para exportar respaldos."; b.style.opacity = "0.5"; b.style.cursor = "not-allowed"; }
+        if (b) { b.disabled = true; b.title = "Activa este dispositivo (PIN 7895) para exportar respaldos."; b.style.opacity = "0.5"; b.style.cursor = "not-allowed"; }
         const p = $("oc-respaldo-free");
-        if (p) { p.style.display = "block"; p.style.color = "var(--rojo,#a3392a)"; p.textContent = "Activa este dispositivo (PIN 789) para habilitar la exportación de respaldos."; }
+        if (p) { p.style.display = "block"; p.style.color = "var(--rojo,#a3392a)"; p.textContent = "Activa este dispositivo (PIN 7895) para habilitar la exportación de respaldos."; }
       }
     }).catch(() => {});
 
     $("oc-exportar").addEventListener("click", async () => {
       try {
         const { apropiada } = await (await fetch(`${API}/instancia`)).json();
-        if (!apropiada) { msg("oc-respaldo-msg", "Activa este dispositivo (PIN 789) para exportar.", "var(--rojo)"); return; }
+        if (!apropiada) { msg("oc-respaldo-msg", "Activa este dispositivo (PIN 7895) para exportar.", "var(--rojo)"); return; }
         const respExp = await fetch(`${API}/respaldo/exportar`);
         const datos = await respExp.json();
-        if (!respExp.ok) { msg("oc-respaldo-msg", datos.error || "Activa este dispositivo (PIN 789) para exportar.", "var(--rojo)"); return; }
+        if (!respExp.ok) { msg("oc-respaldo-msg", datos.error || "Activa este dispositivo (PIN 7895) para exportar.", "var(--rojo)"); return; }
         // Fase 2 (2026-08-04): el respaldo debe incluir el historial archivado
         // en IndexedDB (movido ahi cuando localStorage se llenaba), no solo la
         // ventana caliente — un respaldo incompleto no es un respaldo.
@@ -1859,7 +1894,7 @@
 
     const btnActivar = $("oc-syncdev-activar");
     if (btnActivar) btnActivar.addEventListener("click", async () => {
-      const pin = prompt("PIN de dueño (3 dígitos) para activar la sincronización en este dispositivo:");
+      const pin = prompt("PIN de dueño (4 dígitos) para activar la sincronización en este dispositivo:");
       if (pin === null) return;
       const ok = await OCSync.activar(pin.trim());
       msg("oc-syncdev-msg", ok ? "Sincronización activada en este dispositivo." : "PIN incorrecto.", ok ? "var(--verde)" : "var(--rojo)");

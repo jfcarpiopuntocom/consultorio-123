@@ -1,168 +1,106 @@
 # CLAUDE.md — léeme entero antes de planificar o tocar código
 
-Este archivo se carga solo en cada sesión. Los demás `.md` no. Por eso lo
-crítico está aquí y no repartido en apuntes que nadie abre.
+Este archivo se carga solo en cada sesión. Es la memoria persistente de este
+repo: lo crítico está aquí para no re-derivarlo (ni re-preguntarlo) cada vez.
+Si un dato cambia, se actualiza aquí en el mismo commit.
 
 ---
 
-## REGLA 0 — LEER LOS APUNTES ANTES DE PLANIFICAR
+## QUÉ ES consultorio-123 — es una app DISTINTA, no "amigable para médicos"
 
-**Obligatorio, antes de proponer cualquier plan o port:**
+- Su centro es lo **contable y financiero**: abonos, pagos, cuentas por cobrar
+  de pacientes, control y visualización financiera fácil.
+- Unidad básica: **el paciente** (no la percha).
+- **PIN de 4 dígitos, POR DISEÑO.** No "corregir" a 3. Las apps de tiendas usan 3.
+- Idioma español, con `i18n.js` (a diferencia de amigable).
+- Está en **beta** (focus groups / market research). En el PIN se declara
+  **`beta version · shell-vNN`**.
+- **NO portarle** perchas, variantes, comisiones a asociados, eventos ni
+  reposición de stock — un consultorio no tiene nada de eso. Ante la duda: **no
+  portar todavía.**
+- Apps hermanas: **friendly-123** (testeo, inglés, recibe avances primero) y
+  **amigable-123** (producción tiendas, español). Las tres divergieron: **jamás
+  `cp` de una a otra**, se injerta cambio por cambio.
 
-```bash
-ls *.md _private/*.md 2>/dev/null          # qué apuntes hay
-cat PORT-NOTES-*.md LAS-TRES-APPS-*.md DIRECCION-PRODUCTO-*.md
-```
+## PRIME DIRECTIVE — NO NUBE, NO FILTRAR DATOS DE PACIENTES
 
-Esto NO es opcional y no se salta por ahorrar tokens. El 2026-08-18 se propuso
-un plan de port que habría borrado trabajo de friendly-123 porque no se leyó
-`PORT-NOTES-2026-07-21.md`, donde ya estaba escrito que friendly-123 recibe los
-avances primero. Un plan hecho sin leer los apuntes es un plan que destruye
-trabajo.
-
-Si un apunte contradice lo que dice este archivo, **gana el apunte más reciente
-y hay que actualizar este archivo en el mismo commit.**
-
----
-
-## REGLA 1 — FOTO ANTES DE TOCAR NADA
-
-```bash
-bash .claude/snapshot.sh "antes-de-lo-que-sea"
-```
-
-Rama de respaldo fechada + tar fuera del repo (incluye lo NO rastreado, que es
-justo lo que no sobrevive a un clon nuevo) + sha256 de todo .js/.html/.json/.md.
-Se corre ANTES de empezar, no después. Sin excusa y sin preguntar.
-
-## REGLA 1b — NUNCA SE PIERDE TRABAJO DE JFC
-
-- **Jamás sobrescribir un archivo completo entre apps hermanas.** Se injerta
-  cambio por cambio. Las tres apps divergieron hace rato: `cp` de una a otra
-  borra trabajo.
-- Antes de cualquier port: rama de respaldo fechada en el repo destino.
-- Ante la duda de si algo es trabajo propio de esa app: **preguntar, no decidir.**
+Todo vive en el dispositivo. Lo ÚNICO que sale es el heartbeat de licencia.
+**Jamás** datos de pacientes, atenciones, ni financieros. Los pacientes **NO
+viajan** en el sync entre pares (decisión firme). El worker de Cloudflare es un
+relay de puro broadcast, sin almacenamiento — no meterle estado.
 
 ---
 
-## REGLA 2 — TRABAJO LOCAL, PUSHES FRECUENTÍSIMOS
+## POLÍTICA DE VERSIÓN (JFC 2026-09-09) — NO MOVER SIN ORDEN EXPRESA
 
-El trabajo es local. Se commitea y se pushea seguido — no un commit gigante al
-final. Cada paso que queda verde se pushea. Nada se queda sólo en el disco de
-un contenedor que se recicla.
+- La etiqueta pública es **`beta version`** (badge en el PIN). Junto a ella se
+  muestra **`· shell-vNN`** (el entero del shell) para comparar entre dispositivos.
+- **De aquí en adelante SOLO sube el ENTERO del shell** (`c123-shell-vNN`), que
+  es el control de cambios real. `version` en `version.json` no se mueve salvo
+  un salto mayor deliberado que JFC pida.
+- El badge lee `version.json` (que el SW nunca cachea); fail-safe si falla.
 
-## REGLA 2b — NO PARAR (texto de JFC, 2026-08-18)
+## CHECKLIST DE RELEASE — obligatorio en CADA cambio a un archivo del SHELL
 
-> "no tengo permitido ser estupido, y debo ser util, no alucinar, no asumir, no
-> parar y arruinarle su dia a JFC, no dejar sin pushear idiotamente, no dejar de
-> poner el plan de trabajo siempre en el chat antes de hacer para que JFC retome
-> en otra sesion o PC o incluso cuenta de Claude"
+Un archivo del SHELL es cualquiera en `const SHELL = [...]` de `docs/sw.js`. Si tocas uno:
 
-Desglosado, porque cada parte tiene su forma de fallar:
+1. Sube `const CACHE = "c123-shell-vNN"` en `docs/sw.js` al siguiente entero.
+2. Sube `"shell": "c123-shell-vNN"` en `docs/version.json` al MISMO número.
+3. `node scripts/gen-manifest.js`.
+4. `bash check-sw.sh` — todo OK (hashes reales cuadran, sw.js↔version.json
+   coinciden, G4 nav/sección/panel). Si falla, no se pushea.
+5. Recién ahí commit + push.
 
-- **No parar.** En modo auto, con el plan aprobado, se sigue hasta terminar. NO
-  se corta a mitad para resumir avances ni para pedir permiso otra vez. JFC deja
-  esto corriendo justo para no estar pendiente de la PC.
-- **El plan SIEMPRE en el chat antes de hacer.** No sólo en un `.md`. Tiene que
-  poder retomar desde otra sesión, otra PC u otra cuenta de Claude leyendo el
-  chat.
-- **Nunca dejar sin pushear.** Cada paso que queda verde se pushea.
-- **No asumir, no alucinar.** Si un dato se puede medir, se mide. Lo que no se
-  comprobó se dice que no se comprobó.
+Saltarse esto deja a los aparatos ya instalados con MEZCLA de shell viejo/nuevo.
 
-JFC deja trabajo corriendo de noche. No detenerse a pedir permiso a mitad de
-una tarea aprobada. Se para sólo si hay una contradicción real que puede
-destruir datos; en ese caso se muestra y se sigue con todo lo demás.
+## SISTEMA DE INTEGRIDAD DE VERSIÓN (ya montado, no romper)
 
-Pushear siempre. Nunca dejar commits sin subir.
-
-## REGLA 2d — YO CIERRO EL CICLO. NADA QUEDA A MEDIAS
-
-> "no entiendo por qué he tenido que pedirte unas 80 veces que no hagas esto
-> 'los 3 PR siguen en borrador esperando tu decisión' (...) yo no si quiera sé
-> lo que es un PR ni debo necesitar saber" — JFC, 2026-08-18
-
-**Nunca** dejar trabajo terminado esperando una decisión suya sobre mecánica de
-git. JFC no tiene que saber qué es un PR, una rama o un merge, y no se le
-pregunta. El ciclo completo es responsabilidad mía:
-
-1. Respaldo local abundante (`snapshot.sh`: rama fechada + tar + sha256).
-2. Commit y push.
-3. Sacar el PR de borrador y **mergearlo** a la rama principal.
-4. Verificar que quedó mergeado y que no rompió nada.
-
-Se merge cuando está **verde y comprobado**, no antes: mergear código sin
-verificar sería lo contrario de profesional. Pero el merge no espera su permiso,
-espera la comprobación. Si algo no se puede mergear, se dice POR QUÉ en una
-línea y se arregla — no se deja en el limbo.
-
-## REGLA 3 — BITÁCORA
-
-Registrar los prompts de JFC en `PROMPTS-Y-BITACORA.md`: textuales, fechados, y
-qué se hizo con cada uno. Sirve para retroceder cuando él quiera.
+- `version-manifest.json`: SHA-256 por archivo del shell.
+- SW: verificación SRI **fail-open** — hash que no cuadra NUNCA se borra; se
+  re-pide y se conserva el servido si falla.
+- `check-sw.sh`: recomputa el hash real y falla si el manifest está viejo.
+- El SW limpia caches `c123-shell-` y `f123-shell-` (heredó el prefijo de friendly).
 
 ---
 
-## LAS TRES APPS — qué es cada una
+## SYNC (estado actual)
 
-| | **amigable-123** | **friendly-123** | **consultorio-123** |
-|---|---|---|---|
-| Rol | producción, español | **repo de TESTEO — recibe los avances PRIMERO** | focus groups / market research |
-| Idioma | español | inglés (`i18n.js`) | español |
-| Unidad básica | la percha | la percha | el paciente |
-| Licencia | `AMG-` | `F123-` | propio |
-| PIN | 3 dígitos | 3 dígitos | **4 dígitos, POR DISEÑO** — no "corregir" |
-
-**friendly-123 es el repo donde se prueban cosas avanzadas.** Suele ir ADELANTE
-de amigable en algunos sistemas. Verificado el 2026-08-18: va adelante en
-`crypto-store.js` (+13 KB), `mock-backend.js` (orden de sacrificio de espacio),
-`avanzado-extra.js` (respaldo autoverificado), `reconciliacion.js`, y todo el
-sistema `i18n.js`. **Nunca asumir que friendly va atrás.**
-
-**consultorio-123 va a ser una app DISTINTA.** No es amigable para médicos. Su
-centro es lo contable y financiero: abonos, pagos, cuentas por cobrar de
-pacientes, control y visualización financiera fácil. NO portarle perchas,
-variantes, comisiones a asociados, eventos ni reposición de stock — un
-consultorio no tiene nada de eso. Ante la duda: **no portar todavía.**
-
----
-
-## VOCABULARIO (decidido 2026-08-17, aplicado en las tres)
-
-- **encargado/a**, nunca "empleado" — no queremos que parezca control de personal.
-- **asociado/a**, nunca "promotor/a". Cuando la casa retiene %: **casa anfitriona**.
-- **Bar y licores son una sola cosa.** No existe el rubro "Licores".
-- El rol interno sigue siendo el string `"empleado"` en PINs, endpoints y estado
-  guardado. Sólo cambió el texto visible. Renombrarlo dejaría sin acceso a todo
-  dispositivo ya activado.
-
-## COMISIONES — las dos modalidades
-
-Misma cuenta leída al revés: la vendedora se lleva 10% y la casa retiene el
-resto; el artista se lleva 85% y **le deja 15% a la casa anfitriona**. **La
-misma persona puede tener las dos a la vez** en perchas distintas — por eso el %
-no se guarda por persona, se suma la plata real de cada trato.
-
----
+- `sync-watchdog.js` portado de friendly. Capability B (verificar consistencia +
+  auto-resync) funciona. Capability A (snapshot local) activa vía
+  `OCSync.estadoParaCheckpoint`. **NO** hay restore (`aplicarCheckpoint`) todavía:
+  cero riesgo de pisar datos de pacientes hasta que se decida con cuidado.
 
 ## CÓMO INVESTIGAR SIN QUEMAR TOKENS
 
-`index.html` pasa de 1 MB. **Nunca leerlo entero.** Se usa:
+`docs/index.html` es enorme. **Nunca leerlo entero.**
 
 ```bash
 git log --since="7 days ago" --pretty=format:"%h %ad %s" --date=short
-git show --stat <sha>
-comm -23 <(ls a/docs|sort) <(ls b/docs|sort)   # qué archivos faltan
-grep -rl "MARCADOR" docs/                       # si un sistema está o no
-stat -c%s a/docs/x.js b/docs/x.js               # quién va adelante
+grep -n "MARCADOR" docs/index.html          # ubicar, no volcar
 ```
 
-Leer código sólo cuando el plan dependa de un detalle que nada de esto contesta.
+En minificado: editar con scripts que verifiquen ancla ÚNICA + `node --check`. Nunca `sed` a ciegas.
 
 ---
 
-## ESTILO AL ESCRIBIR PARA JFC
+## GIT — YO CIERRO EL CICLO, NADA QUEDA A MEDIAS
 
-- Español natural. **No usar "vive en"** (calco del inglés, JFC lo detesta).
-- Sin emojis en la UI.
-- Comentarios en el código que expliquen POR QUÉ, con la fecha y el bug real.
+- Antes de ramificar: `git fetch origin main` y `git checkout -B <rama>
+  origin/main` (base fresca).
+- Pushes frecuentes; cada paso verde se pushea (el contenedor es efímero).
+- JFC no necesita saber qué es un PR/rama/merge. El ciclo (respaldo → commit →
+  push → PR → mergear cuando esté verde y comprobado) es mío. No dejar PRs en el
+  limbo esperando su decisión de mecánica de git.
+- Rama por defecto: **main**.
+
+---
+
+## NOMENCLATURA Y ESTILO
+
+- **fiado** = deuda (debt). **abono** = crédito a favor (credit); puede ser
+  "sin determinar" o por ítem. Se quitó el confuso "on credit".
+- Español natural, 80% para el lego, 20% académico. **No usar "vive en"**.
+- **Legibilidad premiada SIEMPRE**: nunca gris/opaco/sombreado/muy pequeño. Tinta de verdad.
+- Sin emojis en la UI. Comentarios que expliquen POR QUÉ, con fecha y el bug real.
+- No parar a mitad de tarea aprobada. No dejar commits sin pushear. No hacerle
+  pedir la misma cosa tres veces.

@@ -296,6 +296,13 @@
 
   *{box-sizing:border-box;}
   html{-webkit-tap-highlight-color:transparent;}
+  /* ANTI-DOBLE-TAP-ZOOM (JFC 2026-09-09): en iOS Safari, tocar rápido un botón
+     (ej. "Cobrado"/"Vendido" en cada card, o los +/- de cantidad) se interpreta
+     como doble-tap = zoom; la página salta de escala y rompe la UI (toca achicar
+     con los dedos). touch-action:manipulation mata SOLO el doble-tap-zoom del
+     elemento, dejando el pinch-zoom global intacto (buena accesibilidad). Regla
+     GLOBAL a propósito: antes solo estaba inline en los tiles. */
+  button, a, input, select, textarea, label, summary, [role="button"], [onclick]{ touch-action:manipulation; }
   ::selection{ background:var(--brass); color:var(--blanco-calido); }
   :focus-visible{ outline:2.5px solid var(--rust); outline-offset:2px; border-radius:3px; }
   ::-webkit-scrollbar{ width:10px; height:10px; }
@@ -2331,7 +2338,7 @@ function tarjetaCliente(c, esDueno){
       <label style="font-size:13px;font-weight:700;color:#C0392B !important;-webkit-text-fill-color:#C0392B !important;">Incident time:</label>
       <input type="time" id="oc-inc-${c.id}" value="${ahoraHora}"
         style="padding:3px 8px;border:1.5px solid #E0B0AD;border-radius:5px;font-size:13px;color:#0F1923 !important;-webkit-text-fill-color:#0F1923 !important;background:#fff;">
-      <span style="font-size:13px;color:#999999 !important;-webkit-text-fill-color:#999999 !important;">(for cross-reference with cameras / audio)</span>
+      <span style="font-size:13px;color:var(--ink-soft,#2C3E50) !important;-webkit-text-fill-color:var(--ink-soft,#2C3E50) !important;">(for cross-reference with cameras / audio)</span>
     </div>` : "";
   const controles = puedeEvaluar ? `
     <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;align-items:center;">
@@ -4471,7 +4478,7 @@ async function cargarActividad(){
     return;
   }
   if (items.length === 0){
-    cont.innerHTML = `<p>No activity recorded yet in this session.</p>`;
+    cont.innerHTML = `<p>Aún no hay actividad registrada en esta sesión.</p>`;
     return;
   }
   // Fix 2026-07-08: antes se inyectaba JSON.stringify(it.detalle) SIN escapar —
@@ -4904,7 +4911,7 @@ async function cargarGastosMensuales(){
   if (ubicacionActual === "todas"){
     input.disabled = true;
     btn.disabled = true;
-    msg.textContent = `This total covers ${fmtMoney(data.gastosMensuales)} across all your locations. Pick one below to edit.`;
+    msg.textContent = `Este total cubre ${fmtMoney(data.gastosMensuales)} en todas tus ubicaciones. Elige una abajo para editar.`;
     // Antes esto solo mostraba un mensaje y el dueño tenía que acordarse de
     // subir hasta el selector del header — muchos pensaban que la caja
     // estaba rota. Ahora el selector vive aquí mismo, al lado del problema.
@@ -5055,6 +5062,7 @@ setTimeout(() => {
 <script src="./device-identity.js"></script>
 <script src="./storage-durabilidad.js"></script>
 <script src="./sync-realtime.js"></script>
+<script src="./sync-watchdog.js"></script>
 <script src="./auth-ui.js"></script>
 <script src="./backup-scheduler.js"></script>
 <script src="./avanzado-extra.js"></script>
@@ -5126,6 +5134,17 @@ setTimeout(() => {
 // Falla en silencio en navegadores sin soporte — nunca bloquea la carga.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => { navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).catch(() => {}); });
+  /* SPLASH DE ACTUALIZACION (JFC 2026-09-09, P1): aviso limpio y legible en vez de recargar en blanco tras una version nueva. No toca el flujo de PIN. */
+  function _c123RecargaAviso(){
+    try{
+      var d=document.createElement("div");
+      d.setAttribute("style","position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#0F1923;padding:24px;text-align:center;font-family:system-ui,-apple-system,Segoe UI,sans-serif;");
+      var t=document.createElement("div"); t.textContent="Actualizando a la ultima version\u2026"; t.setAttribute("style","font-size:18px;font-weight:700;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;");
+      var u=document.createElement("div"); u.textContent="Un momento, no cierres la app."; u.setAttribute("style","font-size:14px;color:#E8ECF2;-webkit-text-fill-color:#E8ECF2;");
+      d.appendChild(t); d.appendChild(u); document.body.appendChild(d);
+    }catch(_){}
+    setTimeout(function(){location.reload();},180);
+  }
 }
 // CONTROL DE VERSION FORZADO (JFC 2026-07-17, "no podemos andar sirviendo
 // versiones viejas"): en CADA carga se pide version.json fresco (el SW nunca
@@ -5148,7 +5167,7 @@ if ("serviceWorker" in navigator) {
     // version vieja nunca guardaron esta clave — tambien necesitan la purga.
     try { const regs = await navigator.serviceWorker.getRegistrations(); for (const g of regs) { try { await g.update(); } catch (_) {} } } catch (_) {}
     try { const cs = await caches.keys(); for (const c of cs) { try { await caches.delete(c); } catch (_) {} } } catch (_) {}
-    location.reload();
+    _c123RecargaAviso();
   } catch (_) {}
 })();
 

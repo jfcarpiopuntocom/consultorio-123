@@ -497,6 +497,13 @@ try {
         <h2 style="display:none;">consultorio-123</h2>
       </div>
       <p id="oc-gate-tagline" style="margin:6px 0 10px;font-size:13px;color:var(--ink-soft,#5d5340) !important;-webkit-text-fill-color:var(--ink-soft,#5d5340) !important;text-align:center;font-family:var(--font-mono,monospace);letter-spacing:.05em;">${window.t("auth.gate.tagline")}</p>
+      <!-- ETAPA BETA en el PIN (JFC 2026-09-09): consultorio esta en beta; se
+           declara aqui, legible (ambar fuerte, no gris), para que quede claro a
+           quien entra. La version real se controla por el entero del shell
+           (c123-shell-vNN). Quitar/cambiar solo cuando JFC declare la 1.0. -->
+      <div id="oc-gate-beta" style="margin:0 0 8px;text-align:center;">
+        <span style="display:inline-block;padding:3px 12px;border-radius:999px;background:#FFF3D6;border:1px solid #E8A020;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8A5A00 !important;-webkit-text-fill-color:#8A5A00 !important;">beta version<span id="oc-gate-build"></span></span>
+      </div>
       <div class="sub">${window.t("auth.gate.subtitle")}</div>
       <div class="oc-slots" id="oc-slots"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>
       <div class="oc-pad" id="oc-pad"></div>
@@ -523,6 +530,23 @@ try {
       </div>
     </div>`;
   document.body.appendChild(gate);
+
+  /* SHELL VERSION en el PIN (JFC 2026-09-09): junto a "beta version" se muestra el
+     entero del shell (c123-shell-vNN) para poder comparar entre dispositivos y
+     saber que build corre cada uno. Lee version.json (que el SW nunca cachea).
+     Fail-safe: si falla, el badge queda solo con "beta version". */
+  (function pintarBuildGate(){
+    try {
+      fetch("./version.json?ts=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (vj) {
+          if (!vj || !vj.shell) return;
+          var el = document.getElementById("oc-gate-build");
+          if (!el) return;
+          el.textContent = "  \u00b7  shell-" + String(vj.shell).replace("c123-shell-", "");
+        }).catch(function () {});
+    } catch (_) {}
+  })();
 
   let teclado = null;
   let intervaloCountdown = null;
