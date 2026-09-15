@@ -491,17 +491,37 @@
         window.pintarSyncNuevoEstado();
       } catch (_) {}
 
-      /* EXPORT — FORMA B (JFC 2026-09-15, homologado de friendly-123). Placeholder:
-         "pon el botón y un (soon) y ya". Forma A = sync, Forma B = exportar una
-         copia, Forma C (tal vez) = Loyverse. Aún no está pulido: botón
-         deshabilitado con "(soon)". NO conectar a nada hasta que JFC lo pida. */
+      /* EXPORT — FORMA B: WHATSAPP (JFC 2026-09-15, homologado de friendly-123).
+         Forma A = sync, Forma B = exportar una copia y compartirla por WhatsApp,
+         Forma C (a futuro) = Loyverse. Soberano: descarga el respaldo
+         (/respaldo/exportar) como archivo local y abre WhatsApp con un mensaje
+         listo; el dueño adjunta el archivo. No toca ningún servidor nuestro. */
       try {
         panel.insertAdjacentHTML("beforeend",
           '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--azul-suave,#dde5ec);">' +
-          '<h4 style="margin:0 0 6px;font-size:15px;color:#1a1a1a;">Exportar una copia</h4>' +
-          '<p style="font-size:14px;color:#1a1a1a;margin:0 0 8px;">Otra forma de mover tus datos: exportar una copia limpia para guardarla o entregarla. Muy pronto.</p>' +
-          '<button class="ir" id="btnExportarCopia" disabled style="opacity:0.55;cursor:not-allowed;">Exportar una copia (soon)</button>' +
+          '<h4 style="margin:0 0 6px;font-size:15px;color:#1a1a1a;">Exportar una copia (WhatsApp)</h4>' +
+          '<p style="font-size:14px;color:#1a1a1a;margin:0 0 8px;">Descarga una copia limpia de tus datos y compártela por WhatsApp contigo mismo o con tu contador. Se queda en tu dispositivo: adjunta el archivo que se acaba de descargar.</p>' +
+          '<button class="ir" id="btnExportarCopia">Descargar y compartir por WhatsApp</button>' +
+          '<p id="oc-exportcopia-msg" style="font-size:13px;font-weight:700;margin:8px 0 0;color:#1a1a1a;"></p>' +
           '</div>');
+        var _bx = document.getElementById("btnExportarCopia");
+        if (_bx) _bx.addEventListener("click", async function () {
+          var _m = document.getElementById("oc-exportcopia-msg");
+          try {
+            var r = await fetch(API + "/respaldo/exportar");
+            var datos = await r.json();
+            if (!r.ok) { if (_m) { _m.style.color = "var(--rojo,#a3392a)"; _m.textContent = datos.error || "Activa este dispositivo (PIN 7895) para exportar."; } return; }
+            var stamp = new Date().toISOString().slice(0, 10);
+            var blob = new Blob([JSON.stringify(datos, null, 2)], { type: "application/json" });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement("a"); a.href = url; a.download = "consultorio-respaldo-" + stamp + ".json";
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function () { try { URL.revokeObjectURL(url); } catch (_) {} }, 4000);
+            if (_m) { _m.style.color = "var(--sim-verde-dk,#1a6e3c)"; _m.textContent = "Copia descargada. Abriendo WhatsApp — adjunta ahí el archivo."; }
+            var txt = encodeURIComponent("Aquí está mi respaldo de consultorio-123 del " + stamp + ". Adjunto el archivo que se acaba de descargar.");
+            window.open("https://wa.me/?text=" + txt, "_blank");
+          } catch (e) { if (_m) { _m.style.color = "var(--rojo,#a3392a)"; _m.textContent = "No se pudo exportar — revisa tu conexión."; } }
+        });
       } catch (_) {}
 
       /* JUNTAR CATALOGOS (portado de friendly-123/amigable-123, 2026-08-19,

@@ -1,8 +1,8 @@
 {
   "version": "1.3.4",
   "fecha": "2026-09-15",
-  "changelog": "Sincronizacion nueva (la que cruza las fotos entre aparatos) instalada y ENCENDIDA por defecto, como en friendly-123. Y descuento / precio especial: un producto puede tener un 2o precio mas bajo (paquetes de sesiones, amigos/familia, cupones) sin partir el stock; en la ficha aparece un boton 'Vender a $X'. Sube shell a c123-shell-v60.",
+  "changelog": "Export (Forma B) por WhatsApp: el boton descarga una copia de tus datos y abre WhatsApp con un mensaje listo para que la mandes adjuntando el archivo. Todo se queda en tu dispositivo. Sube shell a c123-shell-v61.",
   "requerida": false,
-  "shell": "c123-shell-v60",
+  "shell": "c123-shell-v61",
   "apagar": []
 }
