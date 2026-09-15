@@ -3802,6 +3802,11 @@ function mostrarFormNuevoProducto(codigoEscaneado){
         <label style="flex:1;font-size:14px;">${t("form.cost")}<br>
           <input id="np-costo" type="number" min="0" step="0.01" style="width:100%;padding:8px;margin-top:4px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
       </div>
+      <!-- PRECIO ESPECIAL / DESCUENTO (JFC 2026-09-15, homologado de friendly-123):
+           2º precio OPCIONAL más bajo (paquete de sesiones, amigos/familia, cupón).
+           En la venta se puede aplicar de un toque. Vacío = un solo precio. -->
+      <label style="display:block;margin-top:10px;font-size:14px;">Precio especial / descuento (opcional)<br>
+        <input id="np-precio-casa" type="number" min="0" step="0.01" placeholder="Precio más bajo para paquetes, amigos o cupones — vacío si no aplica" style="width:100%;padding:8px;margin-top:4px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
       <label style="display:block;margin-top:10px;font-size:14px;">${t("form.initialStock")}<br>
         <input id="np-stock" type="number" min="0" step="1" value="0" style="width:100%;padding:8px;margin-top:4px;border:2px solid var(--azul-medio);border-radius:5px;"></label>
       <label style="display:block;margin-top:10px;font-size:14px;">${t("form.supplier")}<br>
@@ -3846,7 +3851,7 @@ async function crearProductoNuevo(codigoEscaneado){
   const body = {
     nombre: val("np-nombre"), categoria: val("np-categoria"), barcode: codigoEscaneado || val("np-barcode"),
     chip: elS("np-chip") ? val("np-chip").slice(0, 12) : "",
-    precio: val("np-precio"), costo: val("np-costo"), stockInicial: val("np-stock"), proveedor: val("np-proveedor"),
+    precio: val("np-precio"), precioCasa: (scope.querySelector("#np-precio-casa") ? val("np-precio-casa") : ""), costo: val("np-costo"), stockInicial: val("np-stock"), proveedor: val("np-proveedor"),
     ubicacionId: elS("np-ubicacion") ? val("np-ubicacion") : (ubicacionActual === "todas" ? "todas" : ubicacionActual),
     tipoProveedor: elS("np-tipo-proveedor") ? elS("np-tipo-proveedor").value : "compra",
     comisionProveedorPct: elS("np-tipo-proveedor") && elS("np-tipo-proveedor").value === "consignacion" ? Number(val("np-comision-pct")) || 0 : 0,
@@ -3917,6 +3922,8 @@ async function mostrarFormEditarProducto(id){
         <label style="flex:1;font-size:14px;">${t("form.salePrice")}<br><input id="ed-precio" type="number" min="0" step="0.01" value="${p.precio}" ${inp}></label>
         <label style="flex:1;font-size:14px;">${t("form.cost")}<br><input id="ed-costo" type="number" min="0" step="0.01" value="${p.costo || 0}" ${inp}></label>
       </div>
+      <!-- PRECIO ESPECIAL / DESCUENTO (JFC 2026-09-15): editable; vaciar borra el precio especial. -->
+      <label style="display:block;margin-top:10px;font-size:14px;">Precio especial / descuento (opcional)<br><input id="ed-precio-casa" type="number" min="0" step="0.01" value="${p.precioCasa != null ? p.precioCasa : ""}" placeholder="Precio más bajo para paquetes, amigos o cupones — vacío si no aplica" ${inp}></label>
       <div style="display:flex;gap:10px;margin-top:10px;">
         <label style="flex:1;font-size:14px;">${t("form.supplier")}<br><input id="ed-proveedor" type="text" value="${q(p.proveedor)}" ${inp}></label>
         <label style="flex:1;font-size:14px;">${t("form.relationType")}<br>
@@ -3980,7 +3987,7 @@ async function guardarEdicionProducto(id){
   // campo no existe en el DOM, se OMITE del PATCH en vez de reventar todo.
   const v = (x) => { const el = document.getElementById(x); return el ? el.value.trim() : undefined; };
   // OJO: el SKU no se toca aqui — solo el barcode si el dueno lo digito.
-  const body = { nombre: v("ed-nombre"), precio: v("ed-precio"), costo: v("ed-costo"), proveedor: v("ed-proveedor"), categoria: v("ed-categoria"), barcode: v("ed-barcode"), ubicacionId: v("ed-ubicacion"), umbralRojo: v("ed-umbral-rojo"), umbralAmarillo: v("ed-umbral-amarillo"), tipoProveedor: v("ed-tipo-proveedor"), comisionProveedorPct: v("ed-comision-pct") };
+  const body = { nombre: v("ed-nombre"), precio: v("ed-precio"), precioCasa: v("ed-precio-casa"), costo: v("ed-costo"), proveedor: v("ed-proveedor"), categoria: v("ed-categoria"), barcode: v("ed-barcode"), ubicacionId: v("ed-ubicacion"), umbralRojo: v("ed-umbral-rojo"), umbralAmarillo: v("ed-umbral-amarillo"), tipoProveedor: v("ed-tipo-proveedor"), comisionProveedorPct: v("ed-comision-pct") };
   Object.keys(body).forEach(k => { if (body[k] === undefined) delete body[k]; });
   const foto = await leerFotoRedimensionada(document.getElementById("ed-foto"));
   if (foto) body.foto = foto;
@@ -4052,6 +4059,9 @@ async function abrirAltaProducto(){
         <label style="flex:1;font-size:14px;">${t("form.cost")}<br>
           <input id="np-costo" type="number" min="0" step="0.01" ${inp}></label>
       </div>
+      <!-- PRECIO ESPECIAL / DESCUENTO (JFC 2026-09-15): 2ª copia del alta. IDs np-* duplicados a propósito. -->
+      <label style="display:block;margin-top:10px;font-size:14px;">Precio especial / descuento (opcional)<br>
+        <input id="np-precio-casa" type="number" min="0" step="0.01" placeholder="Precio más bajo para paquetes, amigos o cupones — vacío si no aplica" ${inp}></label>
       <label style="display:block;margin-top:10px;font-size:14px;">${t("form.initialStock")}<br>
         <input id="np-stock" type="number" min="0" step="1" value="0" ${inp}></label>
       <label style="display:block;margin-top:10px;font-size:14px;">${t("form.supplier")}<br>
@@ -4122,6 +4132,9 @@ function pintarFicha(p){
       <span class="badge-estado ${escHtml(p.estado)}">${escHtml(p.mensaje)}</span>
       <div class="acciones-rapidas">
         <button class="vender" onclick="venderUno('${p.id}')" ${p.stockActual === 0 ? "disabled" : ""}>${t("ficha.sellOne")}</button>
+        <!-- VENDER A PRECIO ESPECIAL (JFC 2026-09-15): solo aparece si el producto
+             tiene precioCasa. Cobra ESA venta al precio especial, un solo stock. -->
+        ${(p.precioCasa != null && p.stockActual > 0) ? `<button class="vender" style="background:var(--azul-medio,#2c4a68);border-color:var(--azul-oscuro,#1c3049);" onclick="venderUno('${p.id}', ${Number(p.precioCasa)})">Vender a $${Number(p.precioCasa).toFixed(2)}</button>` : ""}
         <button onclick="ajustar('${p.id}', 1)">+1 stock</button>
         <button onclick="ajustar('${p.id}', -1)">-1 stock</button>
         <button class="etiqueta" onclick="abrirEtiqueta('${p.id}')">${t("ficha.viewLabel")}</button>
@@ -4187,16 +4200,22 @@ async function solicitarTransferencia(origenId, destinoId, cantidad, btn){
 }
 
 const _ventasEnCurso = new Set(); // guard: evita ventas duplicadas por doble-tap
-async function venderUno(id){
+async function venderUno(id, precioOverride){
   if (_ventasEnCurso.has(id)) return;
   _ventasEnCurso.add(id);
   try {
     const sel = document.getElementById("ventaCliente");
     let res;
     try {
+      /* DESCUENTO / PRECIO ESPECIAL POR VENTA (JFC 2026-09-15, homologado de
+         friendly-123): si viene precioOverride (>=0), esa venta se cobra a ese
+         precio (paquete, amigo/familia, cupón). Si no, precio de lista. El stock
+         baja igual. El backend lo lee de info.precioOverride. */
+      const _ov = Number(precioOverride);
+      const _info = (Number.isFinite(_ov) && _ov >= 0) ? { precioOverride: _ov } : undefined;
       res = await fetch(`${API}/productos/${id}/venta`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({cantidad:1, clienteId: (sel && sel.value) || undefined})
+        body: JSON.stringify({cantidad:1, clienteId: (sel && sel.value) || undefined, ...(_info ? { info: _info } : {})})
       });
     } catch (err) {
       // Reforzado (JFC 2026-07-18): esta es LA accion de venta mas frecuente
@@ -5062,6 +5081,11 @@ setTimeout(() => {
 <script src="./device-identity.js"></script>
 <script src="./storage-durabilidad.js"></script>
 <script src="./sync-realtime.js"></script>
+<!-- Sync nuevo (CRDT/Yjs) PORTADO de friendly-123 (JFC 2026-09-15). ENCENDIDO por
+     defecto: es el motor que cruza los BYTES de las fotos entre aparatos. Carga su
+     bundle vendorizado a demanda (./vendor/yjs-bundle.min.js). En paralelo al sync
+     viejo; room-gated (cero costo para el que trabaja solo). Se apaga con "0". -->
+<script src="./sync-yjs.js"></script>
 <script src="./sync-watchdog.js"></script>
 <script src="./auth-ui.js"></script>
 <script src="./backup-scheduler.js"></script>

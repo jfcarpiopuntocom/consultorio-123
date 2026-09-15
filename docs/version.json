@@ -1,8 +1,8 @@
 {
   "version": "1.3.4",
   "fecha": "2026-09-15",
-  "changelog": "Homologacion con friendly-123: el panel de sincronizacion se limpio (fuera botones que aturdian: Resincronizar, Juntar datos, Cambiar codigo; quedan Compartir y Desactivar). Los items del menu Avanzado ahora llevan un icono con sentido. Y un boton Exportar '(soon)'. Sube shell a c123-shell-v59.",
+  "changelog": "Sincronizacion nueva (la que cruza las fotos entre aparatos) instalada y ENCENDIDA por defecto, como en friendly-123. Y descuento / precio especial: un producto puede tener un 2o precio mas bajo (paquetes de sesiones, amigos/familia, cupones) sin partir el stock; en la ficha aparece un boton 'Vender a $X'. Sube shell a c123-shell-v60.",
   "requerida": false,
-  "shell": "c123-shell-v59",
+  "shell": "c123-shell-v60",
   "apagar": []
 }

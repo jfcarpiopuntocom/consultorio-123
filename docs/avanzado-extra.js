@@ -465,6 +465,32 @@
         <p id="oc-sync-msg" style="font-size:13px;margin-top:8px;font-weight:700;"></p>`;
       vista.appendChild(panel);
 
+      /* TOGGLE DEL SYNC NUEVO (JFC 2026-09-15, portado de friendly-123/amigable).
+         ENCENDIDO por defecto: es el motor que cruza las fotos entre aparatos. "0"
+         lo apaga. Autocontenido: define sus propios handlers (consultorio no los
+         tenía). sync-yjs.js decide al cargar; recargar aplica el cambio. */
+      try {
+        window.pintarSyncNuevoEstado = function () {
+          var on = true; try { on = localStorage.getItem("OC_YJS_FASE0") !== "0"; } catch (_) {}
+          var e = document.getElementById("ocSyncNuevoEstado"); var b = document.getElementById("btnSyncNuevo");
+          if (e) e.textContent = on ? "Estado: activo" : "Estado: apagado";
+          if (b) b.textContent = on ? "Apagar sync" : "Activar sync";
+        };
+        window.toggleSyncNuevo = function () {
+          var on = true; try { on = localStorage.getItem("OC_YJS_FASE0") !== "0"; } catch (_) {}
+          try { if (on) localStorage.setItem("OC_YJS_FASE0", "0"); else localStorage.removeItem("OC_YJS_FASE0"); } catch (_) {}
+          window.pintarSyncNuevoEstado(); location.reload();
+        };
+        panel.insertAdjacentHTML("beforeend",
+          '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--azul-suave,#dde5ec);">' +
+          '<h4 style="margin:0 0 6px;font-size:15px;color:#1a1a1a;">Sincronización</h4>' +
+          '<p style="font-size:14px;color:#1a1a1a;margin:0 0 8px;">Mantiene al día a cada dispositivo del equipo, aparato con aparato, y junta todo sumando para no perder nada (incluidas las fotos). Viene encendida; puedes apagarla aquí si alguna vez lo necesitas.</p>' +
+          '<p id="ocSyncNuevoEstado" style="font-weight:700;color:#1a1a1a;margin:0 0 8px;">Estado: activo</p>' +
+          '<button class="ir" id="btnSyncNuevo" onclick="toggleSyncNuevo();return false;">Apagar sync</button>' +
+          '</div>');
+        window.pintarSyncNuevoEstado();
+      } catch (_) {}
+
       /* EXPORT — FORMA B (JFC 2026-09-15, homologado de friendly-123). Placeholder:
          "pon el botón y un (soon) y ya". Forma A = sync, Forma B = exportar una
          copia, Forma C (tal vez) = Loyverse. Aún no está pulido: botón
