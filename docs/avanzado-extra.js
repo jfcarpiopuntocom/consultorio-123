@@ -491,37 +491,64 @@
         window.pintarSyncNuevoEstado();
       } catch (_) {}
 
-      /* EXPORT — FORMA B: WHATSAPP (JFC 2026-09-15, homologado de friendly-123).
-         Forma A = sync, Forma B = exportar una copia y compartirla por WhatsApp,
-         Forma C (a futuro) = Loyverse. Soberano: descarga el respaldo
-         (/respaldo/exportar) como archivo local y abre WhatsApp con un mensaje
-         listo; el dueño adjunta el archivo. No toca ningún servidor nuestro. */
+      /* EXPORT / IMPORT — FORMA B: WHATSAPP (JFC 2026-09-15, corregido). Par CASADO
+         export<->import. Export envuelve {schemaVersion:2, datos, fotosPerchas} y lo
+         descarga; abre WhatsApp. A PROPÓSITO NO incluye oc_secure (claves): un
+         archivo que viaja por WhatsApp no debe llevar tus PIN. Import: cajita +
+         botón; lee el envoltorio (o cualquier respaldo con .datos), CONFIRMA, POST
+         /respaldo/importar, restaura fotos y avisa a la app. Soberano. */
       try {
         panel.insertAdjacentHTML("beforeend",
           '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--azul-suave,#dde5ec);">' +
-          '<h4 style="margin:0 0 6px;font-size:15px;color:#1a1a1a;">Exportar una copia (WhatsApp)</h4>' +
-          '<p style="font-size:14px;color:#1a1a1a;margin:0 0 8px;">Descarga una copia limpia de tus datos y compártela por WhatsApp contigo mismo o con tu contador. Se queda en tu dispositivo: adjunta el archivo que se acaba de descargar.</p>' +
-          '<button class="ir" id="btnExportarCopia">Descargar y compartir por WhatsApp</button>' +
-          '<p id="oc-exportcopia-msg" style="font-size:13px;font-weight:700;margin:8px 0 0;color:#1a1a1a;"></p>' +
+          '<h4 style="margin:0 0 6px;font-size:15px;color:#1a1a1a;">Mover una copia (WhatsApp)</h4>' +
+          '<p style="font-size:14px;color:#1a1a1a;margin:0 0 8px;">Exporta una copia limpia de tus datos (productos, ventas, inventario, fotos) y compártela por WhatsApp, o importa una copia que te enviaron. Tu PIN y tus claves nunca van en el archivo compartido. Todo se queda en tu dispositivo.</p>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          '<button class="ir" id="btnExportarCopia">Exportar y compartir por WhatsApp</button>' +
+          '<button class="ir" id="btnImportarCopia" style="background:transparent;color:var(--azul-medio,#2c4a68) !important;-webkit-text-fill-color:var(--azul-medio,#2c4a68) !important;border-color:var(--azul-medio,#2c4a68);">Importar una copia</button>' +
+          '</div>' +
+          '<input id="btnImportarCopia-file" type="file" accept=".json,application/json" style="display:none;">' +
+          '<p id="oc-copia-msg" style="font-size:13px;font-weight:700;margin:8px 0 0;color:#1a1a1a;"></p>' +
           '</div>');
+        var _copiaMsg = function (t, ok) { var m = document.getElementById("oc-copia-msg"); if (m) { m.style.color = ok ? "var(--sim-verde-dk,#1a6e3c)" : "var(--rojo,#a3392a)"; m.textContent = t; } };
+        var _fotosLocales = function () { var o = {}; try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf("_foto_percha_") !== -1) o[k] = localStorage.getItem(k); } } catch (_) {} return o; };
         var _bx = document.getElementById("btnExportarCopia");
         if (_bx) _bx.addEventListener("click", async function () {
-          var _m = document.getElementById("oc-exportcopia-msg");
           try {
             var r = await fetch(API + "/respaldo/exportar");
             var datos = await r.json();
-            if (!r.ok) { if (_m) { _m.style.color = "var(--rojo,#a3392a)"; _m.textContent = datos.error || "Activa este dispositivo (PIN 7895) para exportar."; } return; }
+            if (!r.ok) { _copiaMsg(datos.error || "Activa este dispositivo (PIN 7895) para exportar.", false); return; }
             var stamp = new Date().toISOString().slice(0, 10);
-            var blob = new Blob([JSON.stringify(datos, null, 2)], { type: "application/json" });
+            var paquete = { schemaVersion: 2, fecha: new Date().toISOString(), _formaB: true, datos: datos, fotosPerchas: _fotosLocales() };
+            var blob = new Blob([JSON.stringify(paquete)], { type: "application/json" });
             var url = URL.createObjectURL(blob);
-            var a = document.createElement("a"); a.href = url; a.download = "consultorio-respaldo-" + stamp + ".json";
+            var a = document.createElement("a"); a.href = url; a.download = "consultorio-copia-" + stamp + ".json";
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(function () { try { URL.revokeObjectURL(url); } catch (_) {} }, 4000);
-            if (_m) { _m.style.color = "var(--sim-verde-dk,#1a6e3c)"; _m.textContent = "Copia descargada. Abriendo WhatsApp — adjunta ahí el archivo."; }
-            var txt = encodeURIComponent("Aquí está mi respaldo de consultorio-123 del " + stamp + ". Adjunto el archivo que se acaba de descargar.");
+            _copiaMsg("Copia descargada. Abriendo WhatsApp — adjunta ahí el archivo.", true);
+            var txt = encodeURIComponent("Aquí está mi copia de consultorio-123 del " + stamp + ". Adjunto el archivo que se acaba de descargar — ábrelo en la app con Avanzado > Mover una copia > Importar.");
             window.open("https://wa.me/?text=" + txt, "_blank");
-          } catch (e) { if (_m) { _m.style.color = "var(--rojo,#a3392a)"; _m.textContent = "No se pudo exportar — revisa tu conexión."; } }
+          } catch (e) { _copiaMsg("No se pudo exportar — revisa tu conexión.", false); }
         });
+        var _bi = document.getElementById("btnImportarCopia");
+        var _bif = document.getElementById("btnImportarCopia-file");
+        if (_bi && _bif) {
+          _bi.addEventListener("click", function () { _bif.value = ""; _bif.click(); });
+          _bif.addEventListener("change", async function (e) {
+            var file = e.target.files && e.target.files[0]; if (!file) return;
+            try {
+              var paquete = JSON.parse(await file.text());
+              if (!paquete || !paquete.datos) { _copiaMsg("Este archivo no parece una copia de consultorio-123.", false); return; }
+              if ((paquete.schemaVersion || 1) > 2) { _copiaMsg("Esta copia es de una versión más nueva — actualiza la app primero.", false); return; }
+              if (!confirm("Esto REEMPLAZA tus productos, ventas e inventario con la copia. Tu PIN y tus claves se quedan igual. ¿Continuar?")) return;
+              var res = await fetch(API + "/respaldo/importar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(paquete.datos) });
+              var rr = await res.json();
+              if (!res.ok) { _copiaMsg(rr.error || "No se pudo importar la copia.", false); return; }
+              if (paquete.fotosPerchas) { try { Object.keys(paquete.fotosPerchas).forEach(function (k) { try { localStorage.setItem(k, paquete.fotosPerchas[k]); } catch (_) {} }); } catch (_) {} }
+              try { window.dispatchEvent(new CustomEvent("oc-datos-importados")); } catch (_) {}
+              _copiaMsg("Copia importada. La pantalla ya muestra los datos restaurados.", true);
+            } catch (err) { _copiaMsg("No se pudo leer el archivo — ¿es una copia válida?", false); }
+          });
+        }
       } catch (_) {}
 
       /* JUNTAR CATALOGOS (portado de friendly-123/amigable-123, 2026-08-19,

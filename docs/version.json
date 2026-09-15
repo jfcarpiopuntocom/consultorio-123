@@ -1,8 +1,8 @@
 {
   "version": "1.3.4",
   "fecha": "2026-09-15",
-  "changelog": "Export (Forma B) por WhatsApp: el boton descarga una copia de tus datos y abre WhatsApp con un mensaje listo para que la mandes adjuntando el archivo. Todo se queda en tu dispositivo. Sube shell a c123-shell-v61.",
+  "changelog": "Mover una copia por WhatsApp: ahora hay Export Y Import. Exportas una copia (sin PIN ni claves) y la mandas; el boton Importar la trae de vuelta con confirmacion. Sube shell a c123-shell-v62.",
   "requerida": false,
-  "shell": "c123-shell-v61",
+  "shell": "c123-shell-v62",
   "apagar": []
 }
