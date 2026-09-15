@@ -454,14 +454,29 @@
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
             <button id="oc-sync-compartir" class="ir" style="background:#25D366;border-color:#1da851;">${window.t("sync.panel.share")}</button>
-            <button id="oc-sync-resincronizar">${window.t("sync.panel.resync")}</button>
-            <button id="oc-sync-mergear" class="ir" style="background:#2C3E50;border-color:#0F1923;color:#FFFFFF;">Juntar datos con mi equipo</button>
-            <button id="oc-sync-rotar" style="border-color:#E86040;color:#E86040;">Cambiar el c&oacute;digo</button>
+            <!-- BOTONES DE SYNC PODADOS (JFC 2026-09-15, homologado de friendly-123):
+                 se BORRARON Resincronizar, Juntar datos y Cambiar el código —
+                 aturdían y casi nadie los usaba. Quedan Compartir y Desactivar.
+                 Los handlers siguen guardados (if(!el) return). NO re-agregar sin
+                 pedido explícito de JFC. -->
         <button id="oc-sync-desactivar" style="border-color:var(--rojo);color:var(--rojo);">${window.t("sync.panel.deactivate")}</button>
           </div>
         </div>
         <p id="oc-sync-msg" style="font-size:13px;margin-top:8px;font-weight:700;"></p>`;
       vista.appendChild(panel);
+
+      /* EXPORT — FORMA B (JFC 2026-09-15, homologado de friendly-123). Placeholder:
+         "pon el botón y un (soon) y ya". Forma A = sync, Forma B = exportar una
+         copia, Forma C (tal vez) = Loyverse. Aún no está pulido: botón
+         deshabilitado con "(soon)". NO conectar a nada hasta que JFC lo pida. */
+      try {
+        panel.insertAdjacentHTML("beforeend",
+          '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--azul-suave,#dde5ec);">' +
+          '<h4 style="margin:0 0 6px;font-size:15px;color:#1a1a1a;">Exportar una copia</h4>' +
+          '<p style="font-size:14px;color:#1a1a1a;margin:0 0 8px;">Otra forma de mover tus datos: exportar una copia limpia para guardarla o entregarla. Muy pronto.</p>' +
+          '<button class="ir" id="btnExportarCopia" disabled style="opacity:0.55;cursor:not-allowed;">Exportar una copia (soon)</button>' +
+          '</div>');
+      } catch (_) {}
 
       /* JUNTAR CATALOGOS (portado de friendly-123/amigable-123, 2026-08-19,
          a pedido de JFC: "que el sync EN SERIO funcione"). Se pide, se junta
@@ -1182,6 +1197,26 @@
           "Sincronizar entre dispositivos": "Paquete cifrado para otro dispositivo, sin necesitar internet.",
           "Dónde ha estado el equipo": "Ubicaciones registradas mientras hay una sesión abierta.",
         };
+        /* ICONOS DEL RIEL DE AVANZADO (JFC 2026-09-15, homologado de friendly-123).
+           Un glifo por sección que SIGNIFICA lo que es. Sin emojis (regla dura de
+           JFC): glifos Unicode monocromos de presentación de TEXTO, que no se
+           vuelven emoji a color en iOS/Android/Safari. Claves = títulos en español. */
+        const ICONS = {
+          "Capa contable": "Σ",
+          "Actividad reciente": "↺",
+          "Zona horaria": "◷",
+          "Gastos mensuales": "⊟",
+          "Acceso y recuperación": "◈",
+          "Sincronizar tu equipo": "⇄",
+          "Equipo": "⧉",
+          "Log de actividad": "≡",
+          "Control antifraude": "⊘",
+          "Traslados entre sucursales": "⇅",
+          "Sincronización remota (opcional)": "⊚",
+          "Sincronizar entre dispositivos": "⊞",
+          "Dónde ha estado el equipo": "⌖",
+          "Primeros Pasos": "➊", "First Steps": "➊",
+        };
         function esComo(t) { t = (t || "").trim(); return /^¿?Cómo funciona/i.test(t) || /^How does it work/i.test(t); }
         function tituloDe(n) {
           if (!n || n.nodeType !== 1) return null;
@@ -1229,7 +1264,7 @@
           const id = idDe(n, idx++); hint(n, t); secciones.push({ id, label: t });
         });
         rNav.innerHTML = secciones.map((s) =>
-          `<button type="button" data-riel-go="${s.id}" style="display:block;width:100%;text-align:left;background:none;border:none;border-left:3px solid transparent;padding:9px 8px;margin:0;font-size:13px;font-weight:700;cursor:pointer;line-height:1.3;color:var(--ink-soft,#5d5340) !important;-webkit-text-fill-color:var(--ink-soft,#5d5340) !important;">${s.label}</button>`
+          `<button type="button" data-riel-go="${s.id}" style="display:block;width:100%;text-align:left;background:none;border:none;border-left:3px solid transparent;padding:9px 8px;margin:0;font-size:13px;font-weight:700;cursor:pointer;line-height:1.3;color:var(--ink-soft,#5d5340) !important;-webkit-text-fill-color:var(--ink-soft,#5d5340) !important;">${ICONS[s.label] ? `<span aria-hidden="true" style="display:inline-block;width:1.3em;color:var(--azul-medio,#2c4a68);-webkit-text-fill-color:var(--azul-medio,#2c4a68);">${ICONS[s.label]}</span>` : ""}${s.label}</button>`
         ).join("");
         fila.appendChild(rNav); fila.appendChild(contR); vista.appendChild(fila);
 
