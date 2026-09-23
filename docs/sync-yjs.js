@@ -1,5 +1,4 @@
-// sync-yjs.js — PORTADO a consultorio-123 (JFC 2026-09-15). Relay consultorio123-sync-relay, ROOM_KEY c123_sync_room, prefijos IDB/BC c123-yjs. Encendido por defecto.
-// (orig friendly-123) — PLAN C del sync redundante (CRDT / Yjs). FASE 0, spike.
+// sync-yjs.js — PLAN C del sync redundante (CRDT / Yjs). FASE 0, spike.
 //
 // POR QUÉ EXISTE (JFC 2026-09-10): el sync casero (sync-realtime.js: relay +
 // Lamport + LWW + vector) funciona, pero JFC quiere REDUNDANCIA real en cascada
@@ -90,8 +89,11 @@
   // Un solo canal por Y.Doc (catálogo, fotos y ops usan cada uno el suyo).
   // ===================================================================
   function _frame(tag, payload) { var out = new Uint8Array(1 + payload.length); out[0] = tag; out.set(payload, 1); return out; }
-  function crearCanal(Y, doc, suffix, nombre) {
+  function crearCanal(Y, doc, suffix, nombre, permiteCkpt, seedFn) {
     var canal = { ws: null, pend: [] };
+    var MAX_OP_BYTES = 250 * 1024; // guard final, despues de base64
+    var CHUNK_BYTES = 160 * 1024; // base64 + sobre JSON permanecen bajo 256KB
+    var partesEntrantes = Object.create(null);
     var reintentos = 0; // backoff (fix B, JFC 2026-09-10): antes reconectaba fijo
                         // cada 4s; si el relay cerraba (p.ej. frame grande), era una
                         // tormenta de upgrades -> límite diario del worker. Ahora
@@ -104,29 +106,167 @@
     }
     function enviar(tag, payload) {
       if (!API.clave) return;
-      cifrarBin(API.clave, _frame(tag, payload)).then(function (buf) {
-        if (canal.ws && canal.ws.readyState === 1) canal.ws.send(buf); else canal.pend.push(buf);
+      publicar(tag, payload, false);
+    }
+    /* Marca de origen para medir el SLA (JFC 2026-09-22). Va en un frame de
+       CONTROL aparte, NO dentro del update de Yjs: meterla en el payload
+       obligaria a cambiar el formato binario que ya usan los aparatos en la
+       calle, y un aparato viejo dejaria de entender los cambios. Asi, un
+       cliente o un relay que no conozca k:"lat" simplemente lo ignora y el
+       sync sigue igual de bien; lo unico que no habria es medicion.
+       Solo se marcan los updates de contenido (tag 0): los saludos y los
+       intercambios de state-vector no son "un cambio que el otro deberia ver",
+       y contarlos ensuciaria la estadistica con numeros que no significan nada
+       para el usuario. */
+    function marcarSalida(tag, etiqueta) {
+      try {
+        if (tag !== 0 || !window.OCLatencia) return;
+        var oTs = window.OCLatencia.marcarOrigen();
+        if (oTs === null) {
+          /* Sin reloj comun (o caduco): este cambio viaja sin marca y se pide un
+             ping, para que el SIGUIENTE ya se pueda medir. Asi el reloj se
+             refresca solo cuando hay actividad real, nunca por temporizador. */
+          if (canal.ws && canal.ws.readyState === 1) canal.ws.send(JSON.stringify({ k: "ts", t0: Date.now() }));
+          return;
+        }
+        if (canal.ws && canal.ws.readyState === 1) {
+          canal.ws.send(JSON.stringify({ k: "lat", oTs: oTs, etq: etiqueta || suffix || "catalogo" }));
+        }
+      } catch (_) {}
+    }
+    // Un update grande no cabe en el relay. Los trozos son frames cifrados
+    // independientes; se reconstruyen antes de aplicar Yjs, nunca parcialmente.
+    function publicar(tag, payload, persistir) {
+      marcarSalida(tag); // medicion: fuera del payload, no puede alterar el dato
+      var piezas = Math.max(1, Math.ceil(payload.length / CHUNK_BYTES));
+      if (piezas > 65535) { log("update Yjs excede limite de trozos"); return; }
+      var id = Date.now().toString(36).padStart(10, "0").slice(-10) + Math.random().toString(36).slice(2, 8).padEnd(6, "0");
+      for (var n = 0; n < piezas; n++) {
+        var pedazo = payload.subarray(n * CHUNK_BYTES, (n + 1) * CHUNK_BYTES);
+        var frame;
+        if (piezas === 1) frame = _frame(tag, pedazo);
+        else {
+          frame = new Uint8Array(22 + pedazo.length);
+          frame[0] = 3; frame[1] = tag;
+          for (var j = 0; j < 16; j++) frame[2 + j] = id.charCodeAt(j);
+          frame[18] = n >> 8; frame[19] = n & 255;
+          frame[20] = piezas >> 8; frame[21] = piezas & 255;
+          frame.set(pedazo, 22);
+        }
+        cifrarBin(API.clave, frame).then(function (buf) {
+          if (buf.byteLength > MAX_OP_BYTES) { log("trozo Yjs supera limite: " + buf.byteLength); return; }
+          if (canal.ws && canal.ws.readyState === 1) canal.ws.send(buf); else canal.pend.push(buf);
+          if (!persistir) return;
+          var op = JSON.stringify({ k: "op", id: (Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8)), lam: Date.now() + (++_lamCtr), c: _b64(buf) });
+          if (op.length > MAX_OP_BYTES) { log("op Yjs supera limite: " + op.length); return; }
+          if (canal.ws && canal.ws.readyState === 1) canal.ws.send(op); else canal.pend.push(op);
+        }).catch(function () {});
+      }
+    }
+    /* PERSISTENCIA DEL SYNC NUEVO (JFC 2026-09-15, v285). EL BUG DE 3 SEMANAS: el
+       relay solo REBOTA los frames binarios de Yjs en vivo, NO los guarda. Así dos
+       aparatos solo convergían si estaban abiertos A LA VEZ; abiertos en momentos
+       distintos nunca se ponían al día (verificado: al conectar a una sala sin nadie
+       en línea llegan 0 mensajes). El relay SÍ sabe persistir, pero solo por el
+       protocolo de texto op/ckpt/pull (verificado: envías op, cierras, reconectas,
+       pull -> vuelve intacto). Aquí el cliente Yjs USA ese canal: cada update LOCAL
+       se guarda como {k:"op"} (el mismo frame binario cifrado, en base64) y al
+       conectar se pide {k:"pull"} para recibir todo lo persistido. El relay reenvía
+       cada op guardada como frame binario -> cae en manejar() -> tag 0 -> applyUpdate.
+       Los updates de Yjs son idempotentes y conmutativos, así que reaplicar todo en
+       cada conexión converge sin duplicar. Zero-knowledge intacto: el relay guarda
+       bytes cifrados, no entiende nada. */
+    var _lamCtr = 0;
+    function _b64(buf) { var u = new Uint8Array(buf), s = ""; for (var i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); }
+    canal.enviarUpdate = function (update) {
+      if (!API.clave) return;
+      publicar(0, update, true);
+    };
+    /* CHECKPOINT (v286, #1 + fix real "el catálogo viejo no cruza"). enviarUpdate
+       solo persiste CAMBIOS nuevos. Pero el catálogo que ya vivía en el IndexedDB
+       de Yjs (de antes de v285) nunca generó una op -> un aparato que hace pull no
+       lo recibía. Por eso el item nuevo cruzaba pero el inventario existente no.
+       Aquí, al conectar (tras dar tiempo al pull), se manda el ESTADO COMPLETO como
+       {k:"ckpt"}: el relay lo guarda como 'latest' y sirve al que entra, y de paso
+       poda las ops que resume (compactación). Guardas de seguridad:
+         - Solo si el doc tiene contenido real (no pisar el ckpt del relay con un
+           doc vacío recién arrancado). El relay además rechaza un ckpt de lam menor
+           (C1 guard), así que un aparato que ya hizo pull manda un ckpt superset.
+         - Solo en canales con permiteCkpt (catálogo y ops; NO fotos: su estado
+           completo supera el frame de 256KB). */
+    var _tCkpt = null;
+    function hacerCkpt() {
+      if (!permiteCkpt || !API.clave || !canal.ws || canal.ws.readyState !== 1) return;
+      var full; try { full = Y.encodeStateAsUpdate(doc); } catch (_) { return; }
+      if (!full || full.length < 16) return; // doc prácticamente vacío: no pisar el ckpt bueno del relay
+      cifrarBin(API.clave, _frame(0, full)).then(function (buf) {
+        if (Math.ceil(buf.byteLength * 4 / 3) + 128 > MAX_OP_BYTES) { try { log("ckpt grande (" + buf.byteLength + "B) omitido en " + nombre); } catch (_) {} return; }
+        try {
+          var ck = JSON.stringify({ k: "ckpt", lam: Date.now(), c: _b64(buf) });
+          if (canal.ws && canal.ws.readyState === 1) canal.ws.send(ck);
+        } catch (_) {}
       }).catch(function () {});
     }
-    canal.enviarUpdate = function (update) { enviar(0, update); };
     function conectar() {
       var url = RELAY_URL + API.roomId + suffix;
       var ws; try { ws = new WebSocket(url); } catch (_) { reprogramar(); return; }
       ws.binaryType = "arraybuffer"; canal.ws = ws;
       ws.onopen = function () {
         reintentos = 0; // conexión buena: resetea el backoff
-        try { enviar(1, Y.encodeStateVector(doc)); } catch (_) {} // "hola": pido lo que me falte
+        try { enviar(1, Y.encodeStateVector(doc)); } catch (_) {} // "hola": a quien esté en vivo
+        try { ws.send(JSON.stringify({ k: "pull", lam: 0 })); } catch (_) {} // trae lo PERSISTIDO (async)
+        /* Sincroniza el reloj con el relay: UNA vez al conectar y SOLO en el canal
+           "catalogo". FIX de costo (JFC 2026-09-22, v337): la v335 hacia ping cada
+           60 s en LOS TRES canales (catalogo, fotos, ops). El relay usa WebSocket
+           Hibernation, cuyo unico proposito es no cobrar mientras esta quieto, y
+           cada mensaje entrante lo despierta: eran 3 despertares por minuto por
+           aparato, para siempre, aunque nadie tocara nada. Encima era redundante:
+           el desfase es del RELOJ DEL APARATO, no del canal, y OCLatencia lo
+           guarda una sola vez para todos. El refresco ya no es por reloj sino por
+           ACTIVIDAD: marcarSalida() pide un ping nuevo solo cuando va a sellar un
+           cambio y el reloj caduco. Costo en reposo: cero.
+           NO volver a poner un setInterval aqui. */
+        if (nombre === "catalogo") {
+          try { ws.send(JSON.stringify({ k: "ts", t0: Date.now() })); } catch (_) {}
+        }
         while (canal.pend.length && ws.readyState === 1) ws.send(canal.pend.shift());
+        // Tras dar tiempo al pull (para que este aparato ya tenga lo de los demás),
+        // publicar el estado COMPLETO como checkpoint: así el catálogo que ya tenía
+        // (aunque nunca haya cambiado desde v285) queda disponible para el que entre.
+        if (permiteCkpt) { clearTimeout(_tCkpt); _tCkpt = setTimeout(hacerCkpt, 2500); }
+        // Canal sin ckpt (fotos): sembrado propio al conectar (cada foto va como
+        // op individual, que sí cabe en el frame). Tras dar tiempo al pull.
+        if (seedFn) setTimeout(function () { try { seedFn(); } catch (_) {} }, 3200);
       };
       function manejar(buf) {
         descifrarBin(API.clave, buf).then(function (bytes) {
           var tag = bytes[0], payload = bytes.subarray(1);
+          if (tag === 3) {
+            if (bytes.length < 22) return;
+            var original = bytes[1], id = "";
+            for (var q = 2; q < 18; q++) id += String.fromCharCode(bytes[q]);
+            var indice = bytes[18] * 256 + bytes[19], total = bytes[20] * 256 + bytes[21];
+            if (!total || indice >= total) return;
+            var grupo = partesEntrantes[id];
+            if (!grupo) grupo = partesEntrantes[id] = { tag: original, total: total, piezas: [], cuenta: 0, creado: Date.now() };
+            if (grupo.total !== total || grupo.tag !== original) return;
+            if (!grupo.piezas[indice]) { grupo.piezas[indice] = bytes.subarray(22); grupo.cuenta++; }
+            if (grupo.cuenta !== total) return;
+            delete partesEntrantes[id];
+            var largo = grupo.piezas.reduce(function (a, p) { return a + p.length; }, 0);
+            var unido = new Uint8Array(largo), cursor = 0;
+            grupo.piezas.forEach(function (p) { unido.set(p, cursor); cursor += p.length; });
+            tag = original; payload = unido;
+          }
           if (tag === 0) { Y.applyUpdate(doc, payload, "red"); }
           else if (tag === 1) { // me saludan: les mando lo que les falta + mi SV para pedir lo mío
             try { enviar(0, Y.encodeStateAsUpdate(doc, payload)); } catch (_) {}
             try { enviar(2, Y.encodeStateVector(doc)); } catch (_) {}
           } else if (tag === 2) { // respuesta a mi SV: solo el diff, sin re-pedir (corta el loop)
             try { enviar(0, Y.encodeStateAsUpdate(doc, payload)); } catch (_) {}
+          }
+          if (Object.keys(partesEntrantes).length > 64) {
+            Object.keys(partesEntrantes).forEach(function (k) { if (Date.now() - partesEntrantes[k].creado > 120000) delete partesEntrantes[k]; });
           }
         }).catch(function () {}); // basura o clave distinta -> se ignora
       }
@@ -139,6 +279,19 @@
         // frames de texto (que no son nuestros marcos binarios) se ignoran.
         if (d instanceof ArrayBuffer) manejar(d);
         else if (typeof Blob !== "undefined" && d instanceof Blob) { try { d.arrayBuffer().then(manejar).catch(function () {}); } catch (_) {} }
+        /* MEDICION DE LATENCIA (JFC 2026-09-22). Los frames de TEXTO hasta hoy
+           se ignoraban por completo, asi que engancharse aqui es 100% aditivo:
+           nada de lo que ya funciona depende de esta rama. Y sobre todo, esto
+           corre FUERA del camino de datos de Yjs — no lee ni escribe el doc, no
+           puede corromper ni retrasar un cambio real. Si algo falla, se pierde
+           el numero, nunca el dato. */
+        else if (typeof d === "string" && window.OCLatencia) {
+          try {
+            var c = JSON.parse(d);
+            if (c && c.k === "tsr") window.OCLatencia.anotarPing(c.t0, c.t1, Date.now());
+            else if (c && c.k === "lat") window.OCLatencia.anotarMuestra(c.oTs, c.etq);
+          } catch (_) {} // texto que no es nuestro: se ignora igual que antes
+        }
       };
       ws.onclose = function () { canal.ws = null; reprogramar(); };
       ws.onerror = function () { try { ws.close(); } catch (_) {} };
@@ -167,11 +320,24 @@
   // usuarios, clientes. Agregar aquí una colección nueva es una línea.
   // JFC 2026-09-10 ("sync integral, shared notebook"): se suman las entidades
   // definicionales que faltaban — promotoras (comisionistas) y sucursales. Son
-  // como el catálogo: se mergean add-only (nunca se pisa una ya existente, así no
-  // se adivina sobre comisiones/plata). Las VENTAS y el dinero NO van por aquí: eso
-  // lo maneja el sync de ops (sync-realtime) con orden causal; meterlo al add-only
-  // ciego duplicaría plata. Ver aplicarCatalogo() en mock-backend.js.
-  var COLECCIONES = ["productos", "ubicaciones", "usuarios", "clientes", "promotoras", "sucursales"];
+  // Las fichas editables viajan con revision logica. Ventas, gastos y
+  // transferencias usan IDs estables y actualizaciones individuales; los hechos
+  // de cartera y caja chica van en un mapa inmutable aparte.
+  var COLECCIONES = ["productos", "ubicaciones", "usuarios", "clientes", "promotoras", "sucursales", "ventas", "gastos", "transferencias", "dispositivos", "categorias"];
+  /* VENTAS (dinero) POR EL SYNC NUEVO (JFC 2026-09-16, aprobado). Antes el dinero
+     viajaba solo por el sync viejo (sync-realtime, frágil). Ahora las ventas cruzan
+     por Yjs, ADD-ONLY por id (cada venta una sola vez -> no se duplica plata). No
+     hay doble descuento de stock porque el stock es LWW ABSOLUTO aparte (v289), no
+     se re-deriva de estas ventas. Para NO reventar el frame de 256KB con historiales
+     grandes, las ventas NO van en el batch de sembrar(); se siembran como op
+     INDIVIDUAL (una mini-actualización por venta, igual que las fotos). */
+  /* DISPOSITIVOS (apodos "This device") POR EL SYNC NUEVO (v298, JFC 2026-09-16).
+     Antes los apodos viajaban por micelio sobre el sync VIEJO (frágil) y no cruzaban
+     bien. Ahora cada aparato publica su entrada {id,apodo,rol} en la colección
+     "dispositivos" (add-only por id; el aparato es dueño de SU entrada). Al recibir,
+     aplicarCatalogo alimenta la lista de micelio (OCMicelio.recibir) para que el
+     dueño vea sus aparatos en Advanced. Va en el batch: es diminuto. */
+  var COLECCIONES_BATCH = ["productos", "ubicaciones", "usuarios", "clientes", "promotoras", "sucursales", "dispositivos", "categorias"]; // categorias (v344): propias vacias y ocultas, con rev y lapida
   var API = {
     estado: "apagado", doc: null, mapas: {}, clave: null, ws: null, bc: null, roomId: null, colecciones: COLECCIONES,
     // API genérica por colección (probar convergencia a mano o desde código).
@@ -195,36 +361,52 @@
   function log(/*...*/) { try { console.log.apply(console, ["[OCYjs]"].concat([].slice.call(arguments))); } catch (_) {} }
 
   async function arrancar() {
-    var sala = leerSala();
-    if (!sala || !sala.codigo) { log("sin sala — Plan C en espera (esto es normal si el sync no está configurado)"); return; }
-    var codigo = normalizarCodigo(sala.codigo);
+    /* UNA LICENCIA = UNA SALA (v295, JFC 2026-09-16). "salas"/f123_sync_room es
+       VESTIGIAL y ya NO decide nada: la sala es SIEMPRE la LICENCIA
+       (f123_owned.licenseCode). Antes f123_sync_room podía quedar desalineado de la
+       licencia y mandar el aparato a otra sala -> no convergía. Ya no se lee como
+       fuente de sala. Si el aparato no tiene licencia (demo/sin activar), no hay
+       sync. La CLAVE y la sala salen de la MISMA licencia, así todos los aparatos
+       de una licencia caen en la misma sala, siempre. */
+    var _licProp = "";
+    try { var _ow = JSON.parse(localStorage.getItem("c123_owned") || "null") || {}; if (_ow.licenseCode) _licProp = String(_ow.licenseCode); } catch (_) {}
+    if (!_licProp) { log("sin licencia — sin sync (una licencia = una sala; f123_sync_room ya no decide)"); return; }
+    var codigo = normalizarCodigo(_licProp);
     try { await cargarBundle(); } catch (e) { log("bundle:", e && e.message); return; }
 
     var Y = window.Y;
     API.doc = new Y.Doc();
     COLECCIONES.forEach(function (c) { API.mapas[c] = API.doc.getMap(c); });
+    API.hechosMap = API.doc.getMap("hechos_financieros");
     // FASE 2 (JFC 2026-09-09): mapa aparte para el nombre del negocio y los PINs
     // de rol, que viajan CON el catálogo pero no son una colección de ítems. Así
     // Plan C converge un negocio completo por sí solo, sin depender del sync casero.
     API.meta = API.doc.getMap("_meta");
     API.clave = await derivarClave(codigo);
-    API.roomId = await idDeSala(codigo);
+    /* LIMPIEZA (2026-09-16): SOLO la licencia canonica de JFC estrena sala NUEVA
+       para abandonar la sala de catalogo contaminada con semilla (la vieja queda
+       huerfana e hibernada, sin costo). Gated EXACTO: ninguna otra licencia
+       (idiomARTE incluida) cambia de sala. La CLAVE sigue derivada de la licencia,
+       asi los aparatos de JFC se entienden en la sala nueva. Ver la purga local
+       gated en mock-backend.js. */
+    var _salaId = (codigo === "F123-A6YK-6V1J-BF2A-S2J24") ? (codigo + "::limpio-2026-09-16") : codigo;
+    API.roomId = await idDeSala(_salaId);
 
     // Persistencia local: sobrevive recargas y sirve offline (piso del piso).
     // Guardamos la referencia: al terminar de cargar de IndexedDB ("synced")
     // hacemos el primer volcado Yjs->store, para que un aparato que arranca
     // offline ya vea lo que otro dejó, sin esperar al relay (Fase 2).
-    try { API.idb = new window.IndexeddbPersistence("c123-yjs-" + API.roomId, API.doc); } catch (e) { log("idb:", e && e.message); }
+    try { API.idb = new window.IndexeddbPersistence("f123-yjs-" + API.roomId, API.doc); } catch (e) { log("idb:", e && e.message); }
 
     // Convergencia entre pestañas del MISMO origen: instantánea, sin red.
     try {
-      API.bc = new BroadcastChannel("c123-yjs-" + API.roomId);
+      API.bc = new BroadcastChannel("f123-yjs-" + API.roomId);
       API.bc.onmessage = function (ev) { try { Y.applyUpdate(API.doc, new Uint8Array(ev.data), "bc"); } catch (_) {} };
     } catch (_) {}
 
     // Cada cambio local -> update binario -> (a) pestañas por BroadcastChannel,
     // (b) otros dispositivos por el relay cifrado. origin !== "bc"/"red" evita eco.
-    API.canal = crearCanal(Y, API.doc, "-y", "catalogo");
+    API.canal = crearCanal(Y, API.doc, "-y", "catalogo", true); // ckpt: catálogo cabe
     API.doc.on("update", function (update, origin) {
       if (origin === "bc" || origin === "red") return;
       try { if (API.bc) API.bc.postMessage(update.buffer.slice ? update.buffer : update); } catch (_) {}
@@ -239,12 +421,12 @@
     // sin nube; la nube durable del dueño (Google Drive) es una fase posterior.
     API.fotosDoc = new Y.Doc();
     API.fotosMap = API.fotosDoc.getMap("blobs");
-    try { API.fotosIdb = new window.IndexeddbPersistence("c123-yjs-fotos-" + API.roomId, API.fotosDoc); } catch (_) {}
+    try { API.fotosIdb = new window.IndexeddbPersistence("f123-yjs-fotos-" + API.roomId, API.fotosDoc); } catch (_) {}
     try {
-      API.fotosBc = new BroadcastChannel("c123-yjs-fotos-" + API.roomId);
+      API.fotosBc = new BroadcastChannel("f123-yjs-fotos-" + API.roomId);
       API.fotosBc.onmessage = function (ev) { try { Y.applyUpdate(API.fotosDoc, new Uint8Array(ev.data), "bc"); } catch (_) {} };
     } catch (_) {}
-    API.fotosCanal = crearCanal(Y, API.fotosDoc, "-fotos", "fotos");
+    API.fotosCanal = crearCanal(Y, API.fotosDoc, "-fotos", "fotos", false, sembrarFotosAlRelay); // sin ckpt (fotos exceden 256KB); siembra c/foto como op individual
     API.fotosDoc.on("update", function (update, origin) {
       if (origin === "bc" || origin === "red") { pedirVolcarFotos(); return; } // llegó un blob: guardarlo local
       try { if (API.fotosBc) API.fotosBc.postMessage(update.buffer.slice ? update.buffer : update); } catch (_) {}
@@ -261,12 +443,12 @@
     // op duplicado por los dos transportes se aplica una vez y no dobla la plata.
     API.opsDoc = new Y.Doc();
     API.opsMap = API.opsDoc.getMap("eventos");
-    try { API.opsIdb = new window.IndexeddbPersistence("c123-yjs-ops-" + API.roomId, API.opsDoc); } catch (_) {}
+    try { API.opsIdb = new window.IndexeddbPersistence("f123-yjs-ops-" + API.roomId, API.opsDoc); } catch (_) {}
     try {
-      API.opsBc = new BroadcastChannel("c123-yjs-ops-" + API.roomId);
+      API.opsBc = new BroadcastChannel("f123-yjs-ops-" + API.roomId);
       API.opsBc.onmessage = function (ev) { try { Y.applyUpdate(API.opsDoc, new Uint8Array(ev.data), "bc"); } catch (_) {} };
     } catch (_) {}
-    API.opsCanal = crearCanal(Y, API.opsDoc, "-ops", "ops");
+    API.opsCanal = crearCanal(Y, API.opsDoc, "-ops", "ops", true); // ckpt: ops es pequeño
     API.opsDoc.on("update", function (update, origin) {
       if (origin === "bc" || origin === "red") { pedirProcesarEventos(); return; }
       try { if (API.opsBc) API.opsBc.postMessage(update.buffer.slice ? update.buffer : update); } catch (_) {}
@@ -279,12 +461,57 @@
     API.fotosCanal.conectar(); // bytes de las fotos — sala "-fotos"
     API.opsCanal.conectar();   // ventas/ops — sala "-ops"
     conectarStore(Y);   // FASE 2: leer/escribir el store REAL de la app (add-only)
+    conectarHechos();    // cartera y caja chica: hechos inmutables por ID
     // Al cargar de IndexedDB los blobs ya guardados, volcarlos al store de fotos.
     if (API.fotosIdb && API.fotosIdb.once) API.fotosIdb.once("synced", pedirVolcarFotos);
     // Al cargar los eventos ya guardados, procesarlos (aplica los que falten).
     if (API.opsIdb && API.opsIdb.once) API.opsIdb.once("synced", pedirProcesarEventos);
     API.estado = "activo";
     log("Plan C activo (Fase 2 + fotos + ops). Sala:", API.roomId);
+  }
+
+  function conectarHechos() {
+    var intentos = 0, importando = false, pendiente = false;
+    var conocidos = Object.create(null);
+    function hechos() { return window.AMG && window.AMG.Hechos; }
+    function publicar(h) {
+      if (!h || !h.id || !API.hechosMap) return;
+      var anterior = API.hechosMap.get(h.id);
+      if (anterior && JSON.stringify(anterior) !== JSON.stringify(h)) {
+        log("colision de hecho financiero:", h.id); return;
+      }
+      if (!anterior) API.hechosMap.set(h.id, h);
+    }
+    function importar() {
+      var ledger = hechos();
+      if (!ledger) return;
+      if (importando) { pendiente = true; return; }
+      importando = true;
+      var lista = [];
+      API.hechosMap.forEach(function (h) { if (h && h.id && !conocidos[h.id]) lista.push(h); });
+      Promise.allSettled(lista.map(function (h) { return ledger.importarRemoto(h); }))
+        .then(function (resultados) {
+          resultados.forEach(function (r, i) {
+            if (r.status === "rejected") log("hecho remoto rechazado:", r.reason && r.reason.message);
+            else conocidos[lista[i].id] = true;
+          });
+        }).finally(function () {
+          importando = false;
+          if (pendiente) { pendiente = false; importar(); }
+        });
+    }
+    function arrancarPuente() {
+      var ledger = hechos();
+      if (!ledger) { if (++intentos < 20) setTimeout(arrancarPuente, 100); return; }
+      window.addEventListener("oc-hecho-local", function (ev) { if (ev.detail && ev.detail.id) conocidos[ev.detail.id] = true; publicar(ev.detail); });
+      ledger.todos().then(function (lista) { lista.forEach(function (h) { conocidos[h.id] = true; publicar(h); }); importar(); })
+        .catch(function (e) { log("hechos locales:", e && e.message); });
+      API.doc.on("update", function (_update, origin) {
+        if (origin === "red" || origin === "bc" || origin === "idb") importar();
+      });
+      if (API.idb && API.idb.once) API.idb.once("synced", importar);
+    }
+    setTimeout(arrancarPuente, 0);
   }
 
   // ===================================================================
@@ -342,7 +569,15 @@
     API.fotosMap.forEach(function (dataUrl, hash) { pend.push([hash, dataUrl]); });
     var i = 0;
     (function next() {
-      if (i >= pend.length) { if (hubo) { try { window.dispatchEvent(new CustomEvent("oc-fotos-actualizadas")); } catch (_) {} } return; }
+      if (i >= pend.length) {
+        if (hubo) {
+          // v290: hidratar fotos de PRODUCTO (poner p.foto desde el hash recibido)
+          // para que la UI, que pinta p.foto, muestre la foto que cruzo.
+          try { if (window.OCSync && window.OCSync.hidratarFotosProductos) window.OCSync.hidratarFotosProductos(); } catch (_) {}
+          try { window.dispatchEvent(new CustomEvent("oc-fotos-actualizadas")); } catch (_) {}
+        }
+        return;
+      }
       var hash = pend[i][0], dataUrl = pend[i][1]; i++;
       Promise.resolve(window.OCFotos.tieneHash(hash)).then(function (ya) {
         if (ya) return next();
@@ -351,13 +586,95 @@
     })();
   }
 
+  /* SEMBRAR FOTOS AL RELAY (v287, JFC 2026-09-16). El bug: publicarFotosLocales
+     salta las fotos que YA están en el fotosMap (línea "ya publicado"); pero una
+     foto que ya vivía en el Yjs-IDB de fotos nunca genera un update al reconectar
+     -> nunca se persiste como {k:op} -> el relay queda con 0 fotos y el otro
+     aparato no la recibe (verificado: sala -fotos vacía). Y el canal fotos no tiene
+     ckpt (su estado completo supera 256KB). Aquí, al conectar, se RE-manda cada
+     foto EN USO como una op INDIVIDUAL (cada dataURL <180KB por la compresión de
+     vista-perchas.js, así que cabe en el frame). Se arma un update mínimo (un
+     Y.Doc con solo esa foto) y se pasa por enviarUpdate del canal fotos: persiste
+     como op + va en vivo. Guard de sesión para no re-mandar la misma foto en cada
+     reconexión. */
+  var _fotosSembradas = {};
+  function sembrarFotosAlRelay() {
+    if (!window.OCFotos || !window.OCSync || !API.fotosCanal || !window.Y || !API.fotosDoc) return;
+    // Primero: dar hash a las fotos de PRODUCTO que solo estaban inline (v290 fix:
+    // la foto de producto no cruzaba porque no tenia fotoHash ni iba por el canal).
+    Promise.resolve(window.OCSync.hashearFotosProductos ? window.OCSync.hashearFotosProductos() : 0).then(function () {
+      var cat; try { cat = window.OCSync.catalogoPropio(); } catch (_) { return; }
+      var hUbic = (cat && cat.ubicaciones || []).map(function (u) { return u.fotoHash; }).filter(Boolean);
+      var hProd = (cat && cat.productos || []).map(function (p) { return p.fotoHash; }).filter(Boolean);
+      hUbic.concat(hProd).forEach(function (hash) {
+        if (_fotosSembradas[hash]) return;
+        Promise.resolve(window.OCFotos.leerPorHash(hash)).then(function (dataUrl) {
+          if (!dataUrl) return;
+          try {
+            var d = new window.Y.Doc();
+            d.getMap("blobs").set(hash, dataUrl); // FIX v293: el doc real usa "blobs" (no "fotos"); antes la foto caía en un mapa que nadie leía
+            var u = window.Y.encodeStateAsUpdate(d);
+            _fotosSembradas[hash] = 1;
+            // Aplicar con origin "seed" dispara el observador de -fotos (línea ~331)
+            // que YA hace enviarUpdate (op + en vivo). NO enviar explícito aparte:
+            // duplicaba la op (FIX v293).
+            try { window.Y.applyUpdate(API.fotosDoc, u, "seed"); } catch (_) {}
+          } catch (_) {}
+        }).catch(function () {});
+      });
+    }).catch(function () {});
+  }
+
+  /* SEMBRAR VENTAS (dinero) AL RELAY (v292, JFC 2026-09-16, aprobado). Cada venta
+     se manda como op INDIVIDUAL al canal de CATALOGO (mini Y.Doc con esa venta en
+     el map "ventas"), no en el batch de sembrar, para no reventar el frame de
+     256KB con historiales grandes. Add-only por id: el receptor la suma una sola
+     vez (aplicarCatalogo). No duplica plata ni stock (el stock es LWW aparte).
+     Guard de sesion para no re-mandar la misma venta. */
+  function sembrarVentasAlRelay() {
+    if (!window.OCSync || !API.canal || !window.Y || !API.doc) return;
+    var cat; try { cat = window.OCSync.catalogoPropio(); } catch (_) { return; }
+    var ventas = (cat && cat.ventas) || [];
+    ventas.forEach(function (v) {
+      if (!v || v.id == null) return;
+      var id = String(v.id);
+      var previo = API.mapas.ventas.get(id);
+      if (previo) {
+        var a = v.rev || {}, b = previo.rev || {};
+        var ac = Number(a.c) || 0, bc = Number(b.c) || 0;
+        if (ac < bc || (ac === bc && String(a.d || "") <= String(b.d || ""))) return;
+      }
+      try {
+        // Y.Map.set emite un delta pequeño por venta y permite publicar una
+        // corrección o anulación posterior sin re-enviar el historial entero.
+        API.doc.transact(function () { API.mapas.ventas.set(id, JSON.parse(JSON.stringify(v))); }, "seed");
+      } catch (_) {}
+    });
+  }
+
+  function sembrarFinanzas(cat) {
+    ["gastos", "transferencias"].forEach(function (col) {
+      (cat[col] || []).forEach(function (r) {
+        if (!r || r.id == null) return;
+        var id = String(r.id), previo = API.mapas[col].get(id);
+        if (previo) {
+          var a = r.rev || {}, b = previo.rev || {};
+          var ac = Number(a.c) || 0, bc = Number(b.c) || 0;
+          if (ac < bc || (ac === bc && String(a.d || "") <= String(b.d || ""))) return;
+        }
+        try { API.doc.transact(function () { API.mapas[col].set(id, JSON.parse(JSON.stringify(r))); }, "seed"); } catch (_) {}
+      });
+    });
+  }
+
   // OCFotos local -> Yjs(fotos). Publica los blobs de las fotos EN USO (las que
   // alguna percha referencia por fotoHash) que aún no estén en el doc de fotos.
   function publicarFotosLocales() {
     if (!window.OCFotos || !API.fotosMap || !window.OCSync) return;
     var cat; try { cat = window.OCSync.catalogoPropio(); } catch (_) { return; }
-    var hashes = (cat && cat.ubicaciones || []).map(function (u) { return u.fotoHash; }).filter(Boolean);
-    hashes.forEach(function (hash) {
+    var hUbic = (cat && cat.ubicaciones || []).map(function (u) { return u.fotoHash; }).filter(Boolean);
+    var hProd = (cat && cat.productos || []).map(function (p) { return p.fotoHash; }).filter(Boolean); // v290: fotos de producto tambien
+    hUbic.concat(hProd).forEach(function (hash) {
       if (API.fotosMap.get(hash)) return; // ya publicado
       Promise.resolve(window.OCFotos.leerPorHash(hash)).then(function (dataUrl) {
         if (dataUrl && !API.fotosMap.get(hash)) { try { API.fotosMap.set(hash, dataUrl); } catch (_) {} }
@@ -409,12 +726,48 @@
       var miRol = ""; try { if (window.OCAuth && OCAuth.rolActual) miRol = OCAuth.rolActual() || ""; } catch (_) {}
       try {
         API.doc.transact(function () {
-          COLECCIONES.forEach(function (col) {
+          COLECCIONES_BATCH.forEach(function (col) {
             var filas = cat[col] || [];
             filas.forEach(function (r) {
               if (!r || r.id == null) return;
               var k = String(r.id);
               var prev = API.mapas[col].get(k);
+              if (prev && col === "ubicaciones") {
+                var ar = r.gastoMensualRev || {}, br = prev.gastoMensualRev || {};
+                var newerMonthly = (Number(ar.c) || 0) > (Number(br.c) || 0) ||
+                  ((Number(ar.c) || 0) === (Number(br.c) || 0) && String(ar.d || "") > String(br.d || ""));
+                if (!newerMonthly) r = Object.assign({}, r, { gastoMensual: prev.gastoMensual, gastoMensualRev: prev.gastoMensualRev });
+              }
+              if (prev && col === "productos") {
+                var basePrev = prev.stockBase == null ? null : Number(prev.stockBase);
+                var baseMia = r.stockBase == null ? null : Number(r.stockBase);
+                if (basePrev !== null && baseMia !== null && basePrev !== baseMia) return;
+                var base = baseMia !== null ? baseMia : basePrev;
+                if (base !== null && Number.isFinite(base)) {
+                  var pn = Object.assign({}, prev.stockPN || {});
+                  Object.keys(r.stockPN || {}).forEach(function (id) {
+                    var antes = pn[id] || {}, nuevo = r.stockPN[id] || {};
+                    pn[id] = { add: Math.max(Number(antes.add) || 0, Number(nuevo.add) || 0),
+                               sub: Math.max(Number(antes.sub) || 0, Number(nuevo.sub) || 0) };
+                  });
+                  r = Object.assign({}, r, { stockBase: base, stockPN: pn });
+                  r.stockActual = Math.max(0, base + Object.keys(pn).reduce(function (n, id) {
+                    return n + (Number(pn[id].add) || 0) - (Number(pn[id].sub) || 0);
+                  }, 0));
+                }
+              }
+              // Una réplica rezagada no debe volver a publicar una ficha anterior
+              // encima de una edición o baja que ya llegó al documento común.
+              if (prev && (col === "clientes" || col === "promotoras" || col === "sucursales" || col === "ubicaciones" || col === "productos" || col === "gastos" || col === "transferencias" || col === "categorias") &&
+                  (r.rev || prev.rev)) {
+                var a = r.rev || {}, b = prev.rev || {};
+                var ac = Number(a.c) || 0, bc = Number(b.c) || 0;
+                if (ac < bc || (ac === bc && String(a.d || "") <= String(b.d || ""))) {
+                  if (col === "productos") r = Object.assign({}, prev, { stockBase: r.stockBase, stockPN: r.stockPN, stockActual: r.stockActual, stockTs: Math.max(Number(prev.stockTs) || 0, Number(r.stockTs) || 0) });
+                  else if (col === "ubicaciones") r = Object.assign({}, prev, { gastoMensual: r.gastoMensual, gastoMensualRev: r.gastoMensualRev });
+                  else return;
+                }
+              }
               var js = JSON.stringify(r);
               // Solo si cambió: evita tormenta de updates binarios por el relay.
               if (!prev || JSON.stringify(prev) !== js) API.mapas[col].set(k, JSON.parse(js));
@@ -429,9 +782,25 @@
           if (cat.nombreNegocio) {
             var soyDueno = miRol === "dueno";
             var yaEsDueno = API.meta.get("nombreEsDueno") === true;
+            /* DESEMPATE DETERMINISTA (v283, JFC 2026-09-15). Antes un dueño pisaba
+               el nombre compartido cada vez que sembraba -> con DOS aparatos dueño
+               era una guerra de nombres que nunca convergía. Ahora gana el rename
+               de dueño MÁS RECIENTE por sello de tiempo: un dueño solo escribe el
+               nombre si su ts es >= al del doc (o si el doc aún no es de dueño). */
+            // v290 (#2): desempate PRIMARIO por rev monotónico (inmune a relojes
+            // desfasados), secundario por ts.
+            var revMeta = Number(API.meta.get("nombreRev")) || 0;
+            var revMio = Number(cat.nombreNegocioRev) || 0;
+            var tsMeta = Number(API.meta.get("nombreTs")) || 0;
+            var tsMio = Number(cat.nombreNegocioTs) || 0;
             if (soyDueno) {
-              if (API.meta.get("nombreNegocio") !== cat.nombreNegocio) API.meta.set("nombreNegocio", cat.nombreNegocio);
-              if (!yaEsDueno) API.meta.set("nombreEsDueno", true);
+              var _gano = !yaEsDueno || revMio > revMeta || (revMio === revMeta && tsMio >= tsMeta);
+              if (_gano) {
+                if (API.meta.get("nombreNegocio") !== cat.nombreNegocio) API.meta.set("nombreNegocio", cat.nombreNegocio);
+                if (revMio) API.meta.set("nombreRev", revMio);
+                if (tsMio) API.meta.set("nombreTs", tsMio);
+                if (!yaEsDueno) API.meta.set("nombreEsDueno", true);
+              }
             } else if (!yaEsDueno && !API.meta.get("nombreNegocio")) {
               API.meta.set("nombreNegocio", cat.nombreNegocio);
               API.meta.set("nombreEsDueno", false);
@@ -441,8 +810,17 @@
             API.meta.set("pinsRol", cat.pinsRol);
         }, "seed"); // origin "seed": estos updates no deben re-aplicarse al store
       } catch (e) { log("sembrar:", e && e.message); }
-      // B3: publicar al doc de fotos los blobs de las perchas que tienen foto.
-      try { publicarFotosLocales(); } catch (_) {}
+      // B3: publicar al doc de fotos los blobs de perchas Y productos que tienen
+      // foto. Antes se asegura que las fotos de PRODUCTO tengan hash (v290): una
+      // foto recien puesta se hashea y se publica sin esperar a reconectar.
+      try {
+        if (window.OCSync && window.OCSync.hashearFotosProductos) {
+          window.OCSync.hashearFotosProductos().then(function () { try { publicarFotosLocales(); } catch (_) {} }).catch(function () { try { publicarFotosLocales(); } catch (_) {} });
+        } else { publicarFotosLocales(); }
+      } catch (_) { try { publicarFotosLocales(); } catch (_) {} }
+      // v292: sembrar las ventas (dinero) como ops individuales (add-only).
+      try { sembrarVentasAlRelay(); } catch (_) {}
+      try { sembrarFinanzas(cat); } catch (_) {}
     }
 
     // Yjs -> store. Reconstruye el catálogo desde los Y.Map y llama al merge
@@ -451,7 +829,7 @@
       if (_aplicando) return;
       // Genérico sobre COLECCIONES: agregar una colección nueva (promotoras,
       // sucursales…) es una sola línea allá arriba, aquí ya viaja sola.
-      var remoto = { nombreNegocio: API.meta.get("nombreNegocio") || "", pinsRol: API.meta.get("pinsRol") || null, deviceNombre: "sync" };
+      var remoto = { nombreNegocio: API.meta.get("nombreNegocio") || "", nombreNegocioTs: Number(API.meta.get("nombreTs")) || 0, nombreNegocioRev: Number(API.meta.get("nombreRev")) || 0, pinsRol: API.meta.get("pinsRol") || null, deviceNombre: "sync" };
       var hay = false;
       COLECCIONES.forEach(function (c) { remoto[c] = valores(c); if (remoto[c].length) hay = true; });
       // #2 (fix 2026-09-10): un update de SOLO el nombre (o pinsRol) también debe
@@ -470,10 +848,15 @@
         // (a) lo muestre como alerta dentro de "Today's alerts", no como banner
         // suelto, y (b) re-pinte la vista Hoy (si no, el hero se queda en
         // "Loading your business..."). La UI escucha oc-sync-merge en index.html.
-        if (r && r.ok && (r.agregadasU || r.agregadosP || r.miembrosAgregados || r.clientesAgregados || r.promotorasAgregadas || r.sucursalesAgregadas)) {
+        // v289: incluir r.actualizados -> una actualizacion SOLO de stock/precio
+        // (sin altas) tambien re-pinta la UI: es el refresco "en segundos" del CDC.
+        if (r && r.ok && (r.agregadasU || r.agregadosP || r.actualizados || r.ventasAgregadas || r.miembrosAgregados || r.clientesAgregados || r.promotorasAgregadas || r.sucursalesAgregadas)) {
+          // Una fusión de dos ledgers de stock debe volver al doc de inmediato;
+          // esperar al barrido de 2 s dejaría a un tercer aparato con una sola venta.
+          setTimeout(sembrar, 0);
           try {
             window.dispatchEvent(new CustomEvent("oc-sync-merge", { detail: {
-              perchas: r.agregadasU || 0, productos: r.agregadosP || 0,
+              perchas: r.agregadasU || 0, productos: r.agregadosP || 0, actualizados: r.actualizados || 0, ventas: r.ventasAgregadas || 0,
               miembros: r.miembrosAgregados || 0, clientes: r.clientesAgregados || 0,
               promotoras: r.promotorasAgregadas || 0, sucursales: r.sucursalesAgregadas || 0
             } }));
@@ -495,7 +878,14 @@
     // Los updates propios de sembrar() llevan origin "seed" y se ignoran aquí.
     API.doc.on("update", function (update, origin) {
       if (origin !== "red" && origin !== "bc") return;
-      clearTimeout(_tAplica); _tAplica = setTimeout(aplicar, 300);
+      /* Coalescer con espera máxima acotada. El debounce anterior reiniciaba
+         300 ms con CADA update y una ráfaga podía posponer indefinidamente el
+         nombre/stock visible. El primer update agenda una aplicación próxima;
+         los siguientes quedan incluidos en el mismo documento Yjs. */
+      if (!_tAplica) _tAplica = setTimeout(function () {
+        _tAplica = null;
+        aplicar();
+      }, 100);
     });
 
     // Arranque: cuando IndexedDB termina de cargar, primero APLICAMOS lo que ya
@@ -506,6 +896,16 @@
     else setTimeout(primerCruce, 800);
     // Red de seguridad si "synced" no llega (idb deshabilitado en algún navegador).
     setTimeout(function () { if (API.estado === "activo") sembrar(); }, 2500);
+    /* RE-PUBLICACION PERIODICA (v302). Barata: el batch de sembrar() solo escribe
+       al Y.Map "si cambió", asi que si nada cambio NO manda nada. Sirve de red: si
+       un cambio local (stock por cualquier ruta, etc.) no disparo oc-catalogo-
+       cambiado, igual se publica en <=10 s. Asi el stock y todo cambio cruzan sin
+       depender de que cada ruta emita el evento. */
+    // SLA JFC (2026-09-17): MAXIMO 2 segundos para que todos los aparatos tengan lo
+    // que cambio en otro (catalogo, stock, PIN/equipo, comisiones, todo). La ruta
+    // en vivo (cambio -> sembrar -> WebSocket) es casi instantanea; este respaldo a
+    // 2s cubre cualquier evento que no se haya disparado. Barato: solo manda si cambio.
+    if (!API._tSembraPeriodica) API._tSembraPeriodica = setInterval(function () { try { if (API.estado === "activo") sembrar(); } catch (_) {} }, 2000);
 
     API._store = { sembrar: sembrar, aplicar: aplicar }; // para diagnóstico manual
   }
