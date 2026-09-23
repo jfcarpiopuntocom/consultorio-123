@@ -685,6 +685,49 @@ function licSetCfg(obj) {
 }
 function licWorkerUrl() { return (licGetCfg().workerUrl || "").trim(); }
 function licMasterKey() { return (licGetCfg().masterKey || "").trim(); }
+/* RECUPERACIÓN MAESTRA (JFC 2026-09-22, portado de friendly v341). Emite un
+   permiso firmado de 5 min para UN aparato; el Worker lo verifica. El permiso
+   solo vive en el DOM (nunca localStorage ni logs) y se borra a los 5 min. */
+let _licMaestroTimer = null;
+function licCerrarMaestro() {
+  if (_licMaestroTimer) clearTimeout(_licMaestroTimer);
+  _licMaestroTimer = null;
+  const box = document.getElementById("lic-maestro-box");
+  if (box) box.remove();
+}
+async function licEmitirMaestro(instanceId) {
+  licCerrarMaestro();
+  if (!licMasterKey() || !licWorkerUrl()) { mostrarConfirmacion("Conecta primero el panel privado al Worker."); return; }
+  if (!confirm("¿Ya verificaste personalmente la identidad del dueño? El permiso durará cinco minutos y solo servirá en este aparato.")) return;
+  try {
+    const res = await fetch(licWorkerUrl().replace(/\/+$/, "") + "/maestro/emitir", {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Master-Key": licMasterKey() },
+      body: JSON.stringify({ instanceId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data || typeof data.token !== "string") { mostrarConfirmacion("No se pudo emitir el permiso; revisa conexión y autorización."); return; }
+    const box = document.createElement("div");
+    box.id = "lic-maestro-box"; box.setAttribute("role", "status"); box.setAttribute("aria-live", "polite");
+    box.style.cssText = "position:fixed;left:16px;right:16px;bottom:16px;z-index:9999;background:#FFFFFF;border:2px solid #E8A020;border-radius:10px;padding:16px 18px;max-width:640px;margin:0 auto;";
+    box.innerHTML = '<strong style="color:#111111 !important;-webkit-text-fill-color:#111111 !important;font-size:16px;">Permiso temporal de recuperación</strong>' +
+      '<p style="color:#111111 !important;-webkit-text-fill-color:#111111 !important;font-size:15px;line-height:1.5;">Válido cinco minutos solo para el aparato seleccionado. Úsalo en Acceso y recuperación. No cambia PINs ni datos por sí mismo.</p>' +
+      '<input id="lic-maestro-token" type="text" readonly autocomplete="off" aria-label="Permiso temporal" style="width:100%;min-height:44px;font-size:15px;margin-bottom:8px;color:#111111;">' +
+      '<button type="button" onclick="licCopiarMaestro()" style="min-height:44px;font-size:15px;font-weight:700;margin-right:8px;">Copiar permiso</button>' +
+      '<button type="button" onclick="licCerrarMaestro()" style="min-height:44px;font-size:15px;">Cerrar y borrar de pantalla</button>';
+    document.body.appendChild(box);
+    const input = document.getElementById("lic-maestro-token");
+    input.value = data.token;
+    input.focus(); input.select();
+    _licMaestroTimer = setTimeout(licCerrarMaestro, 5 * 60 * 1000);
+  } catch (_) { mostrarConfirmacion("No se pudo contactar al Worker; no se emitió ningún permiso."); }
+}
+async function licCopiarMaestro() {
+  const input = document.getElementById("lic-maestro-token");
+  if (!input || !input.value) return;
+  try { await navigator.clipboard.writeText(input.value); mostrarConfirmacion("Permiso copiado. Caduca en cinco minutos."); }
+  catch (_) { input.focus(); input.select(); mostrarConfirmacion("Seleccionado; cópialo manualmente."); }
+}
+
 
 function licInit() {
   const cfg = licGetCfg();
@@ -811,7 +854,7 @@ function licRenderTabla(data) {
       `<option value="minima"${licNormEstado(est) === "minima" ? " selected" : ""}>Minimal — free (25 items · 100 sales/mo · 1 employee)</option>` +
       `<option value="full"${licNormEstado(est) === "full" ? " selected" : ""}>Full — uncapped</option>` +
       `<option value="bloqueada"${licNormEstado(est) === "bloqueada" ? " selected" : ""}>Blocked</option>` +
-      `</select><button class="btn-ok" onclick="licCambiarEstado('${id}')">OK</button>` +
+      `</select><button class="btn-ok" onclick="licCambiarEstado('${id}')">OK</button> <button class="btn-ok" title="Emitir un permiso de recuperación de cinco minutos para este aparato; no cambia datos" onclick="licEmitirMaestro('${id}')" style="background:transparent;border:1px solid #E8A020;color:#E8A020;margin-left:4px;">Recuperación</button>` +
       ` <button class="btn-ok" title="Delete this record (archived first, recoverable)" onclick="licBorrar('${id}')" style="background:transparent;border:1px solid var(--red,#E8365D);color:var(--red,#E8365D);margin-left:4px;">Delete</button></td>`;
     tb.appendChild(tr);
 

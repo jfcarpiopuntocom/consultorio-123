@@ -3,6 +3,6 @@
   "fecha": "2026-09-15",
   "changelog": "Sync nuevo: el mismo motor que friendly-123 (finanzas, categorías, updates grandes, medición de latencia).",
   "requerida": false,
-  "shell": "c123-shell-v64",
+  "shell": "c123-shell-v65",
   "apagar": []
 }

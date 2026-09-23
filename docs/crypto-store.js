@@ -51,11 +51,11 @@
 // de tener un "candado maestro" sin backend. Por eso el default de abajo debe
 // cambiarse por negocio si JFC quiere aislar el riesgo entre clientes.
 //
-// CAMBIAR ESTE CÓDIGO: edita MASTER_CODE_DEFAULT antes de entregar la app a
-// cada nuevo negocio (o dile a JFC su código actual si no lo recuerda — sin
-// él, ni siquiera JFC puede reasignar un correo ya registrado en ese negocio).
+// ACTUALIZADO 2026-09-22: ya no hay código por defecto en el navegador. Si el
+// negocio no fijó uno propio, JFC emite desde el panel un permiso de 5 min
+// para esa instancia y el Worker lo verifica (/maestro/verificar).
 // ===========================================================================
-const MASTER_CODE_DEFAULT = "POSCUENCA-MAESTRO-2026";
+// MASTER_CODE_DEFAULT retirado (JFC 2026-09-22): la recuperación se verifica en el Worker.
 
 // Sal fija para ofuscar el PIN del dueño (no es un secreto fuerte — protege
 // solo de lectura casual de localStorage; el hash PBKDF2 es el verdadero
@@ -313,7 +313,11 @@ const PIN_XOR_KEY = "oc-pin-r-v1";
     if (segundosBloqueo("maestro") > 0) return false;
     const guardado = leerHashMaestroGuardado();
     const hashIngresado = await hashMaestro(codigo);
-    const ok = guardado ? hashIngresado === guardado : hashIngresado === (await hashMaestro(MASTER_CODE_DEFAULT));
+    // Sin código guardado: permiso de 5 min emitido desde el panel y verificado
+    // por el Worker (JFC 2026-09-22; ya no hay constante pública en el navegador).
+    let ok = false;
+    if (guardado) { ok = hashIngresado === guardado; }
+    else {let owned;try{owned=JSON.parse(localStorage.getItem("c123_owned")||"null")}catch(_){}if(!owned||!owned.instanceId)return false;try{const res=await fetch("https://consultorio123-licencias.jfcarpio.workers.dev/maestro/verificar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({instanceId:owned.instanceId,token:String(codigo||"").trim()})});if(res.status>=500)return false;const data=await res.json();ok=res.ok&&data&&data.ok===true}catch(_){return false}}
     ok ? registrarExito("maestro") : registrarFallo("maestro");
     return ok;
   }
