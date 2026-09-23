@@ -86,6 +86,16 @@ if [ -f docs/version-manifest.json ]; then
   fi
 fi
 
+# G5 — NINGUNA LICENCIA COMPLETA EN EL REPO (JFC 2026-09-22/23). El repo es
+# PUBLICO: una licencia completa = acceso a ese cuaderno. En el codigo, comparar
+# por huella (hash), como docs/sync-yjs.js. Solo ejemplos: XXXX, AAAA..DDDD, TEST, SYNT.
+lic_expuestas=$(git grep -n -E "(AMG|C123|F123)-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4,5}" -- . ':!backups' 2>/dev/null   | grep -v -E "(AMG|C123|F123)-(XXXX|AAAA|BBBB|CCCC|DDDD|TEST|SYNT)-" )
+if [ -n "$lic_expuestas" ]; then
+  echo "LICENCIA COMPLETA EN EL REPO PUBLICO (G5). Quitala antes de pushear:"
+  echo "$lic_expuestas" | sed -E 's/((AMG|C123|F123)-[A-Z0-9]{4})-[A-Z0-9-]+/-****/g' | cut -c1-160 | sed 's/^/  /'
+  falta=1
+fi
+
 if [ "$falta" = "0" ]; then
   echo "OK — todos los scripts de index.html estan en el SHELL del service worker."
   echo "OK — sw.js y version.json coinciden en $sw_ver."
