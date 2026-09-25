@@ -120,3 +120,16 @@ En minificado: editar con scripts que verifiquen ancla ÚNICA + `node --check`. 
 - Compactación de sesión con Jev: plugin `fast-jev-compaction@fast-jev-compaction-jfc`
   (fork local de JFC que va por Vercel AI Gateway y censura licencias, claves y PIN antes de
   enviar). Si falla, Claude Code hace el resumen normal.
+
+## MARCA Y DUEÑO (JFC 2026-09-25) — REGLA DURA, LAS 3 APPS
+- La línea de apps se llama **Made In Cuenca: intuitive business apps**
+  (friendly-123, amigable-123, consultorio-123). Nombre exacto, sin parafrasear
+  ni traducir.
+- Es identidad de la línea. En la UI va solo donde JFC lo pida (hoy, la línea de
+  crédito del pie); no se riega por pantallas ni se explica en el producto.
+- JFC es el DUEÑO de la app: el LORD OF SOFTWARE. "Lord" es correcto y se queda.
+  Lo que JFC pidió quitar fue tratarlo como "soporte", nunca el lord. La
+  licencia lord se reconoce por huella cyrb53, jamás escrita en el repo.
+- friendly v401: el diagnóstico de Advanced (Sync, Code, origen del código) solo
+  se ve en el aparato lord entrando como dueño, o con canario puesto. La
+  medición sigue corriendo para todos.
