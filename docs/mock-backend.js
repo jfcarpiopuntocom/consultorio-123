@@ -1640,6 +1640,10 @@ window.OCSync = {
           tipoProveedor: body.tipoProveedor === "consignacion" ? "consignacion" : "compra",
           comisionProveedorPct: Math.max(0, Number(body.comisionProveedorPct) || 0),
           creadoEn: new Date().toISOString(),
+          /* FIX (port friendly v395, 2026-09-24): el formulario manda body.foto al
+             crear, pero esta ruta no la guardaba y la foto se perdia. */
+          foto: (typeof body.foto === "string" && body.foto.indexOf("data:image/") === 0) ? body.foto : null,
+          fotoHash: null,
         };
         productos.push(nuevo);
         mov("alta", { producto: nuevo.nombre, sku: nuevo.sku, ubicacion: nombreUbic(nuevo.ubicacionId) });
@@ -1663,13 +1667,17 @@ window.OCSync = {
         const montoBruto = precioEfectivo * cant;
         const acumuladoPrevio = ubicP ? ventasMesAcumuladas(ubicP.id) : 0;
         const split = ubicP ? calcularSplitVenta(ubicP, montoBruto, acumuladoPrevio) : null;
-        p.stockActual -= cant;
         let clienteVenta = null;
         if (body.clienteId) {
           clienteVenta = clientes.find((c) => c.id === body.clienteId);
           if (!clienteVenta) return J({ error: "Cliente no encontrado." }, 404);
           if (clienteVenta.despedido) return J({ error: `"${clienteVenta.nombre}" is fired — no new sales allowed. Reactivate them from Customers if this was a mistake.` }, 400);
         }
+        /* B1 (port de friendly-123 v396, 2026-09-24): el stock bajaba ANTES de
+           validar el paciente/cliente; una venta rechazada dejaba el stock
+           descontado sin venta. Toda validacion va antes; esta es la primera
+           linea que muta. test/cuadre-consultorio.test.js */
+        p.stockActual -= cant;
         const ventaId = uuid("v");
         ventas.push({ id: ventaId, productoId: p.id, ubicacionId: p.ubicacionId, cantidad: cant, precioUnit: precioEfectivo, costoUnit: p.costo, fecha: new Date().toISOString(), split, liquidada: false, clienteId: clienteVenta ? clienteVenta.id : null });
         mov("venta", { producto: p.nombre, cantidad: cant, total: +(precioEfectivo * cant).toFixed(2), ubicacion: nombreUbic(p.ubicacionId) });
@@ -1873,8 +1881,14 @@ window.OCSync = {
       if (path === "/api/reportes/balance") {
         const ps = filtrar(uid), vh = ventasHoyDe(uid);
         const ef = vh.reduce((a, v) => a + v.precioUnit * v.cantidad, 0);
-        const inv = ps.reduce((a, p) => a + p.precio * p.stockActual, 0);
-        return J({ activos: { efectivoEstimado: +ef.toFixed(2), inventarioValorizado: +inv.toFixed(2), total: +(ef + inv).toFixed(2) } });
+        /* BALANCE A MEJOR PRACTICA (port friendly v397, JFC 2026-09-24): el activo
+           es inventario PROPIO a COSTO (antes stock x precio de venta). Lo que no
+           es activo queda a la vista en "memo". */
+        const _esConsig = (p) => p.tipoProveedor === "consignacion" || ((ubicaciones.find((u) => u.id === p.ubicacionId) || {}).tipo === "consignacion");
+        const _propios = ps.filter((p) => !_esConsig(p)), _consig = ps.filter(_esConsig);
+        const inv = _propios.reduce((a, p) => a + (Number(p.costo) || 0) * p.stockActual, 0);
+        return J({ activos: { efectivoEstimado: +ef.toFixed(2), inventarioValorizado: +inv.toFixed(2), total: +(ef + inv).toFixed(2) },
+          memo: { criterioInventario: "costo", inventarioPropioPrecioVenta: +_propios.reduce((a, p) => a + (Number(p.precio) || 0) * p.stockActual, 0).toFixed(2), consignacionPrecioVenta: +_consig.reduce((a, p) => a + (Number(p.precio) || 0) * p.stockActual, 0).toFixed(2) } });
       }
       if (path === "/api/reportes/valorizado") {
         const filas = filtrar(uid).map((p) => ({ nombre: p.nombre, stockActual: p.stockActual, valorCosto: +(p.costo * p.stockActual).toFixed(2), valorVenta: +(p.precio * p.stockActual).toFixed(2), utilidadPotencial: +((p.precio - p.costo) * p.stockActual).toFixed(2) }));
