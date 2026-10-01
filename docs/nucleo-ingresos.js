@@ -22,7 +22,7 @@
 
   function registrar(datos) {
     var monto = Number(datos && datos.monto);
-    if (!(monto > 0)) return Promise.reject(new Error("ingresos: monto debe ser mayor a cero"));
+    if (!Number.isFinite(monto) || !(monto > 0)) return Promise.reject(new Error("ingresos: monto debe ser mayor a cero"));
     var cuenta = datos && datos.cuenta;
     if (CUENTAS.indexOf(cuenta) === -1) {
       return Promise.reject(new Error("ingresos: cuenta debe ser 'caja_chica' o 'bancos'"));
@@ -37,11 +37,12 @@
       observaciones: String(datos.observaciones || "").slice(0, 500)
     };
 
-    var eventBus = bus();
-    if (eventBus) eventBus.emit(TIPO + ":completado", { payload: payload });
-
     if (global.AMG && global.AMG.Hechos && global.AMG.Hechos.registrar) {
-      return global.AMG.Hechos.registrar(TIPO, payload);
+      return global.AMG.Hechos.registrar(TIPO, payload).then(function (hecho) {
+        var eventBus = bus();
+        if (eventBus) eventBus.emit(TIPO + ':registrado', { payload: payload });
+        return hecho;
+      });
     }
     return Promise.reject(new Error("ingresos: AMG.Hechos no disponible"));
   }
@@ -52,10 +53,22 @@
       return Promise.resolve({ movimientos: [], totalCajaChica: 0, totalBancos: 0, total: 0 });
     }
     return global.AMG.Hechos.todos().then(function (todos) {
-      var mios = todos.filter(function (h) { return h.tipo === TIPO && h.datos && h.datos.payload; });
+      var mios = todos.filter(function (h) { return h.tipo === TIPO && h.datos; });
+      // Older shells wrote one nested + one plain event per click. Preserve
+      // both stored facts, count the historical pair once, not new payments.
+      var pares = new Map();
+      mios.forEach(function (h) {
+        var p = h.datos.payload || h.datos;
+        var key = JSON.stringify([p, Math.floor(h.ts / 2000)]);
+        var g = pares.get(key) || { plain: [], nested: [] };
+        g[h.datos.payload ? 'nested' : 'plain'].push(h); pares.set(key, g);
+      });
+      mios = [].concat.apply([], Array.from(pares.values()).map(function (g) {
+        return g.plain.length && g.nested.length ? (g.plain.length >= g.nested.length ? g.plain : g.nested) : g.plain.concat(g.nested);
+      }));
       var totalCajaChica = 0, totalBancos = 0;
       var movimientos = mios.map(function (h) {
-        var p = h.datos.payload;
+        var p = h.datos.payload || h.datos;
         var monto = Number(p.monto) || 0;
         if (p.cuenta === "caja_chica") totalCajaChica += monto; else totalBancos += monto;
         return {

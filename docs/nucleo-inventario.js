@@ -16,12 +16,13 @@
   var KEY = "c123_inventario_v1";
 
   function leer() {
+    if (global.OCSync) return global.OCSync.leerDatos('inventarioClinico');
     try { return JSON.parse(localStorage.getItem(KEY) || "[]") || []; } catch (_) { return []; }
   }
 
   function guardarTodo(items) {
-    try { localStorage.setItem(KEY, JSON.stringify(items)); } catch (_) {}
-    return items;
+    if (!global.OCSync) return Promise.reject(new Error('El almacenamiento no está disponible.'));
+    return global.OCSync.guardarDatos('inventarioClinico', items);
   }
 
   function costoVenta(item) {
@@ -52,12 +53,11 @@
       final: +(Number(item.final) || 0).toFixed(2)
     };
     if (idx === -1) items.push(limpio); else items[idx] = limpio;
-    guardarTodo(items);
-    return limpio;
+    return guardarTodo(items).then(function () { return limpio; });
   }
 
   function eliminarItem(id) {
-    guardarTodo(leer().filter(function (it) { return it.id !== id; }));
+    return guardarTodo(leer().filter(function (it) { return it.id !== id; }));
   }
 
   global.AMG = global.AMG || {};

@@ -100,6 +100,7 @@
   }
 
   async function leerFoto(id) {
+    const archivo = window.OCSync && window.OCSync.recuperacionLocal ? window.OCSync.recuperacionLocal().fotos : {};
     if (!SOPORTADO) {
       try { return localStorage.getItem(claveVieja(id)); }
       catch (_) { return null; }
@@ -109,7 +110,7 @@
       return await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE, "readonly");
         const req = tx.objectStore(STORE).get(id);
-        req.onsuccess = () => resolve(req.result || null);
+        req.onsuccess = () => resolve(req.result || archivo[id] || null);
         req.onerror = () => reject(req.error);
       });
     } catch (err) {
@@ -121,9 +122,10 @@
   // Lee TODAS las fotos guardadas de una vez — usado por vista-perchas.js para
   // precargar el cache en memoria antes de pintar el grid (evita N lecturas
   // async individuales, una por tarjeta).
-  async function leerTodas() {
+  async function leerTodas(estricto) {
+    const archivo = window.OCSync && window.OCSync.recuperacionLocal ? window.OCSync.recuperacionLocal().fotos : {};
     if (!SOPORTADO) {
-      const out = {};
+      const out = Object.assign({}, archivo);
       try {
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
@@ -137,7 +139,7 @@
       return await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE, "readonly");
         const store = tx.objectStore(STORE);
-        const out = {};
+        const out = Object.assign({}, archivo);
         const req = store.openCursor();
         req.onsuccess = (e) => {
           const cursor = e.target.result;
@@ -148,6 +150,7 @@
       });
     } catch (err) {
       console.error("[idb-fotos] leerTodas:", err);
+      if (estricto) throw err;
       return {};
     }
   }
@@ -199,5 +202,22 @@
     }
   }
 
-  window.OCFotos = { guardarFoto, leerFoto, leerTodas, borrarFoto, migrarSiHaceFalta, soportado: () => SOPORTADO };
+  async function validarImportacion(fotos) {
+    if (!fotos || typeof fotos !== 'object' || Array.isArray(fotos)) throw new Error('Fotos inválidas.');
+    for (const [id, data] of Object.entries(fotos)) {
+      if (!id || typeof data !== 'string' || !/^data:image\/(png|jpeg|webp|gif);base64,/.test(data)) throw new Error('Foto inválida.');
+      if (id.startsWith('sha256:') && id !== 'sha256:' + await hashFoto(data)) throw new Error('Hash de foto inválido.');
+    }
+  }
+  async function hashFoto(data) {
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
+    return Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function guardarPorHash(hash, data) {
+    if (hash !== await hashFoto(data)) throw new Error('Hash de foto inválido.');
+    if (!await guardarFoto('sha256:' + hash, data)) throw new Error('No se pudo guardar la foto.');
+    return true;
+  }
+  window.OCFotos = { guardarFoto, leerFoto, leerTodas, borrarFoto, migrarSiHaceFalta, validarImportacion, hashFoto, guardarPorHash,
+    leerPorHash: hash => leerFoto('sha256:' + hash), tieneHash: async hash => !!await leerFoto('sha256:' + hash), soportado: () => SOPORTADO };
 })();

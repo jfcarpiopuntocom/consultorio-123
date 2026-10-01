@@ -64,6 +64,8 @@
      OC_PB_URL). Por defecto todo corre local: mock-backend.js en la demo
      estática, o server.js real en el servidor local del negocio. -->
 <script src="./pocketbase-client.js"></script>
+<!-- Canonical conflict rules load before the local state adapter and sync bridges. -->
+<script src="./sync-domain.js"></script>
 <script src="./mock-backend.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">

@@ -1,8 +1,8 @@
 {
   "version": "1.3.4",
-  "fecha": "2026-09-15",
-  "changelog": "Una venta rechazada ya no descuenta stock, la foto elegida al crear un producto se guarda, y el balance cuenta el inventario a costo.",
+  "fecha": "2026-10-01",
+  "changelog": "Guardado confirmado, recuperación de movimientos y fotos, sincronización de ediciones clínicas e inventario concurrente.",
   "requerida": false,
-  "shell": "c123-shell-v67",
+  "shell": "c123-shell-v68",
   "apagar": []
 }

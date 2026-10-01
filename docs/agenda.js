@@ -36,8 +36,6 @@
       hora: hora,
       duracionMin: Number(datos.duracionMin) > 0 ? Number(datos.duracionMin) : 30
     };
-    var eventBus = bus();
-    if (eventBus) eventBus.emit(TIPOS.agendada + ":completado", { payload: payload });
     if (global.AMG && global.AMG.Hechos && global.AMG.Hechos.registrar) {
       return global.AMG.Hechos.registrar(TIPOS.agendada, payload).then(function () { return payload; });
     }
@@ -46,8 +44,6 @@
 
   function cancelar(citaId, motivo) {
     var payload = { citaId: citaId, motivo: String(motivo || "").slice(0, 300) };
-    var eventBus = bus();
-    if (eventBus) eventBus.emit(TIPOS.cancelada + ":completado", { payload: payload });
     if (global.AMG && global.AMG.Hechos && global.AMG.Hechos.registrar) {
       return global.AMG.Hechos.registrar(TIPOS.cancelada, payload);
     }
@@ -60,13 +56,14 @@
     return global.AMG.Hechos.todos().then(function (todos) {
       var agendadas = {};
       todos.forEach(function (h) {
-        if (h.tipo === TIPOS.agendada && h.datos && h.datos.payload) {
-          agendadas[h.datos.payload.id] = h.datos.payload;
+        if (h.tipo === TIPOS.agendada && h.datos) {
+          var p = h.datos.payload || h.datos;
+          agendadas[p.id] = p;
         }
       });
       todos.forEach(function (h) {
-        if (h.tipo === TIPOS.cancelada && h.datos && h.datos.payload) {
-          delete agendadas[h.datos.payload.citaId];
+        if (h.tipo === TIPOS.cancelada && h.datos) {
+          delete agendadas[(h.datos.payload || h.datos).citaId];
         }
       });
       return Object.values(agendadas).sort(function (a, b) {

@@ -79,14 +79,11 @@
   // Registra un tratamiento nuevo: un cargo inicial por el valor total, y si
   // hay pago inicial, un abono inmediato. Devuelve las dos escrituras.
   function registrarTratamiento(pacienteId, concepto, valorTotal, pagoInicial) {
-    var inicial = Number(pagoInicial) || 0;
-    return registrarMovimiento(pacienteId, "cargo", valorTotal, concepto).then(function (hechoCargo) {
-      if (inicial > 0) {
-        return registrarMovimiento(pacienteId, "abono", inicial, "Pago inicial — " + concepto)
-          .then(function (hechoAbono) { return { cargo: hechoCargo, abono: hechoAbono }; });
-      }
-      return { cargo: hechoCargo, abono: null };
-    });
+    var inicial = Number(pagoInicial) || 0, total = Number(valorTotal);
+    if (!pacienteId || !Number.isFinite(total) || total <= 0 || !Number.isFinite(inicial) || inicial < 0) return Promise.reject(new Error('Tratamiento o pago inválido.'));
+    var lista = [{ tipo: TIPOS.cargo, datos: { pacienteId: String(pacienteId), monto: +total.toFixed(2), concepto: String(concepto || '').slice(0,300) } }];
+    if (inicial > 0) lista.push({ tipo: TIPOS.abono, datos: { pacienteId: String(pacienteId), monto: +inicial.toFixed(2), concepto: 'Pago inicial — ' + String(concepto || '').slice(0,280) } });
+    return global.AMG.Hechos.registrarLote(lista).then(function (hechos) { return { cargo: hechos[0], abono: hechos[1] || null }; });
   }
 
   // Deriva el saldo y el historial de UN paciente reproduciendo todos los

@@ -125,7 +125,7 @@
       window.AMG.Ingresos.registrar({
         paciente: f.get("paciente"), concepto: f.get("concepto"), monto: f.get("monto"),
         cuenta: f.get("cuenta"), formaPago: f.get("formaPago"), observaciones: f.get("observaciones")
-      }).then(function () { e.target.reset(); renderIngresos(); });
+      }).then(function () { e.target.reset(); renderIngresos(); }).catch(function (err) { alert(err.message); });
     });
     renderIngresos();
   }
@@ -170,9 +170,7 @@
       window.AMG.Inventario.guardarItem({
         id: f.get("id") || undefined, nombre: f.get("nombre"), precio: f.get("precio"),
         inicial: f.get("inicial"), compras: f.get("compras"), final: f.get("final")
-      });
-      e.target.reset();
-      renderInventario();
+      }).then(function () { e.target.reset(); renderInventario(); }).catch(function (err) { alert(err.message); });
     });
     renderInventario();
   }
@@ -189,7 +187,7 @@
       ? '<div class="nucleo-tabla-wrap"><table><thead><tr><th>Artículo</th><th>Precio</th><th>Inicial</th><th>Compras</th><th>Final</th><th>Costo Venta</th><th></th></tr></thead><tbody>' + filas + "</tbody></table></div>"
       : "";
     document.querySelectorAll("[data-eliminar-inv]").forEach(function (btn) {
-      btn.addEventListener("click", function () { window.AMG.Inventario.eliminarItem(btn.getAttribute("data-eliminar-inv")); renderInventario(); });
+      btn.addEventListener("click", function () { window.AMG.Inventario.eliminarItem(btn.getAttribute("data-eliminar-inv")).then(renderInventario).catch(function (err) { alert(err.message); }); });
     });
   }
 
@@ -255,8 +253,10 @@
           return;
         }
       }
+      var tratamientoGuardado = false;
       window.AMG.CxC.registrarTratamiento(paciente, concepto, f.get("valorTotal"), f.get("pagoInicial"))
         .then(function () {
+          tratamientoGuardado = true;
           /* El tratamiento se registra PRIMERO y el plan despues, a proposito:
              si el plan falla, la deuda igual quedo registrada. Al reves se
              perderia el dinero. */
@@ -279,8 +279,7 @@
              medico tiene que saber exactamente que quedo y que no. */
           try { console.error("cuotas:", err); } catch (_) {}
           renderCxc();
-          window.alert("El tratamiento quedo registrado, pero no se pudo guardar el plan de cuotas. " +
-            "Puedes acordarlo despues. (" + ((err && err.message) || "error") + ")");
+          window.alert((tratamientoGuardado ? "El tratamiento quedó registrado, pero no el plan de cuotas. No vuelvas a registrar el tratamiento. " : "No se pudo guardar el tratamiento. ") + ((err && err.message) || "Error de almacenamiento."));
         });
     });
 
@@ -341,8 +340,7 @@
       window.AMG.EstadoResultados.guardarGastos({
         salarios: f.get("salarios"), arriendo: f.get("arriendo"), servicios: f.get("servicios"),
         impuestos: f.get("impuestos"), gastosVarios: f.get("gastosVarios")
-      });
-      renderResultados();
+      }).then(renderResultados).catch(function (err) { alert(err.message); });
     });
     renderResultados();
   }
@@ -369,6 +367,14 @@
 
   var pintado = { ingresos: false, inventario: false, cxc: false, resultados: false };
   var pintores = { ingresos: pintarIngresos, inventario: pintarInventario, cxc: pintarCxc, resultados: pintarResultados };
+  function refrescarRemoto() {
+    if (pintado.ingresos) renderIngresos();
+    if (pintado.inventario) renderInventario();
+    if (pintado.cxc) renderCxc();
+    if (pintado.resultados) renderResultados();
+  }
+  window.addEventListener('oc-hecho-remoto', refrescarRemoto);
+  window.addEventListener('oc-sync-merge', refrescarRemoto);
   function renderTab(tab) {
     if (!pintado[tab]) { pintores[tab](); pintado[tab] = true; }
   }

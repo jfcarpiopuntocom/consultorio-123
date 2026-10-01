@@ -362,6 +362,10 @@
       // rechaza cualquier estado cuyo _app no sea el nuestro. Guarda contra el
       // bug de sembrarse con datos RETAIL de una app hermana del mismo origen.
       _rev: _localRev,
+      syncClock: _revLocalFallback,
+      syncTombstones: clonar(_syncTombstones),
+      recuperacion: clonar(_recuperacion),
+      datosClinicos: Object.fromEntries(Object.keys(clavesClinicas).map(col => [col, clonar(coleccionesCompartidas[col])])),
       modo: "demo-estatico",
       ubicaciones: clonar(ubicaciones), productos: clonar(productos), ventas: clonar(ventas),
       movimientos: clonar(movimientos), transferencias: clonar(transferencias),
@@ -407,6 +411,14 @@
     return "";
   }
   function aplicarRespaldo(body) {
+    if (Number.isSafeInteger(body.syncClock)) _revLocalFallback = body.syncClock;
+    _syncTombstones = clonar(body.syncTombstones || {});
+    _recuperacion = clonar(body.recuperacion || { hechos: [], fotos: {} });
+    Object.keys(clavesClinicas).forEach(col => {
+      if (body.datosClinicos && Array.isArray(body.datosClinicos[col])) {
+        coleccionesCompartidas[col].splice(0, coleccionesCompartidas[col].length, ...clonar(body.datosClinicos[col]));
+      }
+    });
     productos.length = 0; productos.push(...body.productos);
     ubicaciones.length = 0; ubicaciones.push(...body.ubicaciones);
     ventas.length = 0; ventas.push(...(Array.isArray(body.ventas) ? body.ventas : []));
@@ -507,50 +519,15 @@
       localStorage.setItem(claveBuffer(destino), JSON.stringify(completo));
       localStorage.setItem(OC_STATE_PTR, destino); // flip atomico, al final
       ocultarAvisoRecorte();
-      return;
+      return true;
     } catch (_) {}
-    // Fase 7 (2026-08-04): orden explicito de sacrificio de espacio. Antes de
-    // tocar el log de ventas (irremplazable), ceder lo recuperable: fotos de
-    // percha que hayan quedado en localStorage (legado pre-idb-fotos.js, o un
-    // dispositivo sin soporte IndexedDB). Mismo criterio que
-    // guardarSecureResiliente en crypto-store.js.
-    try {
-      const rmFotos = [];
-      /* DOS prefijos heredados, no uno (JFC 2026-08-18). idb-fotos.js usa
-         "c123_foto_percha_" como clave vieja y crypto-store.js libera
-         "vp_foto_percha_": mirando solo el primero, el orden de sacrificio no
-         liberaba las fotos que de verdad estaban ocupando el espacio. */
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && (k.indexOf("c123_foto_percha_") === 0 || k.indexOf("vp_foto_percha_") === 0 || k.indexOf("f123_foto_percha_") === 0)) rmFotos.push(k);
-      }
-      if (rmFotos.length) {
-        rmFotos.forEach((k) => { try { localStorage.removeItem(k); } catch (_) {} });
-        localStorage.setItem(claveBuffer(destino), JSON.stringify(completo));
-        localStorage.setItem(OC_STATE_PTR, destino);
-        ocultarAvisoRecorte();
-        return;
-      }
-    } catch (_) {}
-    // No cupo completo (ni liberando fotos): recortar el log a los ultimos 300 y archivar el resto.
-    const viejos = completo.movimientos.slice(0, -300);
-    const recortado = { ...completo, movimientos: completo.movimientos.slice(-300) };
-    try {
-      localStorage.setItem(claveBuffer(destino), JSON.stringify(recortado));
-      localStorage.setItem(OC_STATE_PTR, destino);
-      if (window.OCArchivo) window.OCArchivo.archivarLote(viejos).catch(() => {}); // fire-and-forget, idempotente, aislado del nucleo
-      avisoArchivado(viejos.length);
-      return;
-    } catch (_) {
-      /* NO MENTIR (JFC 2026-08-17). localStorage tiene un techo fijo de ~5 MB
-         por origen aunque al disco le sobren 900 GB. Si el espejo de IndexedDB
-         acepto el estado, los cambios SI se guardaron y el cartel rojo seria
-         falso. Solo se avisa cuando de verdad no entro en ningun lado. */
-      _idb.then((ok) => {
-        if (ok) { ocultarAvisoRecorte(); avisoEspacioJusto(); }
-        else avisoMemoriaLlena();
-      }).catch(() => avisoMemoriaLlena());
-    }
+    // Never discard photos or acknowledge a truncated audit log to make room.
+    // The complete IndexedDB transaction is the only fallback acknowledgement.
+    return _idb.then((ok) => {
+      if (ok) { ocultarAvisoRecorte(); avisoEspacioJusto(); return true; }
+      avisoMemoriaLlena();
+      return false;
+    });
   }
   /* Aviso naranja, no rojo: todo esta guardado, pero conviene respaldar. */
   function avisoEspacioJusto() {
@@ -1053,7 +1030,12 @@
     if (s.size > 2000) { const arr = [...s]; s.clear(); arr.slice(-2000).forEach((x) => s.add(x)); }
     try { localStorage.setItem(OPS_APLICADAS_KEY, JSON.stringify([...s])); } catch (_) {}
   }
+  let _emisionesPendientes = null;
   function emitirOpStock(tipo, payload) {
+    if (_emisionesPendientes) {
+      _emisionesPendientes.push({ tipo, payload: clonar(payload) });
+      return;
+    }
     if (window.OCSyncEmit) { try { window.OCSyncEmit(tipo, payload); } catch (_) {} }
     // MYCELIUM PHASE B (2026-07-28). This is the only place where the stock
     // move has already happened AND the resulting stock is known. Emitting the
@@ -1144,8 +1126,14 @@
         d = String(window.OCSyncControl.deviceIdActual() || "");
       }
     } catch (_) {}
-    if (!c) { c = (++_revLocalFallback); }
+    const observado = clientes.concat(usuarios, productos, ubicaciones, ventas, transferencias, promotoras, sucursales).reduce((n, item) => Math.max(n, Number(item.rev && item.rev.c) || 0), 0);
+    c = Math.max(c, _revLocalFallback + 1, observado + 1);
+    _revLocalFallback = c;
     if (!d) { try { d = String(localStorage.getItem("c123_device_id") || ""); } catch (_) {} }
+    if (!d) {
+      d = _actorFallback || (_actorFallback = uuid("device-"));
+      try { localStorage.setItem("c123_device_id", d); } catch (_) {}
+    }
     return { c: c, d: d };
   }
   /* ¿El rev A (remoto) le gana al rev B (local)? Gana el contador mayor; empate
@@ -1163,10 +1151,138 @@
     return da > db;
   }
 
+  let _actorFallback = "";
+  let _syncTombstones = {};
+  // Imported auxiliary stores live in the same durable snapshot transaction.
+  // Readers overlay this immutable recovery archive: no multi-DB partial import.
+  let _recuperacion = { hechos: [], fotos: {} };
+  function avisarIntegridad() {
+    try {
+      if (document.getElementById('oc-integridad-aviso')) return;
+      const el = document.createElement('div'); el.id = 'oc-integridad-aviso'; el.setAttribute('role','alert');
+      el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:10050;padding:16px;background:#7A1631;color:#FFFFFF;font-size:16px;font-weight:700;';
+      el.textContent = 'Un cambio recibido tiene un conflicto de integridad. No se sobrescribieron tus datos. Exporta un respaldo y revisa el conflicto antes de continuar.';
+      (document.body || document.documentElement).appendChild(el);
+    } catch (_) {}
+  }
+  window.addEventListener('oc-integridad-conflicto', avisarIntegridad);
+  const coleccionesCompartidas = { productos, ubicaciones, clientes, ventas, transferencias, promotoras, sucursales };
+  const clavesClinicas = { tarifario: 'c123_tarifario', inventarioClinico: 'c123_inventario_v1', gastosFijos: 'c123_gastos_fijos_v1', identidad: null };
+  Object.entries(clavesClinicas).forEach(([col, key]) => {
+    let datos = null;
+    try { if (key) datos = JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) {}
+    coleccionesCompartidas[col] = col === 'gastosFijos' && datos ? [{ id: 'gastos-fijos', ...datos }] : Array.isArray(datos) ? datos : [];
+  });
+  function catalogoColeccion(col) {
+    const rows = clonar(coleccionesCompartidas[col].concat(_syncTombstones[col] || []));
+    if (col === 'productos') rows.forEach(r => { if (r.fotoHash) delete r.foto; });
+    return rows;
+  }
+  async function prepararFotos(anterior) {
+    if (!window.OCFotos || !window.OCFotos.hashFoto) return;
+    for (const p of productos) {
+      const previo = anterior.productos.find(x => x.id === p.id);
+      if (previo && previo.foto === p.foto) continue;
+      if (p.foto) {
+        if (!/^data:image\/(png|jpeg|webp|gif);base64,/.test(p.foto)) throw new Error('Formato de foto no admitido.');
+        const hash = await window.OCFotos.hashFoto(p.foto);
+        await window.OCFotos.guardarPorHash(hash, p.foto);
+        p.fotoHash = hash; p.fotoEstado = 'present';
+      } else { p.fotoHash = null; p.fotoEstado = 'removed'; }
+    }
+  }
+  async function hidratarFotos() {
+    if (!window.OCFotos) return false;
+    let cambio = false;
+    for (const p of productos) {
+      if (p.fotoEstado === 'removed') { if (p.foto) { p.foto = null; cambio = true; } continue; }
+      if (!p.fotoHash) continue;
+      const foto = await window.OCFotos.leerPorHash(p.fotoHash);
+      if (foto && foto !== p.foto) { p.foto = foto; cambio = true; }
+    }
+    return cambio;
+  }
+  function sellarCambios(anterior) {
+    ubicaciones.forEach(u => { u.gastoMensual = gastosMensuales[u.id] || 0; });
+    if (nombreNegocio !== anterior.nombreNegocio) coleccionesCompartidas.identidad.splice(0, coleccionesCompartidas.identidad.length, { id: 'negocio', nombre: nombreNegocio });
+    Object.entries(coleccionesCompartidas).forEach(([col, lista]) => {
+      const antes = new Map((anterior[col] || anterior.datosClinicos && anterior.datosClinicos[col] || []).map(r => [r.id, r]));
+      lista.forEach(r => {
+        const p = antes.get(r.id) || (anterior.syncTombstones && anterior.syncTombstones[col] || []).find(t => t.id === r.id);
+        if (JSON.stringify(p) === JSON.stringify(r)) return;
+        r.rev = _revNueva();
+        if (col === 'productos') {
+          r.stockBase = p ? (Number.isFinite(p.stockBase) ? p.stockBase : p.stockActual) : r.stockActual;
+          r.stockPN = clonar(p && p.stockPN || {});
+          r.stockOps = clonar(p && p.stockOps || {});
+          const delta = p ? r.stockActual - p.stockActual : 0;
+          if (delta) {
+            const emision = (_emisionesPendientes || []).find(op => op.payload.productoId === r.id);
+            const inverse = emision && emision.tipo === 'anulacion' && emision.payload.ventaId;
+            const opId = inverse ? 'anular:' + inverse : uuid('stock:');
+            r.stockOps[opId] = { id: opId, deviceId: inverse ? 'inverse:' + inverse : r.rev.d, delta };
+            const counter = r.stockPN[r.rev.d] || { add: 0, sub: 0 };
+            r.stockPN[r.rev.d] = { add: counter.add + Math.max(0, delta), sub: counter.sub + Math.max(0, -delta) };
+          }
+        }
+        _syncTombstones[col] = (_syncTombstones[col] || []).filter(t => t.id !== r.id);
+      });
+      const ids = new Set(lista.map(r => r.id));
+      antes.forEach(r => {
+        if (ids.has(r.id)) return;
+        const tomb = { ...r, borrado: true, rev: _revNueva() };
+        _syncTombstones[col] = (_syncTombstones[col] || []).filter(t => t.id !== r.id).concat(tomb);
+      });
+    });
+  }
+  function fusionarColeccion(col, entrantes) {
+    if (!Array.isArray(entrantes)) return 0;
+    const lista = coleccionesCompartidas[col];
+    let cambios = 0;
+    entrantes.forEach(r => {
+      const local = lista.find(x => x.id === r.id) || (_syncTombstones[col] || []).find(x => x.id === r.id);
+      const merged = window.OCSyncDomain.mergeShared(local, r, col);
+      if (col === 'productos' && merged.fotoHash) {
+        merged.foto = local && local.fotoHash === merged.fotoHash ? (local.foto || null) : null;
+      }
+      if (local && JSON.stringify(local) === JSON.stringify(merged)) return;
+      const i = lista.findIndex(x => x.id === r.id);
+      _syncTombstones[col] = (_syncTombstones[col] || []).filter(x => x.id !== r.id);
+      if (merged.borrado) {
+        if (i >= 0) lista.splice(i, 1);
+        _syncTombstones[col].push(merged);
+      } else if (i < 0) lista.push(merged);
+      else lista[i] = merged;
+      _revLocalFallback = Math.max(_revLocalFallback, merged.rev.c);
+      cambios++;
+    });
+    return cambios;
+  }
   function aplicarCatalogo(remoto, rolRemoto) {
+    let copia;
+    try { copia = clonar(remoto); } catch (_) { return Promise.resolve({ ok: false, error: "Catálogo inválido." }); }
+    return encolarSolicitud(async () => {
+      const anterior = estadoActualExportable();
+      try {
+        const resultado = await aplicarCatalogoInterno(copia, rolRemoto);
+        if (!resultado.ok) { aplicarRespaldo(anterior); _localRev = anterior._rev; }
+        return resultado;
+      } catch (_) {
+        aplicarRespaldo(anterior); _localRev = anterior._rev;
+        avisarIntegridad();
+        return { ok: false, error: "No se pudo aplicar el catálogo de forma segura." };
+      }
+    });
+  }
+  async function aplicarCatalogoInterno(remoto, rolRemoto) {
     var dif = compararCatalogo(remoto, rolRemoto);
     if (!dif) return { ok: false, error: "El catalogo que llego no se puede leer." };
     var manda = dif.ganaElOtro, agU = 0, agP = 0, act = 0;
+    if (remoto.canonicalVersion === 1) {
+      Object.keys(coleccionesCompartidas).forEach(col => { act += fusionarColeccion(col, remoto[col]); });
+      const identidad = coleccionesCompartidas.identidad.find(r => r.id === 'negocio');
+      if (identidad) nombreNegocio = identidad.nombre;
+    } else {
     remoto.ubicaciones.forEach(function (u) {
       if (!u || !u.id) return;
       var mia = ubicaciones.find(function (x) { return String(x.id) === String(u.id); });
@@ -1182,6 +1298,7 @@
         if (Number.isFinite(Number(p.precio)) && Number(p.precio) >= 0 && Number(mio.precio) !== Number(p.precio)) { mio.precio = Number(p.precio); if (p.precioCasa === null && mio.precioCasa != null) { mio.precioCasa = null; } else if (Number.isFinite(Number(p.precioCasa)) && Number(p.precioCasa) >= 0 && Number(mio.precioCasa) !== Number(p.precioCasa)) { mio.precioCasa = Number(p.precioCasa); } act++; }
       }
     });
+    }
     /* EL EQUIPO (portado de friendly-123, 2026-08-27). Misma regla dura que el
        catálogo: SUMA, NUNCA BORRA. LWW-Element-Set con reloj LÓGICO + tombstones:
        cada registro trae rev = { c: Lamport, d: deviceId }; la baja es un tombstone
@@ -1202,6 +1319,7 @@
         const mio = usuarios.find((x) => String(x.id) === String(u.id));
         if (!mio) {
           if (esTomb) {
+            miembrosQuitados++;
             usuarios.push({ id: u.id, nombre: String(u.nombre || "").slice(0, 60), pin: u.pin || "",
                             rol: rolU, email: u.email || null, activo: false, borrado: true,
                             creadoEn: u.creadoEn || new Date().toISOString(),
@@ -1243,13 +1361,68 @@
         else miembrosActualizados++;
       });
     }
-    ubicaciones.forEach(function (u) { if (!(u.id in gastosMensuales)) gastosMensuales[u.id] = 0; });
-    mov("merge-catalogo", { perchasAgregadas: agU, productosAgregados: agP, actualizados: act, miembrosAgregados: miembrosAgregados, miembrosActualizados: miembrosActualizados, miembrosQuitados: miembrosQuitados, desde: remoto.deviceNombre || "otro dispositivo" });
-    guardarEstadoLocal();
-    return { ok: true, agregadasU: agU, agregadosP: agP, actualizados: act, miembrosAgregados: miembrosAgregados, miembrosActualizados: miembrosActualizados, miembrosQuitados: miembrosQuitados, huella: huellaCatalogo() };
+    ubicaciones.forEach(function (u) {
+      if (Number.isFinite(u.gastoMensual)) gastosMensuales[u.id] = u.gastoMensual;
+      else if (!(u.id in gastosMensuales)) gastosMensuales[u.id] = 0;
+    });
+    let clientesAgregados = 0;
+    if (remoto.canonicalVersion !== 1 && Array.isArray(remoto.clientes)) remoto.clientes.forEach((entrante) => {
+      if (!entrante || typeof entrante.id !== "string" || !entrante.id) throw new Error("Paciente inválido");
+      const i = clientes.findIndex((c) => c.id === entrante.id);
+      const local = i < 0 ? null : clientes[i];
+      const r = window.OCSyncDomain.mergeEntity(local && { ...local, rev: local.rev || { c: 0, d: "" } },
+        { ...entrante, rev: entrante.rev || { c: 0, d: "" } });
+      const historia = new Map();
+      [local, entrante].forEach((c) => ((c && c.evaluacion && c.evaluacion.historial) || []).forEach((h) => {
+        const key = h.id || JSON.stringify(h);
+        const previa = historia.get(key);
+        if (previa && JSON.stringify(previa) !== JSON.stringify(h)) throw new Error("Historia conflictiva");
+        historia.set(key, clonar(h));
+      }));
+      if (historia.size) r.entity.evaluacion = { ...(r.entity.evaluacion || {}), historial: [...historia.entries()].sort((a,b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0).map(pair => pair[1]) };
+      if (!local) { clientes.push(r.entity); clientesAgregados++; }
+      else if (JSON.stringify(local) !== JSON.stringify(r.entity)) { clientes[i] = r.entity; act++; }
+      _revLocalFallback = Math.max(_revLocalFallback, r.entity.rev.c);
+    });
+    if (agU || agP || act || clientesAgregados || miembrosAgregados || miembrosActualizados || miembrosQuitados) {
+      await hidratarFotos();
+      mov("merge-catalogo", { perchasAgregadas: agU, productosAgregados: agP, actualizados: act, miembrosAgregados, miembrosActualizados, miembrosQuitados });
+      if (!await guardarEstadoLocal()) return { ok: false, error: "No se pudo guardar el catálogo recibido." };
+    }
+    return { ok: true, clientesAgregados, agregadasU: agU, agregadosP: agP, actualizados: act, miembrosAgregados: miembrosAgregados, miembrosActualizados: miembrosActualizados, miembrosQuitados: miembrosQuitados, huella: huellaCatalogo() };
   }
 
 window.OCSync = {
+    hidratarFotosProductos: function () {
+      return encolarSolicitud(async () => {
+        const anterior = estadoActualExportable();
+        if (!await hidratarFotos()) return true;
+        if (!await guardarEstadoLocal()) { aplicarRespaldo(anterior); _localRev = anterior._rev; return false; }
+        window.dispatchEvent(new CustomEvent('oc-fotos-actualizadas'));
+        return true;
+      });
+    },
+    recuperacionLocal: function () { return clonar(_recuperacion); },
+    leerDatos: function (col) {
+      if (!Object.prototype.hasOwnProperty.call(clavesClinicas, col)) throw new Error('Colección no disponible.');
+      return clonar(coleccionesCompartidas[col]);
+    },
+    datosInicializados: function (col) { return coleccionesCompartidas[col].length > 0 || (_syncTombstones[col] || []).length > 0; },
+    guardarDatos: function (col, lista) {
+      if (!Object.prototype.hasOwnProperty.call(clavesClinicas, col) || !Array.isArray(lista)) return Promise.reject(new Error('Datos inválidos.'));
+      const copia = clonar(lista), ids = new Set();
+      if (copia.some(r => !r || typeof r.id !== 'string' || !r.id || ids.has(r.id) || !ids.add(r.id))) return Promise.reject(new Error('Identificadores inválidos.'));
+      return encolarSolicitud(async () => {
+        const anterior = estadoActualExportable();
+        try {
+          coleccionesCompartidas[col].splice(0, coleccionesCompartidas[col].length, ...copia);
+          sellarCambios(anterior);
+          if (!await guardarEstadoLocal()) throw new Error('No se pudo guardar el cambio.');
+          window.dispatchEvent(new CustomEvent('oc-catalogo-cambiado'));
+          return clonar(coleccionesCompartidas[col]);
+        } catch (error) { aplicarRespaldo(anterior); _localRev = anterior._rev; throw error; }
+      });
+    },
     clientesActivos: function () { return clientes.filter(function (c) { return !c.despedido; }); },
     huella: huellaCatalogo,
     /* estadoParaCheckpoint (JFC 2026-09-08, Fase 3 — MITAD CLIENTE, sin tocar el
@@ -1267,12 +1440,11 @@ window.OCSync = {
     aplicarCatalogo: aplicarCatalogo,
     catalogoPropio: function () {
       return {
-        ubicaciones: ubicaciones.map(function (u) { return { id: u.id, nombre: u.nombre, tipo: u.tipo, activa: u.activa }; }),
-        productos: productos.map(function (p) { return { id: p.id, nombre: p.nombre, sku: p.sku, barcode: p.barcode, categoria: p.categoria, precio: p.precio, precioCasa: (p.precioCasa == null ? null : p.precioCasa), costo: p.costo, ubicacionId: p.ubicacionId }; }),
+        canonicalVersion: 1,
+        ...Object.fromEntries(Object.keys(coleccionesCompartidas).map(col => [col, catalogoColeccion(col)])),
         /* El equipo viaja con el catálogo (portado de friendly-123, 2026-08-27):
            sin esto, un admin creado en la PC no podía entrar desde el celular.
-           Los clientes (pacientes) NO viajan: son datos médicos sensibles y se
-           conservan intactos en cada dispositivo. */
+           Los pacientes viajan por el puente Yjs cifrado de extremo a extremo. */
         usuarios: usuarios.map(function (u) { return { id: u.id, nombre: u.nombre, pin: u.pin, rol: u.rol, email: u.email || null, activo: u.activo !== false, creadoEn: u.creadoEn, actualizadoEn: u.actualizadoEn || u.creadoEn || null, rev: u.rev || null, borrado: !!u.borrado }; }),
         nombreNegocio: nombreNegocio,
         huella: huellaCatalogo(),
@@ -1282,9 +1454,9 @@ window.OCSync = {
        Lo usa el relay/panel cuando un miembro se une. Nunca borra ni degrada
        por su cuenta: suma y aplica ediciones más recientes (portado de
        friendly-123, 2026-08-27). */
-    aplicarEquipoRemoto: function (lista) {
+    aplicarEquipoRemoto: async function (lista) {
       if (!Array.isArray(lista) || !lista.length) return { ok: false };
-      const r = aplicarCatalogo({ ubicaciones: [], productos: [], usuarios: lista }, null);
+      const r = await aplicarCatalogo({ ubicaciones: [], productos: [], usuarios: lista }, null);
       if (r.ok && (r.miembrosAgregados || r.miembrosActualizados)) {
         try { window.dispatchEvent(new CustomEvent("oc-equipo-sync", { detail: r })); } catch (_) {}
       }
@@ -1299,6 +1471,9 @@ window.OCSync = {
     // quedaba invisible en cualquier dispositivo que no fuera el vendedor.
     aplicarOpRemota(op) {
       if (!op || !op.opId || !op.tipo || !op.payload) return { ok: false, error: "Op invalida" };
+      // New peers receive the canonical sale and inventory counters together.
+      // Legacy deltas remain available to old shells, never double-applied here.
+      if (op.payload.canonicalVersion === 1) return { ok: true, repetida: true };
       const vistos = _cargarOpsAplicadas();
       if (vistos.has(op.opId)) return { ok: true, repetida: true };
       const pl = op.payload;
@@ -1347,7 +1522,7 @@ window.OCSync = {
      solo entraron en el espejo. Aqui gana la revision MAS NUEVA de las dos:
      sin esto la app arrancaria con el estado viejo y el medico veria
      desaparecer abonos y pagos que la app le dijo que estaban guardados. */
-  (async () => {
+  const estadoListo = (async () => {
     try {
       if (!window.OCEstadoIDB) return;
       const espejo = await window.OCEstadoIDB.leer();
@@ -1384,7 +1559,7 @@ window.OCSync = {
 
   const realFetch = window.fetch.bind(window);
 
-  window.fetch = async function (url, opts) {
+  async function ejecutarSolicitud(url, opts) {
     // Microcirugia 4 (2026-07-07): si alguna libreria llama fetch(new
     // Request(...)), antes el interceptor no veia metodo ni body y la
     // llamada al backend local se perdia en silencio. Se normaliza aqui.
@@ -1400,10 +1575,12 @@ window.OCSync = {
     // Item 1: toda mutación exitosa o fallida persiste el estado al final
     // (finally), salvo lecturas GET, rutas de sync y la exportación.
     let debePersistir = false;
+    let estadoAnterior = null;
+    let path = '';
     try {
       const u = new URL(url, window.location.origin);
       if (!u.pathname.startsWith("/api")) return realFetch(url, opts);
-      const path = u.pathname;
+      path = u.pathname;
       const q = u.searchParams;
       // FIX 2026-07-07: un body que no sea JSON (FormData, texto suelto)
       // reventaba el interceptor entero con un 500 generico. Se degrada a {}
@@ -1412,11 +1589,26 @@ window.OCSync = {
       if (opts && opts.body) { try { body = (function () { try { return JSON.parse(opts.body); } catch (_) { return {}; } })(); } catch (_) { body = {}; } }
       const method = (opts && opts.method ? opts.method : "GET").toUpperCase();
       debePersistir = ["POST", "PUT", "PATCH", "DELETE"].includes(method) && !path.startsWith("/api/sync") && path !== "/api/respaldo/exportar";
+      if (debePersistir && window.AMG && window.AMG.Aislamiento && !window.AMG.Aislamiento.idbInstalado) {
+        debePersistir = false;
+        return J({ error: 'Almacenamiento sin aislamiento. Cambios bloqueados para proteger tus datos.' }, 503);
+      }
+      if (debePersistir) {
+        estadoAnterior = estadoActualExportable();
+        _emisionesPendientes = [];
+      }
       const uid = q.get("ubicacionId");
 
       let m;
       // Edicion libre de la ficha (nombre, foto, precios, codigo interno).
       // El gating por rol (encargado NO edita) vive en la UI; aca solo se aplica.
+      if ((m = path.match(/^\/api\/(productos|ubicaciones)\/([^/]+)\/restaurar$/)) && opts && opts.method === 'POST') {
+        const col = m[1], tomb = (_syncTombstones[col] || []).find(x => x.id === m[2]);
+        if (!tomb) return J({ error: 'Registro eliminado no encontrado.' }, 404);
+        if (col === 'productos' && tomb.ubicacionId && tomb.ubicacionId !== 'todas' && !ubicaciones.some(u => u.id === tomb.ubicacionId)) return J({ error: 'Restaura primero la ubicación.' }, 409);
+        coleccionesCompartidas[col].push({ ...clonar(tomb), borrado: false });
+        return J({ ok: true });
+      }
       if ((m = path.match(/^\/api\/productos\/([^/]+)$/)) && opts && opts.method === "PATCH") {
         const p = productos.find((x) => x.id === m[1]); if (!p) return J({ error: "Producto no encontrado." }, 404);
         if (body.fechaCaducidad !== undefined && body.fechaCaducidad !== null && body.fechaCaducidad !== "" && !fechaValida(body.fechaCaducidad)) return J({ error: "La fecha de caducidad no es válida (usa AAAA-MM-DD)." }, 400);
@@ -1504,7 +1696,8 @@ window.OCSync = {
         } catch (e) {
           return J({ error: (e && e.message) || "No se pudo registrar el movimiento." }, 400);
         }
-        mov(tipo === "ingreso" ? "caja-chica-ingreso" : "caja-chica-retiro", { ubicacion: u.nombre, monto, motivo: body.motivo });
+        // The committed financial fact is the audit record; a secondary
+        // snapshot failure must not invite repeating an already saved payment.
         return J(await window.AMG.CajaChica.saldoDePercha(u.id));
       }
 
@@ -1705,7 +1898,7 @@ window.OCSync = {
         p.stockActual += venta.cantidad;
         ventas.splice(idx, 1);
         mov("anulacion", { producto: p.nombre, cantidad: venta.cantidad, ubicacion: nombreUbic(p.ubicacionId) });
-        emitirOpStock("anulacion", { productoId: p.id, delta: venta.cantidad });
+        emitirOpStock("anulacion", { productoId: p.id, delta: venta.cantidad, ventaId: venta.id });
         return J({ producto: ficha(p) });
       }
       if ((m = path.match(/^\/api\/productos\/([^/]+)\/ajustar$/))) {
@@ -1757,7 +1950,13 @@ window.OCSync = {
       }
 
       if (path === "/api/respaldo/exportar") {
-        return J(estadoActualExportable());
+        const completo = estadoActualExportable();
+        const ledger = window.AMG && window.AMG.Hechos;
+        completo.recuperacion = {
+          hechos: ledger ? await ledger.todos() : _recuperacion.hechos,
+          fotos: window.OCFotos ? await window.OCFotos.leerTodas(true) : _recuperacion.fotos
+        };
+        return J(completo);
       }
       if (path === "/api/respaldo/importar") {
         try {
@@ -1768,9 +1967,21 @@ window.OCSync = {
           // dejar la app inservible.
           const error = validarRespaldo(body);
           if (error) return J({ error }, 400);
+          if (body._app && body._app !== 'consultorio-123') return J({ error: 'El respaldo pertenece a otra app.' }, 400);
+          if (body.recuperacion) {
+            const ledger = window.AMG && window.AMG.Hechos;
+            if (!ledger || !window.OCFotos) return J({ error: 'Espera a que carguen los módulos de recuperación.' }, 503);
+            await ledger.validarImportacion(body.recuperacion.hechos);
+            await window.OCFotos.validarImportacion(body.recuperacion.fotos);
+          }
           try { localStorage.setItem(OC_STATE_KEY + "_preimport", JSON.stringify(estadoActualExportable())); } catch (_) {} // red de seguridad 2026-07-17: snapshot pre-import para deshacer un archivo malo
+          // Preserve immutable recovery archives when importing an older snapshot.
+          const archivo = body.recuperacion || { hechos: [], fotos: {} };
+          body.recuperacion = {
+            hechos: Array.from(new Map(_recuperacion.hechos.concat(archivo.hechos).map(h => [h.id, h])).values()),
+            fotos: Object.assign({}, _recuperacion.fotos, archivo.fotos)
+          };
           aplicarRespaldo(body);
-          guardarEstadoLocal();
           return J({ ok: true, schemaVersion: body.schemaVersion || 1 });
         } catch (e) { return J({ error: "No se pudo importar: " + String(e) }, 400); }
       }
@@ -1940,7 +2151,7 @@ window.OCSync = {
       }
       if (path === "/api/clientes" && opts && opts.method === "POST") {
         if (!body.nombre || !String(body.nombre).trim()) return J({ error: "El nombre del cliente es obligatorio." }, 400);
-        const nuevoCli = { id: uuid("c"), codigo: siguienteCodigoCliente(), nombre: String(body.nombre).trim(), telefono: String(body.telefono || "").trim() };
+        const nuevoCli = { id: uuid("c"), codigo: siguienteCodigoCliente(), nombre: String(body.nombre).trim(), telefono: String(body.telefono || "").trim(), evaluacion: { trato: 0, confiabilidad: 0, historial: [] } };
         clientes.push(nuevoCli);
         mov("cliente-alta", { cliente: nuevoCli.nombre, codigo: nuevoCli.codigo });
         return J(fichaCliente(nuevoCli));
@@ -1994,6 +2205,16 @@ window.OCSync = {
         return J(grupos);
       }
 
+      const mCliFicha = path.match(/^\/api\/clientes\/([^/]+)$/);
+      if (mCliFicha && method === "PATCH") {
+        const c = clientes.find(x => x.id === mCliFicha[1]);
+        if (!c) return J({ error: "Paciente no encontrado." }, 404);
+        if (body.nombre !== undefined && !esTextoCorto(body.nombre, 120)) return J({ error: "Nombre inválido." }, 400);
+        if (body.nombre !== undefined) c.nombre = body.nombre.trim();
+        if (body.telefono !== undefined) c.telefono = String(body.telefono).trim().slice(0, 40);
+        mov("cliente-edicion", { clienteId: c.id });
+        return J(fichaCliente(c));
+      }
       // PATCH /api/clientes/:id/evaluacion — actualiza trato y/o confiabilidad.
       // Registra en historial con atribución del usuario en sesión.
       const mCliEv = path.match(/^\/api\/clientes\/([^/]+)\/evaluacion$/);
@@ -2008,9 +2229,8 @@ window.OCSync = {
         if (body.confiabilidad !== undefined) c.evaluacion.confiabilidad = Math.max(0, Math.min(5, Number(body.confiabilidad)||0));
         c.evaluacion.historial = c.evaluacion.historial || [];
         // horaIncidente: hora local del evento según el encargado (HH:MM), para conciliación con cámaras/audios.
-        c.evaluacion.historial.push({ trato: c.evaluacion.trato, confiabilidad: c.evaluacion.confiabilidad, quien: body.quien || "Sistema", fecha: new Date().toISOString(), horaIncidente: body.horaIncidente || null });
+        c.evaluacion.historial.push({ id: uuid("evaluation-"), trato: c.evaluacion.trato, confiabilidad: c.evaluacion.confiabilidad, quien: body.quien || "Sistema", fecha: new Date().toISOString(), horaIncidente: body.horaIncidente || null });
         mov("cliente-evaluado", { cliente: c.nombre, trato: c.evaluacion.trato, confiabilidad: c.evaluacion.confiabilidad, horaIncidente: body.horaIncidente || null });
-        guardarEstadoLocal();
         return J(fichaCliente(c));
       }
 
@@ -2039,7 +2259,7 @@ window.OCSync = {
         } catch (e) {
           return J({ error: (e && e.message) || "No se pudo registrar el movimiento." }, 400);
         }
-        mov(tipo === "cargo" ? "cartera-fiado" : "cartera-abono", { cliente: c.nombre, monto });
+        // The financial ledger already durably records this operation.
         const info = await window.AMG.Cartera.saldoDeCliente(c.id);
         const rol = (window.OCAuth && window.OCAuth.rolActual && window.OCAuth.rolActual()) || "empleado";
         return J(window.AMG.Cartera.vistaCarteraSegunRol(info, rol));
@@ -2054,7 +2274,6 @@ window.OCSync = {
         const accion = mCliAct[2];
         c.despedido = accion === "despedir";
         mov(accion === "despedir" ? "cliente-despedido" : "cliente-reactivado", { cliente: c.nombre, quien: body.quien || "Sistema" });
-        guardarEstadoLocal();
         return J({ ok: true, despedido: c.despedido });
       }
       if (path === "/api/inventario/bcg") return J(matrizBCG(uid));
@@ -2160,7 +2379,6 @@ window.OCSync = {
           for (const k of Object.keys(gastosMensuales)) delete gastosMensuales[k];
           selloUltimo = ""; // cadena anti-tamper arranca limpia con el consultorio nuevo
         }
-        guardarEstadoLocal(); // fija el arranque: al recargar ya no reseedea el ejemplo
         return J({ ok: true, instanceId: instanceId });
       }
       // GET /api/instancia — estado de apropiación de este dispositivo
@@ -2170,7 +2388,6 @@ window.OCSync = {
       // POST /api/instancia/nombre — el dueño edita el nombre de su consultorio.
       if (path === "/api/instancia/nombre" && opts && opts.method === "POST") {
         nombreNegocio = String(body.nombre || "").trim().slice(0, 80);
-        guardarEstadoLocal();
         return J({ ok: true, nombreNegocio: nombreNegocio });
       }
       // GET /api/integridad — verifica la cadena anti-tamper del historial.
@@ -2202,7 +2419,37 @@ window.OCSync = {
     } finally {
       // Item 1: persistir tras cada mutacion — asi un refresh (o cerrar la
       // pestana) ya no pierde ventas ni productos nuevos.
-      if (debePersistir) guardarEstadoLocal();
+      if (debePersistir && JSON.stringify(estadoAnterior) !== JSON.stringify(estadoActualExportable())) {
+        let guardado = false;
+        try {
+          if (path !== '/api/respaldo/importar') { await prepararFotos(estadoAnterior); sellarCambios(estadoAnterior); }
+          guardado = await guardarEstadoLocal();
+        } catch (_) {}
+        const emisiones = _emisionesPendientes || [];
+        _emisionesPendientes = null;
+        if (!guardado) {
+          aplicarRespaldo(estadoAnterior);
+          _localRev = estadoAnterior._rev;
+          return J({ error: "No se pudo guardar el cambio. Libera espacio o exporta un respaldo antes de continuar.", codigo: "ESTADO_NO_GUARDADO" }, 507);
+        }
+        emisiones.forEach((op) => emitirOpStock(op.tipo, { ...op.payload, canonicalVersion: 1 }));
+        window.dispatchEvent(new CustomEvent("oc-catalogo-cambiado"));
+      }
+      _emisionesPendientes = null;
     }
+  }
+  // Local requests share a queue: reads and a second mutation cannot observe
+  // an uncommitted change while IndexedDB is completing the first write.
+  let colaSolicitudes = Promise.resolve();
+  function encolarSolicitud(fn) {
+    const resultado = colaSolicitudes.then(() => estadoListo).then(fn);
+    colaSolicitudes = resultado.then(() => undefined, () => undefined);
+    return resultado;
+  }
+  window.fetch = function (url, opts) {
+    let esLocal = false;
+    try { esLocal = new URL(url && url.url ? url.url : url, window.location.origin).pathname.startsWith("/api"); } catch (_) {}
+    if (!esLocal) return realFetch(url, opts);
+    return encolarSolicitud(() => ejecutarSolicitud(url, opts));
   };
 })();

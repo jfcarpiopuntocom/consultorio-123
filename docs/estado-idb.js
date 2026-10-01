@@ -47,10 +47,15 @@
       req.onupgradeneeded = function () {
         if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
       };
-      req.onsuccess = function () { resolve(req.result); };
+      req.onsuccess = function () {
+        req.result.onversionchange = function () { req.result.close(); dbPromise = null; };
+        req.result.onclose = function () { dbPromise = null; };
+        resolve(req.result);
+      };
       req.onerror = function () { reject(req.error); };
       req.onblocked = function () { reject(new Error("IndexedDB bloqueado")); };
     });
+    dbPromise = dbPromise.catch(function (err) { dbPromise = null; throw err; });
     return dbPromise;
   }
 
@@ -66,32 +71,61 @@
      `guardar()` sigue devolviendo la promesa del resultado REAL de escritura,
      porque mock-backend decide con eso si sale el cartel rojo: prometer un
      true optimista seria justo la mentira que este modulo vino a quitar. */
-  var _pend = null, _reloj = null, _ultimoOk = Promise.resolve(true);
+  var _pend = null, _reloj = null, _cola = Promise.resolve(true);
   var AGRUPAR_MS = 400;
 
   function guardarAgrupado(estado) {
     if (!SOPORTADO || !estado) return Promise.resolve(false);
+    var copia;
+    try { copia = JSON.parse(JSON.stringify(estado)); }
+    catch (_) { return Promise.resolve(false); }
     /* Primera de la rafaga: va directo, sin esperar. */
     if (!_reloj) {
       /* M3: si guardar rechaza, el next-turn NO deja el reloj colgado. Antes,
          al fallar el guardado en el fin de la rafaga, el reloj se limpiaba
          pero podia haber una escritura pospuesta sin nadie que la disparara. */
-      _ultimoOk = guardar(estado).catch(function () { return false; });
+      var resultado = guardar(copia);
       _reloj = setTimeout(function () {
         _reloj = null;
-        if (_pend) { var e = _pend; _pend = null; _ultimoOk = guardar(e).catch(function () { return false; }); }
+        vaciarPendiente();
       }, AGRUPAR_MS);
-      return _ultimoOk;
+      return resultado;
     }
     /* Dentro de la rafaga: se queda solo la mas nueva. */
-    _pend = estado;
-    return _ultimoOk;
+    if (!_pend) _pend = { estado: copia, resolver: [] };
+    _pend.estado = copia;
+    return new Promise(function (resolve) { _pend.resolver.push(resolve); });
+  }
+
+  function vaciarPendiente() {
+    if (!_pend) return;
+    var pendiente = _pend;
+    _pend = null;
+    guardar(pendiente.estado).then(function (ok) {
+      pendiente.resolver.forEach(function (resolve) { resolve(ok); });
+    });
+  }
+
+  function guardarYa(estado) {
+    if (_reloj !== null) { clearTimeout(_reloj); _reloj = null; }
+    vaciarPendiente();
+    return guardar(estado);
+  }
+
+  function guardar(estado) {
+    if (!SOPORTADO || !estado || typeof estado !== "object") return Promise.resolve(false);
+    var copia;
+    try { copia = JSON.parse(JSON.stringify(estado)); }
+    catch (_) { return Promise.resolve(false); }
+    // Serialize writes so an older buffered snapshot cannot finish last.
+    _cola = _cola.then(function () { return escribir(copia); });
+    return _cola;
   }
 
   /* Guarda el estado completo. Devuelve true SOLO si de verdad quedo escrito:
      mock-backend decide con esto si el aviso rojo sale o no, asi que aqui no se
      puede ser optimista. */
-  async function guardar(estado) {
+  async function escribir(estado) {
     if (!SOPORTADO || !estado || typeof estado !== "object") return false;
     try {
       var db = await abrirDB();
@@ -100,7 +134,7 @@
         /* Se clona a JSON y de vuelta: el estructurado de IndexedDB revienta
            con funciones o referencias ciclicas, y aqui entra un objeto armado
            por otro modulo. Mejor pagar la copia que perder el guardado. */
-        tx.objectStore(STORE).put(JSON.parse(JSON.stringify(estado)), CLAVE);
+        tx.objectStore(STORE).put(estado, CLAVE);
         tx.oncomplete = resolve;
         tx.onerror = function () { reject(tx.error); };
         tx.onabort = function () { reject(tx.error || new Error("abortada")); };
@@ -139,5 +173,5 @@
     } catch (_) { return null; }
   }
 
-  window.OCEstadoIDB = { guardar: guardarAgrupado, guardarYa: guardar, leer: leer, espacio: espacio, soportado: SOPORTADO };
+  window.OCEstadoIDB = { guardar: guardarAgrupado, guardarYa: guardarYa, leer: leer, espacio: espacio, soportado: SOPORTADO };
 })();

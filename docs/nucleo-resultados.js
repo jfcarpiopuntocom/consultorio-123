@@ -27,7 +27,7 @@
 
   function leerGastos() {
     try {
-      var g = JSON.parse(localStorage.getItem(KEY) || "null") || {};
+      var g = global.OCSync ? (global.OCSync.leerDatos('gastosFijos')[0] || {}) : JSON.parse(localStorage.getItem(KEY) || "null") || {};
       var limpio = {};
       CAMPOS.forEach(function (c) { limpio[c] = +(Number(g[c]) || 0).toFixed(2); });
       return limpio;
@@ -41,8 +41,8 @@
   function guardarGastos(gastos) {
     var limpio = {};
     CAMPOS.forEach(function (c) { limpio[c] = +(Number(gastos[c]) || 0).toFixed(2); });
-    try { localStorage.setItem(KEY, JSON.stringify(limpio)); } catch (_) {}
-    return limpio;
+    if (!global.OCSync) return Promise.reject(new Error('El almacenamiento no está disponible.'));
+    return global.OCSync.guardarDatos('gastosFijos', [{ id: 'gastos-fijos', ...limpio }]).then(function () { return limpio; });
   }
 
   function totalGastosFijos(gastos) {

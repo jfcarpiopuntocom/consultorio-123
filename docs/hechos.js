@@ -76,7 +76,7 @@
   var DB_NAME = "c123_hechos_db";
   var DB_NAME_VIEJA_COMPARTIDA = "amg_hechos_db";
   var MIGRACION_KEY = "c123_hechos_migrado_v1";
-  var DB_VERSION = 1;
+  var DB_VERSION = 2;
   var STORE = "hechos";
   var META_KEY = "c123_hechos_meta_v1";   // contador local + reloj + ultimo hash
 
@@ -184,6 +184,7 @@
       var req = global.indexedDB.open(nombre, DB_VERSION);
       req.onupgradeneeded = function (e) {
         var db = e.target.result;
+        if (!db.objectStoreNames.contains('conflictos')) db.createObjectStore('conflictos', { keyPath: 'id', autoIncrement: true });
         if (!db.objectStoreNames.contains(STORE)) {
           // keyPath "id" = "<instanceId>-<contador>". Dos dispositivos NUNCA
           // generan el mismo id sin haberse coordinado, asi que la fusion no
@@ -248,9 +249,10 @@
     return abrirDB().then(function (db) {
       return new Promise(function (resolve, reject) {
         var tx = db.transaction(STORE, "readwrite");
-        tx.objectStore(STORE).put(hecho);
+        (Array.isArray(hecho) ? hecho : [hecho]).forEach(function (h) { tx.objectStore(STORE).add(h); });
         tx.oncomplete = function () { resolve(hecho); };
         tx.onerror = function () { reject(tx.error); };
+        tx.onabort = function () { reject(tx.error || new Error('No se guardó el movimiento.')); };
       });
     });
   }
@@ -261,54 +263,93 @@
   var _cola = Promise.resolve();   // serializa: la cadena de hash no admite carreras
 
   function registrar(tipo, datos) {
-    _cola = _cola.then(function () {
-      var meta = leerMeta();
-      var yo = instanceId();
-
-      meta.contador += 1;
-      // Reloj vectorial: cuantos hechos conoce este dispositivo de cada uno.
-      // Comparando dos relojes se sabe, SIN depender de la hora del celular,
-      // si un hecho paso antes que otro o si fueron concurrentes. Importa
-      // porque un telefono con la fecha mal puesta arruinaria cualquier orden
-      // basado en ts; ts queda solo para mostrarle algo legible al usuario.
-      meta.reloj[yo] = meta.contador;
-
-      var hecho = {
-        id: yo + "-" + meta.contador,
-        instanceId: yo,
-        autor: autorActual(),
-        reloj: JSON.parse(JSON.stringify(meta.reloj)),
-        ts: Date.now(),
-        tipo: String(tipo || "desconocido"),
-        datos: datos == null ? {} : datos,
-        hashPrevio: meta.ultimoHash,
-        hash: ""
-      };
-
-      // El hash cubre todo el hecho MENOS el propio campo hash.
-      var base = JSON.stringify({
-        id: hecho.id, instanceId: hecho.instanceId, autor: hecho.autor,
-        reloj: hecho.reloj, ts: hecho.ts, tipo: hecho.tipo,
-        datos: hecho.datos, hashPrevio: hecho.hashPrevio
-      });
-
-      return calcularHash(base).then(function (h) {
-        hecho.hash = h;
-        meta.ultimoHash = h;
-        return guardar(hecho).then(function () {
-          // La meta se persiste SOLO si el hecho llego a disco. Al reves se
-          // perderia un eslabon de la cadena y todo lo siguiente pareceria
-          // manipulado sin serlo.
-          guardarMeta(meta);
-          return hecho;
-        });
-      });
-    }).catch(function (e) {
-      // Fase A nunca puede tumbar la app: si algo falla, se anota y se sigue.
-      try { console.warn("[hechos] no se pudo registrar:", e && e.message); } catch (_) {}
-      return null;
+    return registrarLote([{ tipo: tipo, datos: datos == null ? {} : datos }]).then(function (lista) { return lista[0]; });
+  }
+  function registrarLote(entradas) {
+    var copia;
+    try {
+      copia = JSON.parse(JSON.stringify(entradas));
+      if (!Array.isArray(copia) || !copia.length || copia.some(function (r) { return !r || !r.tipo || !r.datos; })) throw new Error('Movimientos inválidos.');
+    } catch (error) { return Promise.reject(error); }
+    async function escribirLote() {
+      var meta = leerMeta(), yo = instanceId(), lista = [];
+      // Recover the committed chain if a browser closed between IDB commit
+      // and the optional localStorage metadata write.
+      var propios = (await todos()).filter(function (h) { return h.instanceId === yo; });
+      propios.sort(function (a,b) { return (Number(a.reloj && a.reloj[yo]) || 0) - (Number(b.reloj && b.reloj[yo]) || 0); });
+      if (propios.length) {
+        var ultimo = propios[propios.length - 1];
+        meta.contador = Math.max(meta.contador, Number(ultimo.reloj && ultimo.reloj[yo]) || 0);
+        meta.ultimoHash = ultimo.hash;
+      }
+      for (var entrada of copia) {
+        meta.contador++; meta.reloj[yo] = meta.contador;
+        var h = { id: yo + '-' + (global.crypto && global.crypto.randomUUID ? global.crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)) + '-' + meta.contador,
+          instanceId: yo, autor: autorActual(), reloj: JSON.parse(JSON.stringify(meta.reloj)), ts: Date.now(), tipo: String(entrada.tipo), datos: entrada.datos, hashPrevio: meta.ultimoHash, hash: '' };
+        h.hash = await calcularHash(textoHash(h)); meta.ultimoHash = h.hash; lista.push(h);
+      }
+      await guardar(lista); guardarMeta(meta);
+      lista.forEach(function (h) { try { global.dispatchEvent(new CustomEvent('oc-hecho-local', { detail: h })); } catch (_) {} });
+      return lista;
+    }
+    var operacion = _cola.then(function () {
+      return global.navigator && global.navigator.locks ? global.navigator.locks.request('c123-hechos-write', escribirLote) : escribirLote();
     });
-    return _cola;
+    // Keep the queue usable, but never turn a failed payment into success.
+    _cola = operacion.catch(function () {});
+    return operacion;
+  }
+
+  function textoHash(h) {
+    return JSON.stringify({ id: h.id, instanceId: h.instanceId, autor: h.autor,
+      reloj: h.reloj, ts: h.ts, tipo: h.tipo, datos: h.datos, hashPrevio: h.hashPrevio });
+  }
+  async function validarImportacion(lista) {
+    if (!Array.isArray(lista)) throw new Error('Registro financiero inválido.');
+    var actuales = new Map((await todos()).map(function (h) { return [h.id, h]; }));
+    var ids = new Set();
+    for (var h of lista) {
+      if (!h || typeof h.id !== 'string' || !h.id || ids.has(h.id) || !Number.isFinite(h.ts)) throw new Error('Movimiento inválido o repetido.');
+      ids.add(h.id);
+      var anterior = actuales.get(h.id);
+      if ((await calcularHash(textoHash(h))) !== h.hash && hashDebil(textoHash(h)) !== h.hash) throw new Error('Hash financiero inválido.');
+      if (anterior && (textoHash(anterior) !== textoHash(h) || anterior.hash !== h.hash)) throw new Error('Conflicto financiero en respaldo.');
+    }
+  }
+  async function importarRemoto(entrada) {
+    var h = JSON.parse(JSON.stringify(entrada));
+    if (!h || typeof h.id !== 'string' || !h.id || typeof h.hash !== 'string' || !h.hash || !h.tipo || !Number.isFinite(h.ts)) throw new Error('Hecho inválido.');
+    var huella = await calcularHash(textoHash(h));
+    var valido = huella === h.hash || hashDebil(textoHash(h)) === h.hash;
+    var db = await abrirDB();
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction([STORE, 'conflictos'], 'readwrite'), error = null, insertado = false;
+      var st = tx.objectStore(STORE), req = st.get(h.id);
+      req.onsuccess = function () {
+        var archivo = global.OCSync && global.OCSync.recuperacionLocal ? global.OCSync.recuperacionLocal().hechos : [];
+        var anterior = req.result || (archivo || []).find(function (x) { return x.id === h.id; });
+        if (!valido || (anterior && (anterior.hash !== h.hash || textoHash(anterior) !== textoHash(h)))) {
+          error = new Error('Conflicto de integridad: movimiento conservado sin sobrescribir.');
+          tx.objectStore('conflictos').put({ id: h.id + ':' + huella, hechoId: h.id, anterior: anterior || null, recibido: h });
+        } else if (!anterior) { st.add(h); insertado = true; }
+      };
+      tx.oncomplete = function () {
+        if (error) {
+          try { global.dispatchEvent(new CustomEvent('oc-integridad-conflicto')); } catch (_) {}
+          reject(error); return;
+        }
+        if (insertado) { try { global.dispatchEvent(new CustomEvent('oc-hecho-remoto', { detail: { id: h.id, tipo: h.tipo } })); } catch (_) {} }
+        resolve({ ok: true, insertado: insertado });
+      };
+      tx.onerror = tx.onabort = function () { reject(tx.error || new Error('No se guardó el movimiento remoto.')); };
+    });
+  }
+  async function conflictos() {
+    var db = await abrirDB();
+    return new Promise(function (resolve, reject) {
+      var req = db.transaction('conflictos', 'readonly').objectStore('conflictos').getAll();
+      req.onsuccess = function () { resolve(req.result); }; req.onerror = function () { reject(req.error); };
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -325,7 +366,16 @@
           // lista. Sin desempate por id, dos replicas podrian discrepar.
           var r = (req.result || []).slice();
           r.sort(function (a, b) { return (a.ts - b.ts) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0); });
-          resolve(r);
+          var archivo = global.OCSync && global.OCSync.recuperacionLocal ? global.OCSync.recuperacionLocal().hechos : [];
+          var union = new Map(r.map(function (h) { return [h.id, h]; }));
+          var conflicto = false;
+          (archivo || []).forEach(function (h) {
+            var previo = union.get(h.id);
+            if (previo && (previo.hash !== h.hash || textoHash(previo) !== textoHash(h))) { conflicto = true; return; }
+            union.set(h.id, h);
+          });
+          if (conflicto) { reject(new Error('Conflicto en archivo financiero.')); return; }
+          resolve(Array.from(union.values()).sort(function (a,b) { return a.ts - b.ts || a.id.localeCompare(b.id); }));
         };
         req.onerror = function () { reject(req.error); };
       });
@@ -333,14 +383,7 @@
   }
 
   function contar() {
-    return abrirDB().then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var tx = db.transaction(STORE, "readonly");
-        var req = tx.objectStore(STORE).count();
-        req.onsuccess = function () { resolve(req.result || 0); };
-        req.onerror = function () { reject(req.error); };
-      });
-    });
+    return todos().then(function (lista) { return lista.length; });
   }
 
   // Verifica la cadena de hash de ESTE dispositivo. Devuelve el primer punto
@@ -385,7 +428,9 @@
       if (!evt) return;
       var nombre = evt.type || evt.nombre || evt.name;
       if (!esHecho(nombre)) return;
-      registrar(String(nombre).replace(/:completado$/, ""), evt.payload || evt.detail || {});
+      registrar(String(nombre).replace(/:completado$/, ""), evt.payload || evt.detail || {}).catch(function () {
+        try { global.dispatchEvent(new CustomEvent('oc-hecho-error')); } catch (_) {}
+      });
     } catch (_) {}
   }
 
@@ -403,6 +448,10 @@
   global.AMG.Hechos = {
     VERSION: "1.0.0-faseA",
     registrar: registrar,
+    registrarLote: registrarLote,
+    importarRemoto: importarRemoto,
+    validarImportacion: validarImportacion,
+    conflictos: conflictos,
     todos: todos,
     contar: contar,
     verificarCadena: verificarCadena,

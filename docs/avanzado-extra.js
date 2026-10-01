@@ -590,9 +590,9 @@
           document.body.appendChild(m);
           document.getElementById("oc-merge-x").addEventListener("click", cerrarModal);
           const ok = document.getElementById("oc-merge-ok");
-          if (ok) ok.addEventListener("click", function () {
+          if (ok) ok.addEventListener("click", async function () {
             ok.disabled = true;
-            const r = window.OCSync.aplicarCatalogo(cat, rolRemoto);
+            const r = await window.OCSync.aplicarCatalogo(cat, rolRemoto);
             const msg = document.getElementById("oc-merge-msg");
             if (!r.ok) { msg.style.color = "var(--rojo,#a3392a)"; msg.textContent = r.error; ok.disabled = false; return; }
             msg.style.color = "var(--sim-verde-dk,#1a6e3c)";

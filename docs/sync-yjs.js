@@ -338,6 +338,7 @@
      aplicarCatalogo alimenta la lista de micelio (OCMicelio.recibir) para que el
      dueño vea sus aparatos en Advanced. Va en el batch: es diminuto. */
   var COLECCIONES_BATCH = ["productos", "ubicaciones", "usuarios", "clientes", "promotoras", "sucursales", "dispositivos", "categorias"]; // categorias (v344): propias vacias y ocultas, con rev y lapida
+  ['tarifario', 'inventarioClinico', 'gastosFijos', 'identidad'].forEach(function (col) { COLECCIONES.push(col); COLECCIONES_BATCH.push(col); });
   var API = {
     estado: "apagado", doc: null, mapas: {}, clave: null, ws: null, bc: null, roomId: null, colecciones: COLECCIONES,
     // API genérica por colección (probar convergencia a mano o desde código).
@@ -478,7 +479,7 @@
       if (!h || !h.id || !API.hechosMap) return;
       var anterior = API.hechosMap.get(h.id);
       if (anterior && JSON.stringify(anterior) !== JSON.stringify(h)) {
-        log("colision de hecho financiero:", h.id); return;
+        hechos().importarRemoto(anterior).catch(function () {}); return;
       }
       if (!anterior) API.hechosMap.set(h.id, h);
     }
@@ -488,12 +489,12 @@
       if (importando) { pendiente = true; return; }
       importando = true;
       var lista = [];
-      API.hechosMap.forEach(function (h) { if (h && h.id && !conocidos[h.id]) lista.push(h); });
+      API.hechosMap.forEach(function (h) { if (h && h.id && conocidos[h.id] !== JSON.stringify(h)) lista.push(h); });
       Promise.allSettled(lista.map(function (h) { return ledger.importarRemoto(h); }))
         .then(function (resultados) {
           resultados.forEach(function (r, i) {
             if (r.status === "rejected") log("hecho remoto rechazado:", r.reason && r.reason.message);
-            else conocidos[lista[i].id] = true;
+            else conocidos[lista[i].id] = JSON.stringify(lista[i]);
           });
         }).finally(function () {
           importando = false;
@@ -503,8 +504,8 @@
     function arrancarPuente() {
       var ledger = hechos();
       if (!ledger) { if (++intentos < 20) setTimeout(arrancarPuente, 100); return; }
-      window.addEventListener("oc-hecho-local", function (ev) { if (ev.detail && ev.detail.id) conocidos[ev.detail.id] = true; publicar(ev.detail); });
-      ledger.todos().then(function (lista) { lista.forEach(function (h) { conocidos[h.id] = true; publicar(h); }); importar(); })
+      window.addEventListener("oc-hecho-local", function (ev) { if (ev.detail && ev.detail.id) conocidos[ev.detail.id] = JSON.stringify(ev.detail); publicar(ev.detail); });
+      ledger.todos().then(function (lista) { lista.forEach(function (h) { conocidos[h.id] = JSON.stringify(h); publicar(h); }); importar(); })
         .catch(function (e) { log("hechos locales:", e && e.message); });
       API.doc.on("update", function (_update, origin) {
         if (origin === "red" || origin === "bc" || origin === "idb") importar();
@@ -713,6 +714,7 @@
       return;
     }
     var _aplicando = false;   // guard: no re-volcar mientras aplicamos al store
+    var _aplicarPendiente = false;
     var _tSeed = null, _tAplica = null;
 
     // store -> Yjs. Add/update por id; nunca borra del Y.Map (add-only también
@@ -732,6 +734,11 @@
               if (!r || r.id == null) return;
               var k = String(r.id);
               var prev = API.mapas[col].get(k);
+              if (cat.canonicalVersion === 1 && window.OCSyncDomain && col !== 'dispositivos') {
+                var joined = window.OCSyncDomain.mergeShared(prev || null, r, col);
+                if (!prev || JSON.stringify(prev) !== JSON.stringify(joined)) API.mapas[col].set(k, joined);
+                return;
+              }
               if (prev && col === "ubicaciones") {
                 var ar = r.gastoMensualRev || {}, br = prev.gastoMensualRev || {};
                 var newerMonthly = (Number(ar.c) || 0) > (Number(br.c) || 0) ||
@@ -825,11 +832,11 @@
 
     // Yjs -> store. Reconstruye el catálogo desde los Y.Map y llama al merge
     // add-only probado. Síncrono: aplicarCatalogo no es async.
-    function aplicar() {
-      if (_aplicando) return;
+    async function aplicar() {
+      if (_aplicando) { _aplicarPendiente = true; return; }
       // Genérico sobre COLECCIONES: agregar una colección nueva (promotoras,
       // sucursales…) es una sola línea allá arriba, aquí ya viaja sola.
-      var remoto = { nombreNegocio: API.meta.get("nombreNegocio") || "", nombreNegocioTs: Number(API.meta.get("nombreTs")) || 0, nombreNegocioRev: Number(API.meta.get("nombreRev")) || 0, pinsRol: API.meta.get("pinsRol") || null, deviceNombre: "sync" };
+      var remoto = { canonicalVersion: 1, nombreNegocio: API.meta.get("nombreNegocio") || "", nombreNegocioTs: Number(API.meta.get("nombreTs")) || 0, nombreNegocioRev: Number(API.meta.get("nombreRev")) || 0, pinsRol: API.meta.get("pinsRol") || null, deviceNombre: "sync" };
       var hay = false;
       COLECCIONES.forEach(function (c) { remoto[c] = valores(c); if (remoto[c].length) hay = true; });
       // #2 (fix 2026-09-10): un update de SOLO el nombre (o pinsRol) también debe
@@ -843,14 +850,14 @@
       var rolRemoto = (API.meta.get("nombreEsDueno") === true) ? "dueno" : null;
       _aplicando = true;
       try {
-        var r = window.OCSync.aplicarCatalogo(remoto, rolRemoto);
+        var r = await window.OCSync.aplicarCatalogo(remoto, rolRemoto);
         // A2/A3 (JFC 2026-09-10): si el merge sumó algo, avisar a la UI para que
         // (a) lo muestre como alerta dentro de "Today's alerts", no como banner
         // suelto, y (b) re-pinte la vista Hoy (si no, el hero se queda en
         // "Loading your business..."). La UI escucha oc-sync-merge en index.html.
         // v289: incluir r.actualizados -> una actualizacion SOLO de stock/precio
         // (sin altas) tambien re-pinta la UI: es el refresco "en segundos" del CDC.
-        if (r && r.ok && (r.agregadasU || r.agregadosP || r.actualizados || r.ventasAgregadas || r.miembrosAgregados || r.clientesAgregados || r.promotorasAgregadas || r.sucursalesAgregadas)) {
+        if (r && r.ok && (r.agregadasU || r.agregadosP || r.actualizados || r.ventasAgregadas || r.miembrosAgregados || r.miembrosActualizados || r.miembrosQuitados || r.clientesAgregados || r.promotorasAgregadas || r.sucursalesAgregadas)) {
           // Una fusión de dos ledgers de stock debe volver al doc de inmediato;
           // esperar al barrido de 2 s dejaría a un tercer aparato con una sola venta.
           setTimeout(sembrar, 0);
@@ -865,12 +872,16 @@
       }
       catch (e) { log("aplicar:", e && e.message); }
       _aplicando = false;
+      if (_aplicarPendiente) { _aplicarPendiente = false; setTimeout(aplicar, 0); }
     }
     function valores(col) { var o = API.get(col), a = []; for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) a.push(o[k]); return a; }
 
     // Cambios locales del catálogo / equipo -> re-volcar a Yjs (con rebote).
     // Son las MISMAS señales que escucha el sync casero (mock-backend las emite).
-    function pedirSeed() { clearTimeout(_tSeed); _tSeed = setTimeout(sembrar, 400); }
+    function pedirSeed() {
+      if (_tSeed !== null) return;
+      _tSeed = setTimeout(function () { _tSeed = null; sembrar(); }, 100);
+    }
     window.addEventListener("oc-catalogo-cambiado", pedirSeed);
     window.addEventListener("oc-equipo-cambiado", pedirSeed);
 
@@ -891,7 +902,7 @@
     // Arranque: cuando IndexedDB termina de cargar, primero APLICAMOS lo que ya
     // había guardado localmente (por si este aparato arrancó offline) y luego
     // SEMBRAMOS lo local que aún no esté en Yjs. Ambos son idempotentes.
-    function primerCruce() { aplicar(); sembrar(); }
+    function primerCruce() { aplicar().then(sembrar); }
     if (API.idb && typeof API.idb.on === "function") API.idb.once ? API.idb.once("synced", primerCruce) : API.idb.on("synced", primerCruce);
     else setTimeout(primerCruce, 800);
     // Red de seguridad si "synced" no llega (idb deshabilitado en algún navegador).

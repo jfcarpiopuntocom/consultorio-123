@@ -45,6 +45,7 @@
   ];
 
   function leer() {
+    if (global.OCSync && global.OCSync.datosInicializados('tarifario')) return global.OCSync.leerDatos('tarifario');
     try {
       var v = JSON.parse(localStorage.getItem(LLAVE) || "null");
       if (Array.isArray(v) && v.length) return v;
@@ -53,7 +54,8 @@
   }
 
   function guardar(lista) {
-    try { localStorage.setItem(LLAVE, JSON.stringify(lista)); } catch (_) {}
+    if (!global.OCSync) return Promise.reject(new Error('El almacenamiento no está disponible.'));
+    return global.OCSync.guardarDatos('tarifario', lista);
   }
 
   function fmt(n) {
@@ -205,22 +207,19 @@
       b.addEventListener("click", function () {
         var l = recolectar(lista);
         l.splice(Number(b.dataset.borrar), 1);
-        guardar(l.length ? l : SEMILLA.slice());
-        pintarEditor(leer());
+        guardar(l).then(function () { pintarEditor(leer()); }).catch(function (e) { alert(e.message); });
       });
     });
     caja.querySelector("#at-agregar").addEventListener("click", function () {
       var l = recolectar(lista);
       l.push({ id: "s" + Date.now().toString(36), nombre: "Servicio nuevo", tarifa: 0 });
-      guardar(l);
-      pintarEditor(leer());
+      guardar(l).then(function () { pintarEditor(leer()); }).catch(function (e) { alert(e.message); });
     });
     caja.querySelector("#at-cancelar").addEventListener("click", function () {
       editando = false; pintar();
     });
     caja.querySelector("#at-guardar-tarifas").addEventListener("click", function () {
-      guardar(recolectar(lista));
-      editando = false; pintar();
+      guardar(recolectar(lista)).then(function () { editando = false; pintar(); }).catch(function (e) { alert(e.message); });
     });
   }
 
@@ -236,6 +235,7 @@
   }
 
   pintar();
+  global.addEventListener('oc-sync-merge', function () { if (!editando) pintar(); });
 
   global.AMG = global.AMG || {};
   global.AMG.Atenciones = { VERSION: "1.0.0", tarifario: leer, guardarTarifario: guardar };

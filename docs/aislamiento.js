@@ -411,17 +411,30 @@
   try {
     if (window.indexedDB && typeof window.indexedDB.open === "function") {
       var abrirNativo = window.indexedDB.open.bind(window.indexedDB);
-      window.indexedDB.open = function (nombre, version) {
-        var n = (typeof nombre === "string" && nombre.indexOf(PREFIJO) !== 0) ? PREFIJO + nombre : nombre;
+      var abrirAislado = function (nombre, version) {
+        var n = String(nombre);
+        if (n.indexOf(PREFIJO) !== 0) n = PREFIJO + n;
         return (version === undefined) ? abrirNativo(n) : abrirNativo(n, version);
       };
-      abrirNativoOriginal = window.indexedDB.open;
+      // Keep the namespace boundary effective if a later script assigns open.
+      Object.defineProperty(window.indexedDB, "open", {
+        configurable: false,
+        get: function () { return abrirAislado; },
+        set: function () { /* An assignment cannot remove app isolation. */ }
+      });
+      abrirNativoOriginal = abrirAislado;
       if (typeof window.indexedDB.deleteDatabase === "function") {
         var borrarNativo = window.indexedDB.deleteDatabase.bind(window.indexedDB);
-        window.indexedDB.deleteDatabase = function (nombre) {
-          var n = (typeof nombre === "string" && nombre.indexOf(PREFIJO) !== 0) ? PREFIJO + nombre : nombre;
+        var borrarAislado = function (nombre) {
+          var n = String(nombre);
+          if (n.indexOf(PREFIJO) !== 0) n = PREFIJO + n;
           return borrarNativo(n);
         };
+        Object.defineProperty(window.indexedDB, "deleteDatabase", {
+          configurable: false,
+          get: function () { return borrarAislado; },
+          set: function () { /* Preserve the same boundary for deletion. */ }
+        });
       }
     }
   } catch (_) {}
@@ -435,9 +448,20 @@
   // avisa FUERTE en vez de callar, igual que el canario de localStorage.
   var idbInstalado = true;
   try {
-    idbInstalado = !!(window.indexedDB && window.indexedDB.open !== abrirNativoOriginal);
+    idbInstalado = !!(abrirNativoOriginal && window.indexedDB && window.indexedDB.open === abrirNativoOriginal);
   } catch (_) { idbInstalado = false; }
   if (!idbInstalado && window.indexedDB) {
+    // Fail closed: do not let later modules open a sister app's raw stores.
+    var bloquearIDB = function () { throw new Error('Almacenamiento bloqueado: no se pudo establecer el aislamiento.'); };
+    Object.defineProperty(window, 'indexedDB', { configurable: false, value: Object.freeze({ open: bloquearIDB, deleteDatabase: bloquearIDB }) });
+    var avisarIDB = function () {
+      if (document.getElementById('c123-aislamiento-error')) return;
+      var el = document.createElement('div'); el.id = 'c123-aislamiento-error'; el.setAttribute('role','alert');
+      el.style.cssText = 'position:fixed;inset:0 0 auto;z-index:2147483647;padding:20px;background:#7A1631;color:#FFFFFF;font-size:17px;font-weight:700;';
+      el.textContent = 'No se pudo aislar el almacenamiento. Los cambios están bloqueados para proteger tus datos. Cierra las otras pestañas y vuelve a abrir Consultorio.';
+      (document.body || document.documentElement).appendChild(el);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avisarIDB); else avisarIDB();
     try { console.error("[aislamiento] SIN AISLAMIENTO DE IndexedDB: algo pisó window.indexedDB.open despues de aislamiento.js. Las apps hermanas podrian compartir bases de datos."); } catch (_) {}
   }
 
